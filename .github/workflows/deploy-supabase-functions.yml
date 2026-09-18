@@ -1,0 +1,56 @@
+# Deploy Edge Functions quando o CLI local retorna 403 (Management API).
+# GitHub → Settings → Secrets → SUPABASE_ACCESS_TOKEN (sbp_... da conta Owner)
+# Sem `uses:` de marketplace — evita falso positivo do validador offline do IDE.
+
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_ID: ifaiagegyicjzlpskafh
+
+    steps:
+      - name: Checkout repository
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REF: ${{ github.sha }}
+        run: |
+          git init
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${REPOSITORY}.git"
+          git fetch --depth 1 origin "${REF}"
+          git checkout FETCH_HEAD
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL -o supabase.tgz "https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz"
+          tar -xzf supabase.tgz
+          sudo mv supabase /usr/local/bin/supabase
+          supabase --version
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_ID" --yes
+
+      - name: Deploy all functions (no JWT on sync jobs)
+        run: |
+          supabase functions deploy sync-pncp-pca --no-verify-jwt
+          supabase functions deploy import-catmat-curadoria --no-verify-jwt
+          supabase functions deploy sync-pncp-legislation --no-verify-jwt
+          supabase functions deploy sync-pncp-contratacoes-editais --no-verify-jwt
+          supabase functions deploy sync-pncp-contratacoes-atas --no-verify-jwt
+          supabase functions deploy sync-pncp-contratacoes-contratos --no-verify-jwt
+          supabase functions deploy sync-pncp-catalogo --no-verify-jwt
+          supabase functions deploy sync-pncp-irp --no-verify-jwt
+          supabase functions deploy api-pncp-pca --no-verify-jwt
+          supabase functions deploy api-pncp-legislacao --no-verify-jwt
+          supabase functions deploy api-pncp-contratacoes --no-verify-jwt
+          supabase functions deploy api-pncp-irp --no-verify-jwt
+          supabase functions deploy calculate-distance-webrouter --no-verify-jwt

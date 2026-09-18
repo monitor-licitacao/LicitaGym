@@ -1,6 +1,6 @@
 # Supabase local — licitagym PNCP
-# Nota: [functions] quebra o parser legacy do CLI 2.117 neste ambiente;
-# use `supabase functions deploy --no-verify-jwt` para sync jobs, ou configure no dashboard.
+# Ref: https://supabase.com/docs/guides/local-development/cli/config
+# Após editar: npx supabase stop && npx supabase start (ou db reset)
 
 project_id = "licitagym"
 
@@ -14,8 +14,40 @@ max_rows = 1000
 
 [db]
 port = 54322
-major_version = 15
+shadow_port = 54320
+# Windows + 13 migrations PNCP: timeout generoso no health check
 health_timeout = "5m"
+# Alinhar com o Postgres remoto (SHOW server_version; no projeto linkado)
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+# Sem seed.sql ainda — curadoria CATMAT via import-catmat-curadoria (JSON)
+enabled = false
+sql_paths = []
+
+[db.network_restrictions]
+enabled = false
+allowed_cidrs = ["0.0.0.0/0"]
+allowed_cidrs_v6 = ["::/0"]
+
+[db.settings]
+# Sync PNCP / upserts em lote — evita cancelamento prematuro em dev local
+statement_timeout = "10min"
+# pg_cron + pg_net (migration 008) e jobs de sync
+max_worker_processes = 16
+work_mem = "32MB"
+maintenance_work_mem = "128MB"
 
 [studio]
 enabled = true
@@ -32,3 +64,6 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
+
+# Edge Functions: deploy com --no-verify-jwt para sync jobs (Bearer SYNC_CRON_SECRET).
+# Local: npx supabase functions serve --no-verify-jwt --env-file supabase/.env.functions.local

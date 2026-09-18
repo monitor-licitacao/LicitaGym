@@ -77,6 +77,39 @@ foreach ($f in $fn) {
 
 APIs de leitura (`api-pncp-*`) podem exigir JWT do app — se o front usar Supabase Auth, remova `--no-verify-jwt` só nessas após testar.
 
+Script:
+
+```powershell
+.\scripts\deploy-functions.ps1 -UseApi -Debug
+```
+
+### 403 — `list functions` / `necessary privileges`
+
+`db push` e `secrets set` podem funcionar enquanto **functions deploy** retorna 403. Isso é permissão na **Management API** (org/role), não erro nas migrations.
+
+1. **Dashboard → Edge Functions** — a página abre? Se também der 403, o problema é role na org `xtqywunwrnembbtqnxtt`, não o CLI.
+2. **Organization → Team** — sua conta precisa ser **Owner** ou **Admin** (Developer às vezes não inclui deploy de functions).
+3. **Re-login explícito:**
+   ```powershell
+   npx supabase login --token sbp_...
+   npx supabase functions deploy sync-pncp-pca --project-ref ifaiagegyicjzlpskafh --no-verify-jwt --use-api --debug
+   ```
+4. **CLI mais recente:** `npx supabase@latest functions deploy ...`
+5. **Sem “Connect GitHub” no Dashboard** — use **GitHub Actions** no repo:
+   - GitHub → repo `LicitaGym` → Settings → Secrets → `SUPABASE_ACCESS_TOKEN` = `sbp_...` (Owner)
+   - Workflow: `.github/workflows/deploy-supabase-functions.yml`
+   - Actions → **Deploy Supabase Edge Functions** → Run workflow
+6. **MCP Supabase no Cursor** — Settings → MCP → supabase → Login → pedir ao agente deploy via MCP.
+7. **Dashboard só tem Editor / CLI / AI** — Editor/AI serve para **1 function** de teste; PNCP usa `_shared/` → não escala. Prefira CLI corrigido ou Actions.
+8. **CLI local — limpar token que sobrescreve o login:**
+   ```powershell
+   Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
+   npx supabase logout
+   npx supabase login
+   npx supabase functions deploy sync-pncp-pca --project-ref ifaiagegyicjzlpskafh --no-verify-jwt --use-api
+   ```
+9. Persistindo → [Supabase Support](https://supabase.com/dashboard/support/new) (bug CLI #4802).
+
 ## 5. Smoke tests (remoto)
 
 Substitua `<REF>` e `<SECRET>`:
