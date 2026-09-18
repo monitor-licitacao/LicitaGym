@@ -1,4 +1,4 @@
-import { withRetry } from "./retry.ts";
+import { fetchWithTimeout, withRetry } from "./retry.ts";
 
 const DEFAULT_SEARCH_BASE = "https://pncp.gov.br/api/search";
 
@@ -50,11 +50,20 @@ export class PncpSearchClient {
     if (params.ano) url.searchParams.set("anos", String(params.ano));
 
     const response = await withRetry(async () => {
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (res.status === 429 || res.status >= 500) {
-        throw new Error(`PNCP search HTTP ${res.status}`);
+      try {
+        const res = await fetchWithTimeout(url, {
+          headers: { Accept: "application/json" },
+        });
+        if (res.status === 429 || res.status >= 500) {
+          throw new Error(`PNCP search HTTP ${res.status}`);
+        }
+        return res;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "TimeoutError") {
+          throw new Error("PNCP search timeout (45s)");
+        }
+        throw error;
       }
-      return res;
     });
     if (!response.ok) {
       throw new Error(`PNCP search HTTP ${response.status}`);

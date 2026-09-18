@@ -1,3 +1,16 @@
+const DEFAULT_FETCH_TIMEOUT_MS = 45_000;
+
+export async function fetchWithTimeout(
+  input: string | URL,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  return await fetch(input, {
+    ...init,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxAttempts = 3,

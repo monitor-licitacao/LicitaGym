@@ -2,6 +2,8 @@
 param(
   [int]$Ano = (Get-Date).Year,
   [int]$MaxPaginas = 100,
+  [int]$PaginaInicial = 1,
+  [int]$TamanhoPagina = 20,
   [string[]]$CodigosClassificacao = @("7830"),
   [switch]$SomenteVerificacao,
   [switch]$Forcar,
@@ -23,6 +25,8 @@ $body = @{
   ano                   = $Ano
   codigos_classificacao = $CodigosClassificacao
   max_paginas           = $MaxPaginas
+  pagina_inicial        = $PaginaInicial
+  tamanho_pagina        = $TamanhoPagina
 }
 if ($SomenteVerificacao) { $body.somente_verificacao = $true }
 if ($Forcar) { $body.forcar = $true }
@@ -36,7 +40,7 @@ try {
       "Content-Type"  = "application/json"
     } `
     -Body ($body | ConvertTo-Json) `
-    -TimeoutSec 600 `
+    -TimeoutSec 180 `
     -UseBasicParsing
 
   $json = $response.Content | ConvertFrom-Json

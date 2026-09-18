@@ -1,4 +1,4 @@
-import { withRetry } from "./retry.ts";
+import { fetchWithTimeout, withRetry } from "./retry.ts";
 
 const DEFAULT_BASE = "https://pncp.gov.br/api/consulta/v1";
 
@@ -55,11 +55,20 @@ export class PncpConsultaClient {
     const url = this.buildUrl(path, params);
     const started = Date.now();
     const response = await withRetry(async () => {
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (res.status === 429 || res.status >= 500) {
-        throw new Error(`PNCP consulta HTTP ${res.status}`);
+      try {
+        const res = await fetchWithTimeout(url, {
+          headers: { Accept: "application/json" },
+        });
+        if (res.status === 429 || res.status >= 500) {
+          throw new Error(`PNCP consulta HTTP ${res.status}`);
+        }
+        return res;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "TimeoutError") {
+          throw new Error("PNCP consulta timeout (45s)");
+        }
+        throw error;
       }
-      return res;
     });
     const body = await this.parseBody<T>(response);
     return { status: response.status, body, elapsedMs: Date.now() - started };

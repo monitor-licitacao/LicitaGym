@@ -1,5 +1,8 @@
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+/** Edge timeout / cliente cancelado — libera lock preso em `executando`. */
+const STALE_LOCK_MS = 3 * 60 * 1000;
+
 export async function acquireSyncLock(
   client: SupabaseClient,
   lockKey: string,
@@ -8,13 +11,22 @@ export async function acquireSyncLock(
 ): Promise<{ runId: string; alreadyRunning: boolean }> {
   const { data: existing } = await client.schema("private")
     .from("pncp_sync_run")
-    .select("id")
+    .select("id, iniciada_em")
     .eq("lock_key", lockKey)
     .eq("status", "executando")
     .maybeSingle();
 
   if (existing?.id) {
-    return { runId: existing.id as string, alreadyRunning: true };
+    const started = Date.parse(String(existing.iniciada_em ?? ""));
+    const ageMs = Number.isFinite(started) ? Date.now() - started : STALE_LOCK_MS + 1;
+    if (ageMs < STALE_LOCK_MS) {
+      return { runId: existing.id as string, alreadyRunning: true };
+    }
+    await client.schema("private").from("pncp_sync_run").update({
+      status: "falhou",
+      erro_principal: "lock expirado (executando stale)",
+      finalizada_em: new Date().toISOString(),
+    }).eq("id", existing.id);
   }
 
   const { data, error } = await client.schema("private")
