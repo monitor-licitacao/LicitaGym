@@ -1,0 +1,24 @@
+{
+  "exported_at": "2026-09-18T00:00:00.000Z",
+  "grupo_catmat": "78",
+  "classe_catmat": "7830",
+  "fonte": "compras.gov.br",
+  "itens": [
+    {
+      "codigo_catmat": "0000000000001",
+      "codigo_pdm": "7830-001",
+      "descricao": "Exemplo: halteres ajustáveis",
+      "categoria_licitagym": "musculacao",
+      "candidato_fitness": true,
+      "taxonomias": {
+        "MATERIAL": "AÇO CARBONO"
+      }
+    },
+    {
+      "codigo": "0000000000002",
+      "descricao": "Exemplo: esteira ergométrica",
+      "category": "cardio",
+      "candidate": true
+    }
+  ]
+}

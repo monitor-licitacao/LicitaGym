@@ -1,0 +1,10 @@
+.env
+.env.local
+supabase/.env
+supabase/.env.local
+supabase/.env.functions.local
+supabase/.branches
+supabase/.temp
+supabase/snippets/
+
+.cursor/

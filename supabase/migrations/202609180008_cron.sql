@@ -1,0 +1,147 @@
+-- Cron jobs via pg_cron + pg_net (credenciais no Vault em produção)
+--
+-- Pré-requisitos (Dashboard → Project Settings → Vault):
+--   sync_cron_secret              → mesmo valor de SYNC_CRON_SECRET nas Edge Functions
+--   sync_pncp_legislation_url     → https://<ref>.supabase.co/functions/v1/sync-pncp-legislation
+--   sync_pncp_pca_url             → https://<ref>.supabase.co/functions/v1/sync-pncp-pca
+--   sync_pncp_contratacoes_editais_url   → .../sync-pncp-contratacoes-editais
+--   sync_pncp_contratacoes_atas_url      → .../sync-pncp-contratacoes-atas
+--   sync_pncp_contratacoes_contratos_url → .../sync-pncp-contratacoes-contratos
+--
+-- Listar jobs:   SELECT * FROM cron.job;
+-- Remover job:   SELECT cron.unschedule('nome-do-job');
+--
+-- PCA: carga pesada (/v1/pca/ classe 7830) ~1×/ano. Entre cargas, use probe barato
+-- (Search API pcaorgao + private.pncp_period_anchor). Ver docs/pncp/architecture.md.
+
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+-- ---------------------------------------------------------------------------
+-- Legislação — a cada 6 h
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'pncp-legislation-check',
+--   '0 */6 * * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_legislation_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id; $$
+-- );
+
+-- ---------------------------------------------------------------------------
+-- PCA — probe mensal (só Search API; não chama GET /v1/pca/)
+-- Atualiza lastro em private.pncp_period_anchor; resposta inclui carga_necessaria.
+-- Cron: dia 1 de cada mês, 02:00 UTC (23:00 BRT no dia anterior)
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'pncp-pca-probe-mensal',
+--   '0 2 1 * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_pca_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := jsonb_build_object(
+--       'somente_verificacao', true,
+--       'ano', EXTRACT(YEAR FROM CURRENT_DATE)::int
+--     )
+--   ) AS request_id; $$
+-- );
+
+-- ---------------------------------------------------------------------------
+-- PCA — carga anual forçada (classe 7830 LicitaGym)
+-- Ignora gate de período; use 1×/ano após janela de publicação dos PCAs.
+-- Cron: 15/jan, 03:00 UTC (00:00 BRT)
+-- Ajuste max_paginas se necessário (500 ≈ carga completa por código).
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'pncp-pca-carga-anual',
+--   '0 3 15 1 *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_pca_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := jsonb_build_object(
+--       'forcar', true,
+--       'ano', EXTRACT(YEAR FROM CURRENT_DATE)::int,
+--       'codigos_classificacao', jsonb_build_array('7830'),
+--       'max_paginas', 500,
+--       'modo', 'completo'
+--     )
+--   ) AS request_id; $$
+-- );
+
+-- ---------------------------------------------------------------------------
+-- PCA — sync com gate automático (opcional, alternativa ao par probe + anual)
+-- Consulta Search; só dispara GET /v1/pca/ se data_atualizacao_pncp avançou.
+-- Cron: dia 1 de cada mês, 03:30 UTC
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'pncp-pca-sync-com-gate',
+--   '30 3 1 * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_pca_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := jsonb_build_object(
+--       'verificar_periodo', true,
+--       'ano', EXTRACT(YEAR FROM CURRENT_DATE)::int,
+--       'codigos_classificacao', jsonb_build_array('7830'),
+--       'max_paginas', 500
+--     )
+--   ) AS request_id; $$
+-- );
+
+-- ---------------------------------------------------------------------------
+-- Contratações — editais / atas / contratos (escalonados a cada 6 h)
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'pncp-contratacoes-editais',
+--   '0 */6 * * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_contratacoes_editais_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id; $$
+-- );
+--
+-- SELECT cron.schedule(
+--   'pncp-contratacoes-atas',
+--   '15 */6 * * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_contratacoes_atas_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id; $$
+-- );
+--
+-- SELECT cron.schedule(
+--   'pncp-contratacoes-contratos',
+--   '30 */6 * * *',
+--   $$ SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_pncp_contratacoes_contratos_url'),
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'sync_cron_secret'),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb
+--   ) AS request_id; $$
+-- );
+
+COMMENT ON EXTENSION pg_cron IS 'Agendar sync PNCP — descomente jobs após deploy e secrets no Vault';

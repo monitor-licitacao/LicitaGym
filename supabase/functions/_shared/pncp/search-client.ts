@@ -1,0 +1,112 @@
+import { withRetry } from "./retry.ts";
+
+const DEFAULT_SEARCH_BASE = "https://pncp.gov.br/api/search";
+
+export type PcaOrgaoSearchItem = {
+  orgao_cnpj?: string;
+  orgao_nome?: string;
+  ano?: string;
+  item_url?: string;
+  data_publicacao_pncp?: string;
+  data_atualizacao_pncp?: string;
+  valor_global?: number;
+};
+
+export type PcaSearchPeriodSummary = {
+  ano: number;
+  total_indexado: number;
+  amostra: number;
+  max_data_atualizacao: string | null;
+  min_data_publicacao: string | null;
+  max_data_publicacao: string | null;
+  orgaos_amostra: Array<{
+    orgao_cnpj: string;
+    orgao_nome: string;
+    data_publicacao_pncp: string | null;
+    data_atualizacao_pncp: string | null;
+  }>;
+};
+
+function parseTs(value: string | undefined): number | null {
+  if (!value) return null;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? t : null;
+}
+
+export class PncpSearchClient {
+  constructor(private baseUrl = Deno.env.get("PNCP_SEARCH_BASE") ?? DEFAULT_SEARCH_BASE) {}
+
+  async fetchPcaOrgaoPage(params: {
+    pagina?: number;
+    tamPagina?: number;
+    ano?: number;
+  }): Promise<{ items: PcaOrgaoSearchItem[]; total: number }> {
+    const url = new URL(this.baseUrl);
+    url.searchParams.set("q", "");
+    url.searchParams.set("tipos_documento", "pcaorgao");
+    url.searchParams.set("pagina", String(params.pagina ?? 1));
+    url.searchParams.set("tam_pagina", String(params.tamPagina ?? 50));
+    url.searchParams.set("ordenacao", "-data");
+    if (params.ano) url.searchParams.set("anos", String(params.ano));
+
+    const response = await withRetry(async () => {
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (res.status === 429 || res.status >= 500) {
+        throw new Error(`PNCP search HTTP ${res.status}`);
+      }
+      return res;
+    });
+    if (!response.ok) {
+      throw new Error(`PNCP search HTTP ${response.status}`);
+    }
+    const body = await response.json() as { items?: PcaOrgaoSearchItem[]; total?: number };
+    return {
+      items: body.items ?? [],
+      total: Number(body.total ?? 0),
+    };
+  }
+
+  /** Resume datas do índice Search — barato, ideal para decidir se roda carga anual. */
+  async summarizePcaPeriod(ano: number, tamPagina = 50): Promise<PcaSearchPeriodSummary> {
+    const { items, total } = await this.fetchPcaOrgaoPage({ ano, tamPagina });
+
+    let maxAtualizacao: string | null = null;
+    let maxAtualizacaoTs = -Infinity;
+    let minPublicacao: string | null = null;
+    let minPublicacaoTs = Infinity;
+    let maxPublicacao: string | null = null;
+    let maxPublicacaoTs = -Infinity;
+
+    for (const item of items) {
+      const atualTs = parseTs(item.data_atualizacao_pncp);
+      if (atualTs !== null && atualTs > maxAtualizacaoTs) {
+        maxAtualizacaoTs = atualTs;
+        maxAtualizacao = item.data_atualizacao_pncp ?? null;
+      }
+      const pubTs = parseTs(item.data_publicacao_pncp);
+      if (pubTs !== null && pubTs < minPublicacaoTs) {
+        minPublicacaoTs = pubTs;
+        minPublicacao = item.data_publicacao_pncp ?? null;
+      }
+      if (pubTs !== null && pubTs > maxPublicacaoTs) {
+        maxPublicacaoTs = pubTs;
+        maxPublicacao = item.data_publicacao_pncp ?? null;
+      }
+    }
+
+    return {
+      ano,
+      total_indexado: total,
+      amostra: items.length,
+      max_data_atualizacao: maxAtualizacao,
+      min_data_publicacao: minPublicacao,
+      max_data_publicacao: maxPublicacao,
+      orgaos_amostra: items.slice(0, 10).map((item) => ({
+        orgao_cnpj: item.orgao_cnpj ?? "",
+        orgao_nome: item.orgao_nome ?? "",
+        data_publicacao_pncp: item.data_publicacao_pncp ?? null,
+        data_atualizacao_pncp: item.data_atualizacao_pncp ?? null,
+      })),
+    };
+  }
+}

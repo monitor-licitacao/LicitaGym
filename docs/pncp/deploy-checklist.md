@@ -1,0 +1,154 @@
+# Checklist — deploy remoto PNCP (Supabase)
+
+Projeto de referência: `ifaiagegyicjzlpskafh` (ajuste se usar outro ref).
+
+## Pré-requisitos
+
+- [ ] Acesso de **Owner** ou **Admin** ao projeto Supabase (link + migrations + secrets)
+- [ ] [Supabase CLI](https://supabase.com/docs/guides/cli) instalado e logado: `npx supabase login`
+- [ ] Git na branch desejada com migrations `202609180001` … `202609180013` commitadas
+- [ ] **Novo** `SYNC_CRON_SECRET` para produção (não reutilize `dev-local-sync-secret-change-me`)
+
+## 1. Linkar o projeto
+
+```powershell
+cd C:\Users\marce\licitagym
+npx supabase link --project-ref ifaiagegyicjzlpskafh
+```
+
+Se falhar por permissão: peça acesso no Dashboard ou use SQL Editor + deploy manual de functions.
+
+## 2. Secrets das Edge Functions
+
+Copie `supabase/.env.example` → `supabase/.env.local` (local only, nunca commitar) e preencha com chaves do Dashboard → Settings → API.
+
+```powershell
+# Gere segredo forte (exemplo)
+# [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+
+npx supabase secrets set SYNC_CRON_SECRET="SEU_SEGREDO_PRODUCAO"
+# Opcional — catálogo / IRP por órgão:
+# npx supabase secrets set PNCP_INTEGRACAO_TOKEN="..."
+```
+
+Variáveis injetadas automaticamente pelo Supabase em runtime: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+## 3. Migrations (schema + RLS + cron extensions)
+
+```powershell
+npx supabase db push
+```
+
+Conferir no SQL Editor:
+
+```sql
+SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;
+-- Esperado: 202609180001 … 202609180013
+
+SELECT extname FROM pg_extension WHERE extname IN ('pg_cron', 'pg_net');
+```
+
+Bucket `pncp-legislation` e tabelas `pca_*`, `private.pncp_period_anchor` devem existir após o push.
+
+## 4. Deploy das Edge Functions
+
+Sync jobs usam `Authorization: Bearer <SYNC_CRON_SECRET>` — deploy com JWT desligado:
+
+```powershell
+$fn = @(
+  "sync-pncp-legislation",
+  "sync-pncp-pca",
+  "sync-pncp-contratacoes-editais",
+  "sync-pncp-contratacoes-atas",
+  "sync-pncp-contratacoes-contratos",
+  "sync-pncp-catalogo",
+  "sync-pncp-irp",
+  "import-catmat-curadoria",
+  "api-pncp-pca",
+  "api-pncp-contratacoes",
+  "api-pncp-legislacao",
+  "api-pncp-irp",
+  "calculate-distance-webrouter"
+)
+foreach ($f in $fn) {
+  npx supabase functions deploy $f --no-verify-jwt
+}
+```
+
+APIs de leitura (`api-pncp-*`) podem exigir JWT do app — se o front usar Supabase Auth, remova `--no-verify-jwt` só nessas após testar.
+
+## 5. Smoke tests (remoto)
+
+Substitua `<REF>` e `<SECRET>`:
+
+```powershell
+$base = "https://ifaiagegyicjzlpskafh.supabase.co"
+$secret = "SEU_SEGREDO_PRODUCAO"
+
+# Probe PCA (barato — Search API)
+Invoke-RestMethod -Method POST `
+  -Uri "$base/functions/v1/sync-pncp-pca" `
+  -Headers @{ Authorization = "Bearer $secret"; "Content-Type" = "application/json" } `
+  -Body '{"somente_verificacao":true,"ano":2026}'
+
+# API leitura (JWT de usuário ou anon conforme RLS)
+# GET $base/functions/v1/api-pncp-pca?ano=2026
+```
+
+| Teste | Esperado |
+|-------|----------|
+| POST sync-pncp-pca `somente_verificacao` | `status: verificacao`, `periodo.max_data_atualizacao` |
+| POST import-catmat-curadoria | `inseridos` / `atualizados` |
+| POST sync-pncp-pca `-Forcar` | Só quando PNCP Consulta estável (504 = externo) |
+| GET api-pncp-legislacao | Lista ou `[]` |
+
+Scripts locais (apontando remoto):
+
+```powershell
+.\scripts\probe-pca-periodo.ps1 -Ano 2026 -BaseUrl "https://ifaiagegyicjzlpskafh.supabase.co" -Secret $secret
+```
+
+## 6. Curadoria CATMAT
+
+```powershell
+.\scripts\import-catmat-curadoria.ps1 `
+  -JsonPath "C:\caminho\export-catmat.json" `
+  -BaseUrl "https://ifaiagegyicjzlpskafh.supabase.co" `
+  -Secret $secret
+```
+
+## 7. Cron (pg_cron + Vault)
+
+1. Dashboard → **Vault** — criar secrets (ver comentários em `supabase/migrations/202609180008_cron.sql`):
+   - `sync_cron_secret`
+   - `sync_pncp_pca_url` → `https://ifaiagegyicjzlpskafh.supabase.co/functions/v1/sync-pncp-pca`
+   - URLs das demais functions de sync
+
+2. SQL Editor — descomentar e executar os `cron.schedule` desejados:
+   - **Recomendado:** `pncp-pca-probe-mensal` + `pncp-pca-carga-anual`
+   - Legislação / contratações conforme [architecture.md](./architecture.md)
+
+3. Verificar:
+
+```sql
+SELECT jobid, jobname, schedule, active FROM cron.job;
+```
+
+## 8. Pós-deploy
+
+- [ ] Rotacionar chaves se alguma vazou em chat/log
+- [ ] Advisors: Dashboard → Database → Advisors (RLS, índices)
+- [ ] Logs: Dashboard → Edge Functions → sync-pncp-pca
+- [ ] Primeira carga PCA 7830 quando PNCP responder: body `{ "forcar": true, "ano": 2026, "codigos_classificacao": ["7830"], "max_paginas": 500 }`
+
+## Rollback
+
+- Migrations: restaurar backup / branch preview do Supabase
+- Function: redeploy commit anterior `git checkout <sha> -- supabase/functions/...` + `functions deploy`
+- Cron: `SELECT cron.unschedule('nome-do-job');`
+
+## Referências
+
+- [architecture.md](./architecture.md) — cron sugerido e fluxo PCA anual
+- [contract-matrix.md](./contract-matrix.md) — endpoints PNCP
+- [security-mvp.md](./security-mvp.md) — escopo auth MVP
