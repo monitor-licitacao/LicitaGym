@@ -8,3 +8,7 @@ supabase/.temp
 supabase/snippets/
 
 .cursor/
+
+# Agent skills vendorizadas por `npx skills add` — reproduza com skills-lock.json
+.agents/
+.claude/skills/
