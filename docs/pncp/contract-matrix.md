@@ -4,7 +4,7 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 
 | recurso | camada | método | path | auth | params obrigatórios | paginação | chave natural | lacunas |
 |---------|--------|--------|------|------|---------------------|-----------|---------------|---------|
-| PCA listagem (itens por classificação) | consulta | GET | `/api/consulta/v1/pca/` | nenhuma | `anoPca`, `codigoClassificacaoSuperior`, `pagina` | `tamanhoPagina` (20–500; omitir = ~200); retorno `paginasRestantes`, `totalRegistros`, `data[]` com `idPcaPncp` + `itens[]` | `idPcaPncp` (CNPJ-sequencial/ano) | CATMAT grupo/classe ou CATSER seção |
+| PCA listagem (itens por classificação) | consulta | GET | `/api/consulta/v1/pca/` | nenhuma | `anoPca`, `codigoClassificacaoSuperior`, `pagina` | `tamanhoPagina` (20–500; omitir = ~200); retorno `paginasRestantes`, `totalRegistros`, `data[]` com `idPcaPncp` + `itens[]` | `idPcaPncp` (`{CNPJ14}-0-{seq6}/{ano}`) | CATMAT grupo/classe ou CATSER seção |
 | PCA órgão (índice Search) | search | GET | `/api/search/` | nenhuma | `tipos_documento=pcaorgao`, `pagina` | `tam_pagina`, `anos`, `ordenacao=-data` | `orgao_cnpj` + `ano` | **Lastro de período:** `data_publicacao_pncp`, `data_atualizacao_pncp` — decide se roda carga anual |
 | PCA atualização global | consulta | GET | `/api/consulta/v1/pca/atualizacao` | nenhuma | `dataInicio`, `dataFim`, `pagina` | ⚠️ params `dataInicio`/`dataFim` (não `dataInicial`) | `idPcaPncp` | alternativa incremental por janela |
 | PCA por usuário | consulta | GET | `/api/consulta/v1/pca/usuario` | nenhuma | `anoPca`, `idUsuario`, `pagina` | idem | `idPcaPncp` | `idUsuario` é portal PNCP, não usuário Monitor |
@@ -30,11 +30,12 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 
 ## Chaves naturais confirmadas
 
-- **PCA plano:** `idPcaPncp` — máscara documentada: `{CNPJ14}-{sequencial}/{ano}`
+- **PCA órgão (Search):** portal `https://pncp.gov.br/app/pca/{CNPJ14}/{ano}` (`item_url` vem como `/pca/...` — prefixar `/app`)
+- **PCA plano (Consulta):** `idPcaPncp` = `{CNPJ14}-{segmento}-{seqPad}/{ano}` (ex.: `06740278000181-0-000005/2026`); portal `https://pncp.gov.br/app/pca/{CNPJ14}-{segmento}-{seqPad}/{ano}`; integração `GET /orgaos/{cnpj}/pca/{ano}/{sequencial}/itens` com `sequencial` = parte numérica de `seqPad` (ex.: `5`)
 - **PCA item:** `(id_pca_pncp, numero_item)`
-- **Contratação/edital:** `numeroControlePNCP` ou `{cnpj, ano_compra, sequencial_compra}`
-- **Ata:** `numeroControlePNCP` ou `{cnpj, ano_compra, sequencial_compra, sequencial_ata}`
-- **Contrato:** `numeroControlePNCP` ou `{cnpj, ano, sequencial_contrato}`
+- **Compra/edital:** `numeroControlePNCP` = `{CNPJ14}-1-{seqCompraPad}/{anoCompra}`; portal `https://pncp.gov.br/app/editais/{cnpj}/{anoCompra}/{sequencialCompra}` (`sequencialCompra` = numérico de `seqCompraPad`, ex.: `000015` → `15`)
+- **Ata:** `numeroControlePNCPAta` = `{CNPJ14}-1-{seqCompraPad}/{anoCompra}-{seqAtaPad}`; portal `https://pncp.gov.br/app/atas/{cnpj}/{anoCompra}/{sequencialCompra}/{sequencialAta}` (4 segmentos — **não** 3)
+- **Contrato:** `numeroControlePNCP` = `{CNPJ14}-2-{seqContratoPad}/{anoContrato}`; portal `https://pncp.gov.br/app/contratos/{cnpj}/{anoContrato}/{sequencialContrato}` (`sequencialContrato` alinha com campo homônimo da Consulta)
 - **IRP:** `{cnpj, ano, sequencial}` — sem listagem consulta; gate ativo até endpoint público existir
 
 ## Gate de migrations

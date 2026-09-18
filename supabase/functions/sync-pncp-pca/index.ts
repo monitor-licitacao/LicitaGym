@@ -20,6 +20,7 @@ import {
   logSyncRequest,
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
+import { normalizePcaItem, normalizePcaPlano } from "../_shared/pncp/normalize.ts";
 import { inactivateNotSeen, upsertByHash } from "../_shared/pncp/upsert.ts";
 
 type SyncBody = {
@@ -59,19 +60,6 @@ function mergeStats(into: SyncStats, from: SyncStats) {
   into.inalterados += from.inalterados;
   into.erros += from.erros;
   into.recebidos += from.recebidos;
-}
-
-function normalizePcaRow(item: Record<string, unknown>, ano: number) {
-  const idPca = String(item.idPcaPncp ?? item.id_pca_pncp ?? "");
-  return {
-    id_pca_pncp: idPca,
-    ano_exercicio: Number(item.anoPca ?? item.ano ?? ano),
-    orgao_cnpj: String(item.orgaoEntidadeCnpj ?? item.cnpj ?? "").replace(/\D/g, ""),
-    titulo: String(item.titulo ?? item.descricao ?? idPca),
-    descricao: item.descricao ? String(item.descricao) : null,
-    status: item.status ? String(item.status) : null,
-    url_origem: idPca ? `https://pncp.gov.br/app/pca/${idPca}` : null,
-  };
 }
 
 async function syncClassificacao(params: {
@@ -139,29 +127,58 @@ async function syncClassificacao(params: {
     paginasRestantes = pagination.paginasRestantes;
 
     for (const raw of list) {
-      const item = raw as Record<string, unknown>;
-      const nestedItems = Array.isArray(item.itens) ? item.itens : [item];
-      for (const nested of nestedItems) {
-        const row = normalizePcaRow(
-          { ...item, ...(nested as Record<string, unknown>) },
-          ano,
-        );
-        if (!row.id_pca_pncp) continue;
+      const plan = raw as Record<string, unknown>;
+      const planoRow = normalizePcaPlano(plan, ano);
+      if (!planoRow.id_pca_pncp) continue;
+
+      stats.recebidos++;
+      const planoResult = await upsertByHash(
+        client,
+        "pca_planos",
+        { id_pca_pncp: planoRow.id_pca_pncp },
+        planoRow,
+        {
+          historyTable: "pca_alteracoes",
+          syncRunId: runId,
+          lastSeenSyncId: runId,
+        },
+      );
+      if (planoResult === "novo") stats.novos++;
+      else if (planoResult === "alterado") stats.alterados++;
+      else if (planoResult === "inalterado") stats.inalterados++;
+      else stats.erros++;
+
+      const { data: planoRecord, error: planoLookupError } = await client
+        .from("pca_planos")
+        .select("id")
+        .eq("id_pca_pncp", planoRow.id_pca_pncp)
+        .maybeSingle();
+      if (planoLookupError || !planoRecord) {
+        if (planoLookupError) stats.erros++;
+        continue;
+      }
+
+      const itens = Array.isArray(plan.itens) ? plan.itens : [];
+      for (const rawItem of itens) {
+        const itemRow = normalizePcaItem(rawItem as Record<string, unknown>, plan);
+        if (!itemRow.numero_item) continue;
+
         stats.recebidos++;
-        const result = await upsertByHash(
+        const itemResult = await upsertByHash(
           client,
-          "pca_planos",
-          { id_pca_pncp: row.id_pca_pncp },
-          row,
+          "pca_itens",
+          { pca_plano_id: planoRecord.id, numero_item: itemRow.numero_item },
+          { ...itemRow, pca_plano_id: planoRecord.id },
           {
             historyTable: "pca_alteracoes",
+            historyFields: { pca_plano_id: planoRecord.id },
             syncRunId: runId,
             lastSeenSyncId: runId,
           },
         );
-        if (result === "novo") stats.novos++;
-        else if (result === "alterado") stats.alterados++;
-        else if (result === "inalterado") stats.inalterados++;
+        if (itemResult === "novo") stats.novos++;
+        else if (itemResult === "alterado") stats.alterados++;
+        else if (itemResult === "inalterado") stats.inalterados++;
         else stats.erros++;
       }
     }

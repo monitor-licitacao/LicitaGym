@@ -40,4 +40,28 @@ export class PncpIntegracaoClient {
   async getIrp(cnpj: string, ano: number, sequencial: number) {
     return this.getJson(`/orgaos/${cnpj}/irp/${ano}/${sequencial}`);
   }
+
+  async getPca(cnpj: string, ano: number, sequencial: number) {
+    return this.getJson(`/orgaos/${normalizeIntegracaoCnpj(cnpj)}/pca/${ano}/${sequencial}`);
+  }
+
+  async getPcaItens(
+    cnpj: string,
+    ano: number,
+    sequencial: number,
+    pagina = 1,
+    tamanhoPagina = 50,
+  ) {
+    const params = new URLSearchParams({
+      pagina: String(pagina),
+      tamanhoPagina: String(tamanhoPagina),
+    });
+    return this.getJson(
+      `/orgaos/${normalizeIntegracaoCnpj(cnpj)}/pca/${ano}/${sequencial}/itens?${params}`,
+    );
+  }
+}
+
+function normalizeIntegracaoCnpj(cnpj: string): string {
+  return cnpj.replace(/\D/g, "");
 }
