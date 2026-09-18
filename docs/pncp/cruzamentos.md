@@ -71,13 +71,80 @@ Hipóteses de trabalho, nenhuma confirmada contra o Swagger:
 |------------|----------------|
 | PDM → unidades de fornecimento | validar/padronizar `pca_itens.unidade_medida` contra as unidades permitidas do PDM |
 | PDM → natureza de despesa | leitura orçamentária por item; hoje `catmat_pdm_naturezas_despesa` está vazia |
-| PDM → características e valores | alimentar `catalogo_itens.taxonomias`, hoje preenchida à mão |
+| **item** → características e valores | alimentar `catalogo_itens.taxonomias`, hoje preenchida à mão — ver abaixo, junção confirmada |
 
-**Ambiguidade aberta.** `catmat_item_caracteristicas.codigo_item` é `codigo_pdm` ou código CATMAT de
-item? Na hierarquia CATMAT (grupo → classe → PDM → item), a característica pertence ao PDM e o
-**valor** da característica ao item. O primeiro estudo registrou zero correspondência entre os 49
-PDMs e essa tabela, o que é consistente com `codigo_item` ser código de item, não de PDM. Confirmar
-no Swagger antes de declarar qualquer FK.
+**Ambiguidade resolvida** (por amostra de linha real, 2026-09-18).
+`catmat_item_caracteristicas.codigo_item` é **código CATMAT de item**, não `codigo_pdm`:
+
+```json
+{"codigo_item": 287851, "codigo_caracteristica": "BHAY",
+ "nome_caracteristica": "CARACTERÍSTICAS ADICIONAIS",
+ "codigo_valor_caracteristica": "A55129", "nome_valor_caracteristica": "MALHA 12 X 12",
+ "numero_caracteristica": 6, "sigla_unidade_medida": null}
+```
+
+Cada linha é uma tripla **(item, característica, valor)** — a atribuição de um valor de
+característica a um item. Isso explica a "zero correspondência" que o primeiro estudo encontrou ao
+comparar essa tabela com os 49 PDMs: o lado certo da junção é o item, não o PDM.
+
+Junção que isso habilita:
+
+```text
+catalogo_itens.codigo_catmat  →  catmat_item_caracteristicas.codigo_item
+```
+
+É a **fonte oficial de `catalogo_itens.taxonomias`**, hoje preenchida à mão
+(`{"MATERIAL": "AÇO CARBONO"}` é exatamente `nome_caracteristica → nome_valor_caracteristica`).
+
+> **Risco de junção silenciosa.** `codigo_item` é `int` (`287851`); `codigo_catmat` é `text`,
+> gravado por `import-catmat-curadoria` com `String(...).trim()` e sem padding. Se o export do app
+> HTML tiver zerado à esquerda, `'0000000287851' <> '287851'` e a junção devolve zero linhas sem
+> erro. Conferir `select codigo_catmat, length(codigo_catmat) from catalogo_itens limit 5;` antes
+> de escrever o backfill.
+
+### Normalizar `catmat_item_caracteristicas`
+
+**Não cruzar `sigla_unidade_medida` com `catmat_pdm_unidades`.** São duas grandezas diferentes:
+
+| coluna | o que é | exemplos |
+|--------|---------|----------|
+| `catmat_pdm_unidades` | unidade de **fornecimento** — como o item é comprado | `UN`, `CX`, `PC`, `KG` |
+| `catmat_item_caracteristicas.sigla_unidade_medida` | unidade da **característica** — dimensão de um atributo técnico | `MM`, `KG`, `W`, `V` |
+
+O cruzamento é perigoso justamente porque **falha em silêncio**: `KG` e `L` existem nos dois
+domínios, então a junção casa em parte das linhas e produz resultado plausível e errado. Na linha
+acima o campo é `null` porque "CARACTERÍSTICAS ADICIONAIS" com valor "MALHA 12 X 12" é descritiva,
+não dimensional — esperar `null` na maioria das características textuais.
+
+A tabela é uma tripla desnormalizada: repete `nome_caracteristica` em toda linha de todo item que
+tenha aquela característica, e `nome_valor_caracteristica` em toda linha que use aquele valor. A
+decomposição correta é em duas dimensões e um fato:
+
+```text
+catmat_caracteristicas(codigo_caracteristica PK, nome_caracteristica, sigla_unidade_medida)
+catmat_caracteristica_valores(codigo_valor_caracteristica PK, codigo_caracteristica FK, nome_valor)
+catmat_item_caracteristica_valores(codigo_item, codigo_valor_caracteristica, numero_caracteristica)
+```
+
+`sigla_unidade_medida` sobe para a dimensão da característica — **é essa a normalização de unidade
+que a tabela pede**. `numero_caracteristica` (a ordem do atributo na ficha do item) fica no fato.
+
+Verificar a dependência funcional antes de mover a coluna:
+
+```sql
+-- zero linhas => a unidade depende só da característica, pode subir para a dimensão
+select codigo_caracteristica, nome_caracteristica,
+       array_agg(distinct sigla_unidade_medida) as unidades
+from catmat_item_caracteristicas
+group by 1, 2
+having count(distinct sigla_unidade_medida) > 1;
+
+-- idem para o nome do valor
+select codigo_valor_caracteristica, array_agg(distinct nome_valor_caracteristica)
+from catmat_item_caracteristicas
+group by 1
+having count(distinct nome_valor_caracteristica) > 1;
+```
 
 ## E. Correções ao primeiro estudo
 
