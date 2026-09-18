@@ -42,6 +42,13 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 
 Migrations de domínio (`pca_*`, `irp_*`, `contratacoes_*`) só avançam com linha `verified` acima. IRP sync permanece desabilitado até estratégia de descoberta documentada.
 
+## Cruzamentos entre domínios
+
+O mapa de junções entre tabelas (FKs reais, junções polimórficas, candidatas não materializadas e
+lacunas de integridade) está em [cruzamentos.md](./cruzamentos.md). A seção *Dados Abertos Compras*
+desta matriz ainda não existe: o Swagger não pôde ser lido, e o gate acima vale — sem linha
+`verified`, sem migration de domínio.
+
 ## Referências
 
 - [Swagger Consulta](https://pncp.gov.br/api/consulta/swagger-ui/index.html)
