@@ -1,7 +1,7 @@
 # Smoke test / carga anual do sync PCA (classe 7830 por padrao)
 param(
   [int]$Ano = (Get-Date).Year,
-  [int]$MaxPaginas = 2,
+  [int]$MaxPaginas = 100,
   [string[]]$CodigosClassificacao = @("7830"),
   [switch]$SomenteVerificacao,
   [switch]$Forcar,
@@ -58,7 +58,7 @@ catch {
     Write-Host "FALHA: timeout/504 na API Consulta /v1/pca/ do PNCP (instabilidade externa)." -ForegroundColor Yellow
     Write-Host "Nao e erro de SYNC_CRON_SECRET." -ForegroundColor Yellow
     Write-Host "Probe barato: .\scripts\probe-pca-periodo.ps1 -Ano $Ano" -ForegroundColor Yellow
-    Write-Host "Carga anual (quando PNCP voltar): .\scripts\invoke-sync-pca.ps1 -Ano $Ano -Forcar -MaxPaginas 500" -ForegroundColor Yellow
+    Write-Host "Carga anual (quando PNCP voltar): .\scripts\invoke-sync-pca.ps1 -Ano $Ano -Forcar -MaxPaginas 100" -ForegroundColor Yellow
   }
 
   if ($bodyText) {

@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
+import { corsHeaders, errorDetail, jsonResponse, validateCronAuth } from "../_shared/http.ts";
 import {
   clampConsultaPageSize,
   PncpConsultaClient,
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
   const ano = body.ano ?? new Date().getUTCFullYear();
   const codigosClassificacao = resolvePcaClassificacoes(body);
   const paginaInicial = body.pagina_inicial ?? 1;
-  const maxPaginas = body.max_paginas ?? 500;
+  const maxPaginas = body.max_paginas ?? 100;
   const tamanhoPagina = clampConsultaPageSize("pca", body.tamanho_pagina);
   const verificarPeriodo = body.verificar_periodo ?? !body.forcar;
   const lockKey = body.somente_verificacao
@@ -224,12 +224,12 @@ Deno.serve(async (req) => {
     periodAnchor = await getPeriodAnchor(client, ano);
     await upsertPeriodProbe(client, periodSummary, { origem: "sync-pncp-pca" });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
     return jsonResponse(
       {
         error: "Falha ao ler/gravar lastro em private.pncp_period_anchor",
-        detalhe: msg,
-        dica: "Aplique migration 014 (expose private schema) ou Dashboard → API → Exposed schemas → private.",
+        detalhe: errorDetail(error),
+        dica:
+          "Dashboard → API → Exposed schemas → private; depois NOTIFY pgrst reload schema. Confira se a tabela existe (migration 013).",
       },
       500,
     );
