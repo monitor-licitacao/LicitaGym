@@ -110,6 +110,19 @@ Script:
    ```
 9. Persistindo → [Supabase Support](https://supabase.com/dashboard/support/new) (bug CLI #4802).
 
+### 500 — probe / sync-pncp-pca
+
+Resposta genérica `Internal Server Error` após auth OK (não é 401):
+
+1. **Schema `private` no PostgREST** — Edge Functions usam `client.schema('private')`. No remoto, aplique:
+   ```sql
+   ALTER ROLE authenticator SET pgrst.db_schemas = 'public, storage, graphql_public, private';
+   NOTIFY pgrst, 'reload config';
+   ```
+   Ou `npx supabase db push` (migration `202609180014_expose_private_schema.sql`).
+2. Ou **Dashboard → Settings → API → Exposed schemas** → incluir `private`.
+3. Re-deploy `sync-pncp-pca` após fix (versão nova devolve JSON com `detalhe`).
+
 ## 5. Smoke tests (remoto)
 
 Substitua `<REF>` e `<SECRET>`:

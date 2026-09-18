@@ -189,7 +189,19 @@ Deno.serve(async (req) => {
     ? `pca-probe:${ano}`
     : `pca-sync:${ano}:${codigosClassificacao.slice().sort().join(",")}`;
 
-  const client = createServiceClient();
+  let client;
+  try {
+    client = createServiceClient();
+  } catch (error) {
+    return jsonResponse(
+      {
+        error: "Supabase service client indisponivel",
+        detalhe: error instanceof Error ? error.message : String(error),
+      },
+      500,
+    );
+  }
+
   const search = new PncpSearchClient();
 
   let periodSummary;
@@ -207,8 +219,21 @@ Deno.serve(async (req) => {
     );
   }
 
-  const periodAnchor = await getPeriodAnchor(client, ano);
-  await upsertPeriodProbe(client, periodSummary, { origem: "sync-pncp-pca" });
+  let periodAnchor;
+  try {
+    periodAnchor = await getPeriodAnchor(client, ano);
+    await upsertPeriodProbe(client, periodSummary, { origem: "sync-pncp-pca" });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return jsonResponse(
+      {
+        error: "Falha ao ler/gravar lastro em private.pncp_period_anchor",
+        detalhe: msg,
+        dica: "Aplique migration 014 (expose private schema) ou Dashboard → API → Exposed schemas → private.",
+      },
+      500,
+    );
+  }
 
   if (body.somente_verificacao) {
     const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary);
