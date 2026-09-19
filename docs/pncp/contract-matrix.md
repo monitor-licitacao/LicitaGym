@@ -24,6 +24,13 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 | Órgãos | integração | GET | `/api/pncp/v1/orgaos/{cnpj}` | variável | `cnpj` | — | `cnpj` (14 dígitos) | — |
 | Unidades | integração | GET | `/api/pncp/v1/orgaos/{cnpj}/unidades/{codigoUnidade}` | variável | path | — | `cnpj`+`codigoUnidade` | — |
 | Catálogos | integração | GET | `/api/pncp/v1/catalogos`, `/v1/catalogos/{id}` | variável | — | — | `id` | — |
+| CATMAT grupo | compras.gov | GET | `/modulo-material/1_consultarGrupoMaterial` | nenhuma | — | `pagina` | `codigoGrupo` | Dados Abertos Compras.gov.br |
+| CATMAT classe | compras.gov | GET | `/modulo-material/2_consultarClasseMaterial` | nenhuma | `codigoGrupo` | `pagina` | `(codigoGrupo, codigoClasse)` | verified |
+| CATMAT PDM | compras.gov | GET | `/modulo-material/3_consultarPdmMaterial` | nenhuma | `codigoGrupo`, `codigoClasse` | `pagina`, `tamanhoPagina` | `codigoPdm` | verified |
+| CATMAT item | compras.gov | GET | `/modulo-material/4_consultarItemMaterial` | nenhuma | `codigoGrupo`, `codigoClasse` | idem | `codigoItem` | chave em `catalogo_itens.codigo_catmat` |
+| CATMAT natureza despesa | compras.gov | GET | `/modulo-material/5_consultarMaterialNaturezaDespesa` | nenhuma | `codigoPdm` | idem | `(codigoPdm, codigoNaturezaDespesa)` | pode retornar vazio |
+| CATMAT unidade fornecimento | compras.gov | GET | `/modulo-material/6_consultarMaterialUnidadeFornecimento` | nenhuma | `codigoPdm` | idem | `(codigoPdm, siglaUnidadeFornecimento, numeroSequencial)` | verified |
+| CATMAT características | compras.gov | GET | `/modulo-material/7_consultarMaterialCaracteristicas` | nenhuma | `codigoItem` | idem | `(codigoItem, codigoCaracteristica, codigoValorCaracteristica)` | verified |
 | Categoria PCA | integração | GET | `/api/pncp/v1/categoriaItemPcas`, `/{id}` | variável | — | — | `id` | — |
 | Usuário PNCP | integração | GET/POST | `/api/pncp/v1/usuarios`, `/login` | credencial | `login` ou `cpfCnpj` | — | `id` usuário PNCP | **MVP: não ingerir** (PII/CPF — CLA-40) |
 | Legislação | scrape | GET | `https://www.gov.br/pncp/pt-br/pncp/legislacao` | nenhuma | — | — | `url_canonica` + `sha256` | sem API REST; hash de página + arquivos |
@@ -44,6 +51,8 @@ Migrations de domínio (`pca_*`, `irp_*`, `contratacoes_*`) só avançam com lin
 
 ## Referências
 
+- [cruzamentos.md](./cruzamentos.md) — junções entre tabelas (FK, lógicas, candidatas, PCA↔CATMAT)
 - [Swagger Consulta](https://pncp.gov.br/api/consulta/swagger-ui/index.html)
 - [Swagger Integração](https://pncp.gov.br/api/pncp/swagger-ui/index.html)
 - [Manual API Consultas v1.0](https://www.gov.br/pncp/pt-br/pncp/copy_of_manuais/ManualPNCPAPIConsultasVerso1.0.pdf)
+- [Swagger Compras.gov.br — CATÁLOGO MATERIAL](https://dadosabertos.compras.gov.br/swagger-ui/index.html#/01%20-%20CAT%C3%81LOGO%20-%20MATERIAL)
