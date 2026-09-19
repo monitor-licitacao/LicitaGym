@@ -79,12 +79,17 @@ casar linhas de domínios diferentes, já que os UUIDs vêm de tabelas distintas
 
 ## D. Cruzamentos habilitados pelo Dados Abertos Compras — `A VERIFICAR`
 
-**Pendência operacional:** levantamento de paths/schemas no Swagger Compras.gov **não concluído** — o domínio
-`dadosabertos.compras.gov.br` estava bloqueado pelo proxy de egress do ambiente de auditoria. Enquanto o bloco D
-permanecer `A VERIFICAR`, vale o gate de [contract-matrix.md](./contract-matrix.md): sem linha `verified`, sem
-migration de domínio adicional (ex.: FK `catmat_pdms` → `catmat_classes`).
+**Escopo do bloco D.** Endpoints **material 1–7** já estão mapeados e operacionais — ver
+[`schemas-consultas.md`](../compras-gov/schemas-consultas.md) e linhas `verified` em
+[contract-matrix.md](./contract-matrix.md) (sync smoke classe 7830, mar/2026). O que permanece
+`A VERIFICAR` aqui são **semânticas de FK** e módulos Compras.gov **fora do CATMAT material** (ex. pesquisa
+de preço), não o levantamento básico de paths do catálogo.
 
-Hipóteses de trabalho, nenhuma confirmada contra o Swagger no ambiente de escrita deste doc:
+**Pendência operacional:** confirmação formal no Swagger (ex. `codigo_item` = item vs PDM) ainda depende de
+acesso estável ao OpenAPI; em ambientes com egress bloqueado o gate de contract-matrix continua valendo para
+**novas** migrations de domínio (ex.: FK `catmat_pdms` → `catmat_classes`).
+
+Hipóteses de cruzamento sem FK declarada:
 
 | cruzamento | uso pretendido |
 |------------|----------------|
