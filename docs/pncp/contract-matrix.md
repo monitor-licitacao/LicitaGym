@@ -42,6 +42,53 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 
 Migrations de domínio (`pca_*`, `irp_*`, `contratacoes_*`) só avançam com linha `verified` acima. IRP sync permanece desabilitado até estratégia de descoberta documentada.
 
+## Dados Abertos Compras — inventário de módulos (de `compras_gov_schemas.json`)
+
+Levantado de `compras_gov_schemas.json` e de [schemas-consultas.md](./schemas-consultas.md),
+não do Swagger ao vivo. Nenhuma linha é `verified`: o gate acima continua valendo.
+O mapa campo-da-API → coluna-Postgres está em `schemas-consultas.md` seções 1.x e 3.1 —
+**é ele que vale para nome de coluna, não o DTO.**
+
+| módulo | DTOs | relevância |
+|--------|------|-----------|
+| CATÁLOGO - MATERIAL | `DmMaterialGrupoDTO`, `DmMaterialClasseDTO`, `DmMaterialPDMDTO`, **`DmMaterialItemDTO`**, `DmMaterialUnidadeFornecimentoDTO`, `DmMaterialNaturezaDespesaDTO`, `DmMaterialCaracteristicasDTO` | fonte oficial do CATMAT; `DmMaterialItemDTO` é a entidade de item que falta no banco |
+| CATÁLOGO - SERVIÇO (CATSER) | `DmServicoSecaoDTO`, `DmServicoDivisaoDTO`, `DmServicoGrupoDTO`, `DmServicoClasseDTO`, `DmServicoSubClasseDTO`, `DmServicoItemDTO`, `DmServicoUndMedidaDTO`, `DmServicoNaturezaDespesaDTO` | hierarquia de 6 níveis, diferente da de material (3); `catalogo_itens.codigo_catser` existe e está vazio |
+| PESQUISA DE PREÇO | `FtPesqPrecoCompraMaterialDTO` + `...DetalheDTO`, `FtPesqPrecoCompraServicoDTO` + `...DetalheDTO` | preço praticado; material implementado em `supabase/sql/precos_praticados.sql`, serviço ainda não |
+| PGC / plano de contratações | `FtPgcAgregacaoDTO`, **`FtPgcDetalheDTO`** | `FtPgcDetalheDTO` traz o item do PCA com `codigoPdmMaterial`, `codigoItemCatalogo`, `valorUnitarioItem`, `numeroItemPncp` — **é uma fonte mais rica do PCA que a API Consulta do PNCP que usamos hoje** |
+| Espelho PNCP | `VwFtPNCPCompraDTO`, `VwFtPNCPCompraItemDTO`, `VwDmPNCPItemResultadoDTO` | traz `numeroControlePNCP` + `codItemCatalogo` + `codigoPdm` na mesma linha: é a ponte entre Compras.gov e o PNCP |
+| ARP (atas) | `VwFtArpDTO`, `VwFtArpItemDTO`, `VwFtArpUnidadesItemDTO`, `VwFtArpAdesoesItemDTO`, `VwArpEmpenhosItemDTO` | atas com saldo de adesão e empenho — não existe equivalente na API Consulta |
+| Contratos | `VwFtContratoDTO`, `VwFtContratoItemDTO` | contrato com item e `numeroControlePncpContrato` |
+| Licitações / pregões legados | `TbVwLicitacaoDTO`, `TbVwPregaoDTO`, `TbVwItensPregaoDTO`, `TbVwItemLicitacaoDTO`, `TbVwRdcDTO`, `TbVwComprasSemLicitacaoDTO`, `TbVwCompraItensSemLicitacaoDTO` | base SIASG anterior à 14.133 |
+| Órgãos e UASG | `DmCorpOrgaoDTO`, `DmCorpUasgDTO` | dimensão oficial para `orgaos`/`unidades`, com `codigoMunicipioIbge` |
+| Fornecedores | `VwFtFornecedorDTO` | porte, natureza jurídica, CNAE — enriquece `entidades` |
+| OCDS | `VwOCDSApiResponseDTO` e agregados | padrão internacional, formato aninhado |
+| Usuários / KPIs | `UsuariosDTO`, `AutenticacaoDTO`, `VwKpis*DTO` | **fora de escopo** (ver abaixo) |
+
+### Achados que valem antes de qualquer ingestão
+
+1. **`idCompra` muda de tipo entre os dois endpoints de preço:** `integer/int64` em
+   `FtPesqPrecoCompraMaterialDTO`, `string` em `...DetalheDTO`. Valores de 17 dígitos
+   estouram `Number.MAX_SAFE_INTEGER` — `JSON.parse` em Deno perde precisão antes de
+   qualquer código nosso rodar. Detalhe em `supabase/sql/precos_praticados.sql`, nota 1.
+2. **`codigoPdm` não tem tipo único:** `int64` nos DTOs de material, `string` nos de
+   preço, ARP-unidades e espelho PNCP, `int32` em `VwFtArpItemDTO`. Zero à esquerda
+   quebra junção em silêncio. Normalizar dos dois lados.
+3. **PII espalhada, além do endpoint de usuários.** `UsuariosDTOResponse` expõe `senha`
+   em DTO de resposta. `TbVwCompraItensSemLicitacaoDTO` tem `nu_cpf_vencedor` e três
+   CPFs de responsáveis; `TbVwItemLicitacaoDTO` tem `cpf_vencedor`; `VwFtFornecedorDTO`
+   tem `cpf`; `FtPesqPrecoCompraMaterialDTO.niFornecedor` pode ser CPF de pessoa física.
+   A decisão CLA-40 em [security-mvp.md](./security-mvp.md) cobria só `/usuarios` —
+   **precisa ser reaberta** para esses campos antes de ingerir esses módulos.
+4. `VwKpisGeralDTO` tem uma propriedade literalmente chamada `"2026-04-26"` — bug no
+   Swagger deles; ignorar o campo.
+
+## Cruzamentos entre domínios
+
+O mapa de junções entre tabelas (FKs reais, junções polimórficas, candidatas não materializadas e
+lacunas de integridade) está em [cruzamentos.md](./cruzamentos.md). A seção *Dados Abertos Compras*
+desta matriz ainda não existe: o Swagger não pôde ser lido, e o gate acima vale — sem linha
+`verified`, sem migration de domínio.
+
 ## Referências
 
 - [Swagger Consulta](https://pncp.gov.br/api/consulta/swagger-ui/index.html)
