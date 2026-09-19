@@ -5,7 +5,8 @@ Versão: **2026-09-19** | Análise completa em [../catalogo-perguntas.md](../cat
 ## Conteúdo
 
 - **schemas-inventory.md** — inventário dos 78 DTOs com contagens de campo e status de transcrição
-- **dto-errors-2026-09-19.md** — erros críticos e transcrição encontrados na análise
+- **dto-errors-2026-09-19.md** — erros críticos, transcrição, anomalias de nomenclatura e tipo (BLOCOS 1-38)
+- **bridges-consolidados.md** — 5 caminhos de integração: PCA → PNCP, PNCP → CATMAT, ARP → PNCP, subrogação, ORG-01/02
 - **schemas.json** — definiçõesJSON Schema (quando versionado)
 
 ## Propósito
@@ -47,11 +48,19 @@ openapi/dto-errors.md         ← Erros críticos do esquema
 
 ## Nota sobre a análise 2026-09-19
 
-Reviu todos os 78 DTOs em 8 blocos. Achados principais:
+Análise completa dos BLOCOS 1-38 (380 DTOs → 78-80 entidades únicas). Achados principais:
 
-- **3 erros críticos estruturais** — AwardDTO nesting, ItemDTO type, ReleaseDTO contamination
-- **Erros de transcrição** — campos renomeados (descricaoDetalhada), inconsistência de política
-- **Gaps de dados** — normalizePcaItem descarta 12 campos críticos (pdmCodigo, codigoItem)
-- **Reclassificações** — CONTR-01, ORG-01, ORG-02 respondíveis via DTOs já presentes
+### Erros estruturais e transcrição
+- **3 erros críticos OCDS** — AwardDTO nesting, ItemDTO type, ReleaseDTO contamination
+- **2 erros de transcrição** — descricaoDetalhada (camelCase esperado, snakeCase retornado), VwKpisGeralDTO typo
+- **Inconsistência de tipo (API-level)** — valor_* alternam `string`/`number` entre SIASG, PNCP Consulta, Compras.gov
+- **Anomalias de nomenclatura** — sufixo `API` espúrio, `VwFt*` drift vs produção `Vw*`
+- **Padrão de repetição** — BLOCOS 36-38 idênticos; indica 10 endpoints cyclados; Swagger finito em ~380
 
-Ver [dto-errors-2026-09-19.md](./dto-errors-2026-09-19.md) para detalhes.
+### Descobertas positivas
+- **Reclassificações** — CONTR-01, ORG-01, ORG-02 respondíveis via DTOs já presentes (sem nova migração)
+- **5 bridges de integração** — PCA → PNCP, PNCP → CATMAT, ARP → PNCP, subrogação, ORG-01/02 via API
+- **Recuperação de 113 PDMs** — codigoPdm em VwFtPNCPCompraItemDTO permite vincular itens antes perdidos
+- **Dados exclusivos ARP** — saldo_adesao, saldo_empenho não existem em PNCP Consulta
+
+Ver [dto-errors-2026-09-19.md](./dto-errors-2026-09-19.md) e [bridges-consolidados.md](./bridges-consolidados.md) para detalhes.

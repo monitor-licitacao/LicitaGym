@@ -203,6 +203,119 @@ Todos trazem `numeroControlePncp*` para bridge ARP ↔ Compras ↔ PNCP.
 
 ---
 
+## Anomalias de Nomenclatura (BLOCOS 20–38)
+
+### 8. DTOs com sufixo `API` e `APIResponseDTO` sem razão
+
+**Padrão encontrado em BLOCOS 23–38:**
+
+| DTO Swagger | Rótulo | Correto seria | Categoria |
+|---|---|---|---|
+| `VwArpEmpenhosItemAPI` | "API" | `GenericAPIResponseDTOVwArpEmpenhosItemDTO` | wrapper mislabel |
+| `VwFtArpUnidadesItemAPIResponseDTO` | "APIResponseDTO" | `GenericAPIResponseDTOVwFtArpUnidadesItemDTO` | nomenclatura conflitante |
+
+**Impacto:**
+- Confunde se é wrapper ou entidade
+- Sufixo `API` não existe em DTO original
+- Indica nomenclatura customizada no Swagger para envoltórios
+
+**Padrão geral:**
+```
+GenericAPIResponseDTO<EntidadeX> = { resultado: EntidadeX[], totalRegistros, paginasRestantes }
+Swagger rotula como: "EntidadeXAPI" ou "EntidadeXAPIResponseDTO"
+Correto: "GenericAPIResponseDTOEntidadeXDTO"
+```
+
+### 9. Versionamento — `VwFt*` em Swagger vs `Vw*` em produção
+
+**Blocos 1–38 revelam:**
+
+Entidade | Swagger | Produção | Status
+|---|---|---|---|
+Compras com itens | `VwFtPNCPCompraItemDTO` | `VwPNCPCompraItemDTO` | drift |
+ARP com itens | `VwFtArpItemDTO` | `VwArpItemDTO` | drift |
+Pesquisa preço | `VwFtPesqPreco*` | `VwPesqPreco*` | drift |
+
+**Causa:** Swagger documenta versão `Ft` (com "Features"?) não refletida no backend.
+
+---
+
+## Inconsistências de Tipo — Análise Completa (BLOCOS 1–38)
+
+### 10. `valor_estimado_total` — Dupla definição
+
+**Contextos onde aparece:**
+
+| DTO | Tipo | Exemplo | Bloco |
+|---|---|---|---|
+| `VwFtPNCPCompraItemDTO` | `number` | `1234.56` | 7 |
+| `FtPesqPrecoCompraMaterialDTO` | `string` | `"1.234,56"` (vírgula) | 3 |
+| `TbVwPregaoDTO` (SIASG) | `string` | `"1.234,56"` | 27 |
+| `TbVwLicitacaoDTO` (SIASG) | `number` | `1234.56` | 28 |
+
+**Descoberta crítica:** Inconsistência **interna ao SIASG** (não apenas vs novo código)
+- `TbVwPregaoDTO.valor_estimado_total` = `string`
+- `TbVwLicitacaoDTO.valor_estimado_total` = `number`
+- Mesmo campo, mesmo domínio, diferentes tipos
+
+**Impacto:**
+- Parsing de moeda quebrado
+- Correlação entre estimado (Pregão) vs realizado (Licitação) desliza silenciosamente
+- Necessária normalização cliente ou layer de dados
+
+### 11. Campos monetários — Padrão completo
+
+**Afetados por tipo inconsistência:**
+- `valor_homologado_total`
+- `menor_lance`
+- `valor_negociado`
+- `valor_unitario_item`
+
+Todos alternam `string` ↔ `number` entre SIASG, PNCP Consulta e Compras.gov.
+
+---
+
+## Padrão de Repetição — Descoberta (BLOCOS 20–38)
+
+### 12. Ciclo exato em BLOCOS 36–38
+
+**Estrutura encontrada:**
+
+```
+BLOCO 36 (DTOs 351–360) — 10 wrappers GenericAPIResponseDTO
+BLOCO 37 (DTOs 361–370) — 10 wrappers GenericAPIResponseDTO [IDÊNTICO ao BLOCO 36]
+BLOCO 38 (DTOs 371–380) — 10 wrappers GenericAPIResponseDTO [IDÊNTICO aos anteriores]
+```
+
+**Matemática:**
+- DTOs 351–360 = lista E
+- DTOs 361–370 = lista E (cópia)
+- DTOs 371–380 = lista E (cópia)
+
+**Interpretação:**
+O Swagger lista os mesmos 10 endpoints sob múltiplas combinações de filtros (provável seleção de UI).
+
+**Consequência:**
+- Nenhuma entidade nova além do que já foi identificado em BLOCOS 1–35
+- Bloco 36 é ponto de saturação analítica
+- ~78–80 entidades únicas capturadas completamente
+
+---
+
+## Resumo Final — Anomalias por Categoria
+
+| Categoria | Qtd | Exemplos | Severidade |
+|---|---|---|---|
+| **Erros estruturais (OCDS)** | 3 | AwardDTO, ItemDTO, ReleaseDTO | crítica |
+| **Erros de transcrição** | 2 | descricaoDetalhada, VwKpisGeralDTO typo | média |
+| **Tipo inconsistência** | 1 | valor_* alternam `string`/`number` | alta |
+| **Nomenclatura** | 2+ | sufixo `API` espúrio, `VwFt*` drift | baixa |
+| **Padrão de repetição** | 1 | BLOCOS 36–38 idênticos | informacional |
+
+**Status:** Análise completa. Swagger finito; sem novas entidades esperadas.
+
+---
+
 ## Descobertas de respondibilidade
 
 ### CONTR-01 — Reclassificada de `vazio` para `respondivel`
