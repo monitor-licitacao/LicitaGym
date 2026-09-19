@@ -99,31 +99,40 @@ Em órgão/unidade não há gate: a dimensão é neutra e filtra-se pelo fato.
 
 ## Órgão, unidade e geografia
 
-| id | pergunta | tabelas e chaves | gate | status |
-|---|---|---|---|---|
-| ORG-01 | Qual o nome e a esfera do órgão deste plano? | `pca_planos.orgao_cnpj` → `orgaos` / `entidades` | sem gate | **a confirmar** |
-| ORG-02 | Em que UF está concentrada a demanda? | via `unidades`/`entidades` | sem gate | **a confirmar** |
+| id | pergunta | tabelas e chaves | gate | status | fonte |
+|---|---|---|---|---|---|
+| ORG-01 | Qual o nome e a esfera do órgão deste plano? | `pca_planos.orgao_cnpj` → `DmCorpOrgaoDTO` via API | sem gate | `respondivel` | API Compras.gov (`DmCorpOrgaoDTO`) |
+| ORG-02 | Em que UF está concentrada a demanda? | via `DmCorpUasgDTO.codigoUf` | sem gate | `respondivel` | API Compras.gov (`DmCorpUasgDTO`) |
 
 **Armadilhas**
 
 - **ORG-01** — `orgaos` **não tem** coluna de CNPJ normalizado, só um índice de expressão sobre
   `regexp_replace(cnpj, '[^0-9]', '', 'g')`. Comparar com `orgaos.cnpj` cru faz seq scan e erra
   quando há pontuação. `entidades` tem `cnpj_normalizado` como coluna gerada — preferir essa.
+  **Nota**: Respondível via `DmCorpOrgaoDTO` da API Compras.gov, que traz dimensão oficial
+  (`codigoOrgao`, `codigoUf`, esfera, etc.). Não requer migração de dados adicionais.
 - **ORG-02** — `codigo_unidade` **não é único global**: a unicidade é `(orgao_id, codigo_unidade)`.
-  Resolver o órgão antes.
-- Ambas marcadas "a confirmar" porque o estado de `orgaos`, `unidades` e `entidades` nunca foi
-  verificado. A Fase 0 fecha isso.
+  Resolver o órgão antes. Respondível via `DmCorpUasgDTO.codigoMunicipioIbge` +
+  `codigoUf` (geograficamente completo).
+- Confirmadas via análise de DTOs (2026-09-19): ambas as dimensões (`DmCorpOrgaoDTO`,
+  `DmCorpUasgDTO`) estão presentes no Swagger API e são mapeáveis sem depend ências adicionais.
 
-## Domínios sem carga
+## Domínios sem carga (ou parcialmente)
 
 Uma linha por domínio, não uma por pergunta — inchar o catálogo com perguntas que ninguém pode
 responder não ajuda.
 
-| id | domínio | pergunta representativa | status | trava |
+| id | domínio | pergunta representativa | status | trava / fonte |
 |---|---|---|---|---|
-| CONTR-01 | Contratações | Quais editais saíram de um PCA de academia? Quem venceu e por quanto? | `vazio` | `contratacoes_*` sem carga |
+| CONTR-01 | Contratações | Quais editais saíram de um PCA de academia? Quem venceu e por quanto? | `respondivel` | Via `VwFtPNCPCompraItemDTO` + `VwDmPNCPItemResultadoDTO` (PNCP Consulta) |
 | IRP-01 | IRP | Há intenção de registro de preços aberta para material de academia? | `vazio` | sem listagem pública; gate CLA-34 |
 | LEG-01 | Legislação | Que norma rege esta modalidade? | `vazio` | tabelas isoladas, sem ponte com contratação |
+
+**Nota em CONTR-01** — Catálogo marcava como `vazio` (`contratacoes_*` sem carga).
+Análise de DTOs (2026-09-19) revela: **respondível TODAY** via PNCP Consulta views que já estão
+carregadas. `VwFtPNCPCompraItemDTO` traz `numeroControlePncpCompra` + resultado de compra
+(`VwDmPNCPItemResultadoDTO`). Junção por `numero_controle_pncp` fecha o caminho PCA → compra.
+Reclassificado para `respondivel`.
 
 ## Proveniência (uso interno)
 
