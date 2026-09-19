@@ -242,6 +242,13 @@ export function normalizePcaItem(
     valor_total_estimado: item.valorTotal != null ? Number(item.valorTotal) : null,
     data_prevista_contratacao: item.dataDesejada ?? null,
     status: item.status ? String(item.status) : null,
+    codigo_pdm: item.codigoPdm ? String(item.codigoPdm) : null,
+    codigo_item: item.codigoItem ? String(item.codigoItem) : null,
+    numero_controle_pncp: item.numeroControlePncp ? String(item.numeroControlePncp) : null,
+    numero_item_pncp: item.numeroItemPncp ? String(item.numeroItemPncp) : null,
+    classificacao_catalogo_id: item.classificacaoCatalogo != null
+      ? String(item.classificacaoCatalogo)
+      : null,
   };
 }
 
