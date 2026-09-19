@@ -66,6 +66,7 @@ Em órgão/unidade não há gate: a dimensão é neutra e filtra-se pelo fato.
 | CAT-03 | Quais as características técnicas deste item? | `catmat_item_caracteristicas` por `codigo_item` | inerente | `drift` |
 | CAT-04 | A unidade declarada no PCA é válida para o PDM do item? | `pca_itens.unidade_medida` × `catmat_pdm_unidades` | via item | `drift` |
 | CAT-05 | Qual a natureza de despesa deste item? | `catmat_pdm_naturezas_despesa` | inerente | `vazio` |
+| CAT-06 | Quantos itens de piso estão planejados? | `pca_itens` ⋈ `catalogo_itens` [categoria_licitagym='piso'] | `categoria_licitagym='piso'` | `respondivel` |
 
 **Armadilhas**
 
@@ -78,6 +79,10 @@ Em órgão/unidade não há gate: a dimensão é neutra e filtra-se pelo fato.
 - **CAT-05** — a carga registrou 22 linhas marcadas "COMPLETO" para 20.433 PDMs; provável
   filtro na origem. Antes de responder, confirmar com
   [`probe-compras-api.ps1`](../../scripts/probe-compras-api.ps1).
+- **CAT-06** — piso é uma **extensão** do escopo 78/7830: está fora da classe oficial, mas
+  marcado com `categoria_licitagym='piso'` via curadoria manual. Pergunta responde **apenas**
+  itens com essa categoria — filtro local, não CATMAT oficial. Armadilha: confundir com
+  "itens de piso em 78/7830" (não existem) vs "itens marcados piso em qualquer grupo/classe".
 
 ## Preço praticado
 
