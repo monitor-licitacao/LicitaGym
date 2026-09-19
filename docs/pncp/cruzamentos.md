@@ -74,7 +74,7 @@ casar linhas de domínios diferentes, já que os UUIDs vêm de tabelas distintas
 | `pca_planos.orgao_cnpj` | `orgaos.cnpj` | `orgaos` **não tem** coluna normalizada — só índice de expressão `UNIQUE` sobre `regexp_replace(cnpj, '[^0-9]', '', 'g')` (`202609180002:42`). Repetir a mesma expressão para usar o índice. |
 | `pca_planos.unidade_codigo` | `unidades` | `codigo_unidade` **não é único global** — unicidade é `(orgao_id, codigo_unidade)`. Resolver o órgão primeiro. |
 | `categoria_item_pca.codigo_pncp` | item ou categoria de PCA | semântica não confirmada. `codigo_pncp` é `int UNIQUE` populado de `/categoriaItemPcas`; `pca_itens.categoria` guarda o **nome** (`categoriaItemPcaNome`). Confirmar se o payload traz também o código antes de FK. |
-| `catmat_pdms.(codigo_grupo, codigo_classe)` | `catmat_classes` | colunas existem (`202609180015:32-33`) mas **sem FK** composta — integridade só por sync idempotente. |
+| ~~`catmat_pdms` → `catmat_classes`~~ | FK composta | **Resolvido** — `202609180018_catmat_pdms_classe_fkey.sql`. |
 | `catmat_item_caracteristicas.codigo_item` | `catalogo_itens.codigo_catmat` | plausível como FK após confirmar no Swagger que `codigo_item` do endpoint 7 é código CATMAT de item (não PDM). |
 
 ## D. Cruzamentos habilitados pelo Dados Abertos Compras — `A VERIFICAR`
@@ -121,7 +121,7 @@ não de PDM. Confirmar no Swagger antes de declarar FK.
 | 3 | ~~`catalogo_ponte` sem índice polimórfico~~ | **Resolvido** | `202609180017`: `(entidade_tipo, entidade_id)` |
 | 4 | ~~`contratacoes_eventos` sem índice polimórfico~~ | **Resolvido** | `202609180017`: `(tipo_entidade, entidade_id)` |
 | 5 | ~~`irp_participantes` UNIQUE com NULLs~~ | **Resolvido** | `202609180017`: índice `NULLS NOT DISTINCT` |
-| 6 | `catmat_pdms` sem FK para `catmat_classes` | órfãos teóricos se sync falhar parcialmente | FK composta `(codigo_grupo, codigo_classe)` após gate D |
+| 6 | ~~`catmat_pdms` sem FK para `catmat_classes`~~ | **Resolvido** | `202609180018`: FK `(codigo_grupo, codigo_classe)` |
 | 7 | Curadoria manual vs catálogo oficial | `fonte_curadoria='manual'` em subset do PDM 2640 (106 itens) | tratar filtros de curadoria como **SELECT** sobre `catalogo_itens` (`taxonomias`, `categoria_licitagym`, `grupo_licitagym` em JSON) — não materializar como FK |
 
 Consultas de curadoria (filtros manuais no catálogo CATMAT):
