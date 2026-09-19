@@ -180,7 +180,7 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 
 Útil para **cotações** e benchmark de preços. Ainda **não ingerido** no Postgres LicitaGym — consulta direta à API.
 
-**DTO principal:** `FtPesqPrecoCompraMaterialDTO`  
+**DTO principal:** `FtPesqPrecoCompraMaterialDTO`
 **Detalhe:** `FtPesqPrecoCompraMaterialDetalheDTO`
 
 | Campo API | Tipo | Uso |
