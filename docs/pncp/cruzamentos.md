@@ -79,6 +79,11 @@ casar linhas de domínios diferentes, já que os UUIDs vêm de tabelas distintas
 
 ## D. Cruzamentos habilitados pelo Dados Abertos Compras — `A VERIFICAR`
 
+**Pendência operacional:** levantamento de paths/schemas no Swagger Compras.gov **não concluído** — o domínio
+`dadosabertos.compras.gov.br` estava bloqueado pelo proxy de egress do ambiente de auditoria. Enquanto o bloco D
+permanecer `A VERIFICAR`, vale o gate de [contract-matrix.md](./contract-matrix.md): sem linha `verified`, sem
+migration de domínio adicional (ex.: FK `catmat_pdms` → `catmat_classes`).
+
 Hipóteses de trabalho, nenhuma confirmada contra o Swagger no ambiente de escrita deste doc:
 
 | cruzamento | uso pretendido |
@@ -106,11 +111,11 @@ não de PDM. Confirmar no Swagger antes de declarar FK.
 
 | # | lacuna | impacto | ação sugerida |
 |---|--------|---------|---------------|
-| 1 | ~~`catmat_*` / `pca_item_pdm` só no banco~~ | **Resolvido** | migrations `015` e `016` |
-| 2 | `contratacoes_atas` sem `UNIQUE (orgao_cnpj, ano, sequencial_ata)` | editais e contratos têm chave composta (`202609180005:30,133`); atas só têm `numero_controle_pncp` | migration de unicidade composta quando sync de atas estabilizar |
-| 3 | `catalogo_ponte` sem índice em `(entidade_tipo, entidade_id)` | lookup inverso (PCA → catálogo) faz seq scan | índice composto |
-| 4 | `contratacoes_eventos` sem índice em `(tipo_entidade, entidade_id)` | timeline por entidade lenta | índice composto |
-| 5 | `irp_participantes` `UNIQUE (irp_id, orgao_cnpj, codigo_unidade)` com colunas nullable | em Postgres, `NULL` não conflita — duplicatas possíveis | `NOT NULL` ou índice parcial |
+| 1 | ~~`catmat_*` / `pca_item_pdm` só no banco~~ | **Resolvido** | `202609180015_catmat_compras.sql`, `202609180016_pca_item_pdm.sql` (versionados no repo) |
+| 2 | ~~`contratacoes_atas` sem chave composta~~ | **Resolvido** | `202609180017`: `UNIQUE (orgao_cnpj, ano, sequencial_ata)` |
+| 3 | ~~`catalogo_ponte` sem índice polimórfico~~ | **Resolvido** | `202609180017`: `(entidade_tipo, entidade_id)` |
+| 4 | ~~`contratacoes_eventos` sem índice polimórfico~~ | **Resolvido** | `202609180017`: `(tipo_entidade, entidade_id)` |
+| 5 | ~~`irp_participantes` UNIQUE com NULLs~~ | **Resolvido** | `202609180017`: índice `NULLS NOT DISTINCT` |
 | 6 | `catmat_pdms` sem FK para `catmat_classes` | órfãos teóricos se sync falhar parcialmente | FK composta `(codigo_grupo, codigo_classe)` após gate D |
 | 7 | Curadoria manual vs catálogo oficial | `fonte_curadoria='manual'` em subset do PDM 2640 (106 itens) | tratar filtros de curadoria como **SELECT** sobre `catalogo_itens` (`taxonomias`, `categoria_licitagym`, `grupo_licitagym` em JSON) — não materializar como FK |
 
