@@ -49,6 +49,154 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 
 Migrations de domínio (`pca_*`, `irp_*`, `contratacoes_*`) só avançam com linha `verified` acima. IRP sync permanece desabilitado até estratégia de descoberta documentada.
 
+## Dados Abertos Compras — inventário de endpoints
+
+Base: `https://dadosabertos.compras.gov.br`. Sem autenticação. Envelope paginado comum:
+`{ resultado[], totalRegistros, totalPaginas, paginasRestantes }`.
+
+Fontes: catálogo de endpoints e **resultados de chamadas reais** registrados no workspace de
+exploração (React/Vite), mais `compras_gov_schemas.json` e
+[schemas-consultas.md](./schemas-consultas.md). Onde o catálogo escrito à mão e o teste real
+divergem, **vale o teste** — ver "Conflitos de parâmetro" abaixo.
+
+Status: `testado-ok` = chamada real bem-sucedida registrada; `testado-falha` = erro reproduzido;
+`testado-vazio` = HTTP 200 sem registros; `nao-testado` = só catalogado.
+Nenhum é `verified` contra o Swagger ao vivo — **o gate de migrations continua valendo.**
+
+### 01 — CATÁLOGO MATERIAL (CATMAT)
+
+| # | path `/modulo-material/…` | params | status | volume real |
+|---|---|---|---|---|
+| 1 | `1_consultarGrupoMaterial` | `pagina`, `codigoGrupo`, `statusGrupo` | testado-ok | 73 grupos |
+| 2 | `2_consultarClasseMaterial` | `pagina`, `codigoGrupo`, `codigoClasse`, `statusClasse`, `bps` | testado-ok | **711** reg / 2 pág |
+| 3 | `3_consultarPdmMaterial` | `pagina`, `statusPdm`, `codigoPdm`, `codigoGrupo`, `codigoClasse`, `bps` | testado-ok | **20.433** / 2.044 pág (10/pág) |
+| 4 | `4_consultarItemMaterial` | `pagina`, `tamanhoPagina`, `codigoItem`, `codigoGrupo`, `codigoClasse`, `codigoPdm`, `descricaoItem`, `statusItem`, `bps`, `codigo_ncm` | testado-ok | **344.898** / 34.490 pág (~9,5 h) |
+| 5 | `5_consultarMaterialNaturezaDespesa` | `pagina`, `codigoPdm`, `codigoNaturezaDespesa`, `statusNaturezaDespesa` | testado-ok ⚠️ | **22** / 1 pág — ver lacuna 5 |
+| 6 | `6_consultarMaterialUnidadeFornecimento` | `pagina`, `codigoPdm`, `statusUnidadeFornecimentoPdm` | testado-ok | **38.096** / 3.810 pág (~1 h) |
+| 7 | `7_consultarMaterialCaracteristicas` | `pagina`, `codigoItem` | testado-ok | **1.732.820** / 17.329 pág (100/pág, ~4,8 h) |
+
+### 02 — CATÁLOGO SERVIÇO (CATSER)
+
+Hierarquia de 6 níveis (seção → divisão → grupo → classe → subclasse → item), contra 3 do material.
+Todos `nao-testado`.
+
+| # | path `/modulo-servico/…` | params |
+|---|---|---|
+| 1 | `1_consultarSecaoServico` | `pagina`, `codigoSecao`, `statusSecao` |
+| 2 | `2_consultarDivisaoServico` | `pagina`, `codigoSecao`, `codigoDivisao`, `statusDivisao` |
+| 3 | `3_consultarGrupoServico` | `pagina`, `codigoDivisao`, `codigoGrupo`, `statusGrupo` |
+| 4 | `4_consultarClasseServico` | `pagina`, `codigoGrupo`, `codigoClasse`, `statusGrupo` |
+| 5 | `5_consultarSubClasseServico` | `pagina`, `codigoClasse`, `codigoSubclasse`, `statusSubclasse` |
+| 6 | `6_consultarItemServico` | `pagina`, `tamanhoPagina`, `codigoSecao`, `codigoDivisao`, `codigoGrupo`, `codigoClasse`, `codigoSubclasse`, `codigoCpc`, `codigoServico`, `exclusivoCentralCompras`, `statusServico` |
+| 7 | `7_consultarUndMedidaServico` | `pagina`, `codigoServico`, `statusUnidadeMedida` |
+| 8 | `8_consultarNaturezaDespesaServico` | `pagina`, `codigoServico`, `codigoNaturezaDespesa`, `statusNaturezaDespesa` |
+
+### 03 — PESQUISA DE PREÇO
+
+| # | path `/modulo-pesquisa-preco/…` | status | observação |
+|---|---|---|---|
+| 1 | `1_consultarMaterial` | testado-ok | filtro real usado: `tipo=codigoPdm&codigo=1005` e `tipo=codigoItemCatalogo&codigo=233523` |
+| 1.1 | `1.1_consultarMaterial_CSV` | **testado-falha** | 500 com filtro, 404 sem filtro — 0% sucesso |
+| 2 | `2_consultarMaterialDetalhe` | testado-ok | filtro real: `codigoItemCatalogo=233523` (params batem com o do 1) |
+| 2.1 | `2.1_consultarMaterialDetalhe_CSV` | **testado-falha** | 500 com e sem filtro — 0% sucesso |
+| 3 | `3_consultarServico` | nao-testado | |
+| 3.1 | `3.1_consultarServico_CSV` | nao-testado | presumir quebrado como 1.1/2.1 até provar |
+| 4 | `4_consultarServicoDetalhe` | nao-testado | |
+| 4.1 | `4.1_consultarServicoDetalhe_CSV` | nao-testado | idem |
+
+Params catalogados (1 a 4): `pagina`, `codigoMaterial`/`codigoServico`, `codigoGrupo`, `codigoClasse`,
+`codigoPdm`, `dataInicial`, `dataFinal`, `codigoUasg`, `codigoOrgao` — **contraditos pelos testes**,
+ver abaixo.
+
+Implementado em [`supabase/sql/precos_praticados.sql`](../../supabase/sql/precos_praticados.sql),
+consumindo JSON (nunca o CSV).
+
+### 04 — PGC (Plano de Gerenciamento de Contratações)
+
+| # | path `/modulo-pgc/…` | params reais nos testes | status |
+|---|---|---|---|
+| 1 | `1_consultarPgcDetalhe` | `pagina`, `tamanhoPagina`, `orgao`, `anoPcaProjetoCompra` | testado-vazio ⚠️ |
+| 1.1 | `1.1_consultarPgcDetalhe_CSV` | idem | testado-ok (1.298 bytes) |
+| 2 | `2_consultarPgcDetalheCatalogo` | `pagina`, `tamanhoPagina`, `anoPcaProjetoCompra`, `tipo`, `codigo` | testado-ok |
+| 2.1 | `2.1_consultarPgcDetalheCatalogo_CSV` | idem | testado-ok |
+| 3 | `3_consultarPgcAgregacao` | `pagina`, `orgao`, `ano` | testado-vazio |
+| 3.1 | `3.1_consultarPgcAgregacao_CSV` | idem | testado-ok (300 bytes) |
+
+`orgao` é o **nome** do órgão, não o código — com acentuação e separador `·`
+(`"Câmara Municipal de Linhares · ES"`). Filtro por nome literal é frágil e não dá chave estável.
+
+`FtPgcDetalheDTO` traz `codigoPdmMaterial`, `codigoItemCatalogo`, `valorUnitarioItem` e
+`numeroItemPncp` na mesma linha — é uma fonte de PCA mais rica que a API Consulta do PNCP usada hoje.
+
+### 05 a 11 — demais módulos
+
+| módulo | endpoints | status |
+|---|---|---|
+| 05 UASG | `/modulo-uasg/` `1_consultarUasg`, `1.1_…_CSV`, `2_consultarOrgao`, `2.1_…_CSV` | UASG testado-ok (100 reg/pág, inclusive `statusUasg=false`); Órgão testado-ok, mas `statusOrgao=false` volta vazio |
+| 06 LEGADO (Lei 8.666) | `1_consultarLicitacao`, `1.1_…_Id`, `2_consultarItemLicitacao`, `3_consultarPregoes`, `4_consultarItensPregoes`, `5_consultarComprasSemLicitacao` | testado (ver DTOs `TbVw*`) |
+| 07 CONTRATAÇÕES (Lei 14.133) | `1_consultarContratacoes_PNCP_14133` (+`_Id`), `2_consultarItensContratacoes…`, `3_consultarResultadoItensContratacoes…` | nao-testado — ponte Compras↔PNCP via `numeroControlePNCP` + `codItemCatalogo` + `codigoPdm` |
+| 08 ARP | `1_consultarARP` (+`_Id`), `2_consultarARPItem`, `3_consultarUnidadesItem`, `4_consultarEmpenhosSaldoItem`, `5_consultarAdesoesItem` | nao-testado — saldo de adesão/empenho não existe na API Consulta do PNCP |
+| 09 CONTRATOS | `1_consultarContratos` (+`_Id`), `2_consultarContratosItem` | nao-testado |
+| 10 FORNECEDOR | `1_consultarFornecedor` (`cpfCnpj`, `nomeFornecedor`, `codigoUasg`) | nao-testado — **PII** |
+| 11 OCDS | `1_releases` | nao-testado |
+
+### Conflitos de parâmetro — resolver antes de escrever sync
+
+1. **Pesquisa de preço.** Três versões incompatíveis do mesmo contrato: o catálogo lista
+   `codigoMaterial`/`codigoPdm`/`codigoClasse` como params separados; o teste que funcionou no
+   endpoint 1 usou o par **`tipo`+`codigo`** (`tipo=codigoPdm&codigo=1005`); o do endpoint 2 usou
+   `codigoItemCatalogo=233523` direto. O par `tipo`+`codigo` reaparece no PGC 2, então é convenção
+   da API — mas não está uniformizada.
+2. **PGC.** O catálogo lista `anoPgc`, `codigoOrgao`, `codigoUasg`, `codigoUnidade`; os testes que
+   funcionaram usaram `orgao` (nome) e `anoPcaProjetoCompra`. Nenhum teste usou os nomes catalogados.
+
+### Lacunas e armadilhas confirmadas empiricamente
+
+1. **CSV de preço está quebrado** (1.1 e 2.1): 500 com filtro, 404 sem, 0% de sucesso. Consumir JSON
+   e converter no cliente. Presumir o mesmo para 3.1/4.1 até prova em contrário.
+2. **Tamanho de página não é uniforme** — 10 (PDM, item, unidade), 50 (natureza), 100
+   (características), ~500 (classe). Um loop de paginação genérico erra a conta.
+3. **Volume exige fila, não Edge Function.** 1,73 M características e 344 k itens não cabem no
+   `fetchWithTimeout` de 45 s de `_shared/pncp/retry.ts`. Usar `private.job_queue` com checkpoint
+   por página. No recorte LicitaGym (classe 7830) o número cai muito, mas o sync deve assumir o
+   caso geral.
+4. **A conclusão de "PGC Detalhe sem dados" não se sustenta.** O JSON foi testado com Linhares,
+   MEC e Saúde; o CSV **do mesmo endpoint** foi testado com Barueri/2025 e devolveu 1.298 bytes de
+   dados reais. Órgãos diferentes: a comparação não prova nada. O teste decisivo está em
+   [`scripts/probe-compras-api.ps1`](../../scripts/probe-compras-api.ps1), que roda os três
+   testes decisivos que faltaram (A: PGC JSON com os params do CSV que funcionou; B: natureza
+   de despesa com e sem filtro; C: os três contratos de parâmetro do endpoint de preço lado
+   a lado).
+5. **`5_consultarMaterialNaturezaDespesa` devolveu 22 registros marcados "COMPLETO"** — para 20.433
+   PDMs. Ou a chamada estava filtrada por PDM, ou o endpoint exige filtro. Se o sync foi escrito
+   com essa premissa, ele acha que terminou: é a explicação mais provável para
+   `catmat_pdm_naturezas_despesa` estar vazia no banco.
+6. **PGC Agregação: JSON 0 registros vs CSV 300 bytes com params idênticos.** Aqui a comparação é
+   válida, mas 300 bytes é quase certamente só a linha de cabeçalho — CSV de tabela vazia, não
+   divergência entre endpoints.
+7. **`statusNaturezaDespesa` é string `"1"`/`"0"`**, não boolean, e `nomeNaturezaDespesa` pode ser
+   nulo — contraria o padrão booleano das outras tabelas CATMAT.
+8. **`idCompra` muda de tipo entre os dois endpoints de preço** (`integer/int64` em
+   `FtPesqPrecoCompraMaterialDTO`, `string` em `...DetalheDTO`). Valores de 17 dígitos estouram
+   `Number.MAX_SAFE_INTEGER`; `JSON.parse` em Deno perde precisão antes de qualquer código nosso.
+   Detalhe em `supabase/sql/precos_praticados.sql`, nota 1.
+9. **`codigoPdm` não tem tipo único:** `int64` nos DTOs de material, `string` nos de preço,
+   ARP-unidades e espelho PNCP, `int32` em `VwFtArpItemDTO`. Zero à esquerda quebra junção em
+   silêncio. Normalizar dos dois lados.
+10. **PII espalhada, além do endpoint de usuários.** `UsuariosDTOResponse` expõe `senha` em DTO de
+    resposta. `TbVwCompraItensSemLicitacaoDTO` tem `nu_cpf_vencedor` e três CPFs de responsáveis;
+    `TbVwItemLicitacaoDTO` tem `cpf_vencedor`; `VwFtFornecedorDTO` tem `cpf`;
+    `FtPesqPrecoCompraMaterialDTO.niFornecedor` pode ser CPF de pessoa física. A decisão CLA-40 em
+    [security-mvp.md](./security-mvp.md) cobria só `/usuarios` — **precisa ser reaberta**.
+11. `VwKpisGeralDTO` tem uma propriedade literalmente chamada `"2026-04-26"` — bug no Swagger deles.
+
+## Cruzamentos entre domínios
+
+O mapa de junções entre tabelas (FKs reais, junções polimórficas, candidatas não materializadas e
+lacunas de integridade) está em [cruzamentos.md](./cruzamentos.md). A seção *Dados Abertos Compras*
+desta matriz ainda não existe: o Swagger não pôde ser lido, e o gate acima vale — sem linha
+`verified`, sem migration de domínio.
+
 ## Referências
 
 - [cruzamentos.md](./cruzamentos.md) — junções entre tabelas (FK, lógicas, candidatas, PCA↔CATMAT)
