@@ -7,6 +7,8 @@ Versão: **2026-09-19** | Análise completa em [../catalogo-perguntas.md](../cat
 - **schemas-inventory.md** — inventário dos 78 DTOs com contagens de campo e status de transcrição
 - **dto-errors-2026-09-19.md** — erros críticos, transcrição, anomalias de nomenclatura e tipo (BLOCOS 1-38)
 - **bridges-consolidados.md** — 5 caminhos de integração: PCA → PNCP, PNCP → CATMAT, ARP → PNCP, subrogação, ORG-01/02
+- **fix-pca-bridge-v1.md** — correção normalizePcaItem: recuperar codigoPdm, codigoItem, numeroControlePncp
+- **escopo-materiais-academia.md** — filtrar Bridge 2 por piso, borracha, PVC (não 113 PDMs genéricos)
 - **schemas.json** — definiçõesJSON Schema (quando versionado)
 
 ## Propósito

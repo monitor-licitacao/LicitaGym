@@ -175,15 +175,17 @@ LIMIT 10;
 
 ## Dados Perdidos Recuperáveis
 
-**Foram 113 itens sem PDM. Com esta correção:**
+**De 113 itens sem PDM, o escopo LicitaGym interessa em:**
 
-| Cenário | Resultado |
-|---|---|
-| Item tem `codigoPdm` no DTO | ✓ Recuperado; PDM agora identificado |
-| Item tem `numeroControlePncp` | ✓ Recuperado; bridge a PNCP operacional |
-| Item sem ambos os acima | ✗ Continua sem PDM (limite de dados) |
+| Material | Estimativa | Recuperação |
+|---|---|---|
+| Piso (qualquer tipo) | ~X itens | ✓ Via codigoPdm |
+| Borracha (tapetes, placas) | ~Y itens | ✓ Via codigoPdm |
+| PVC (revestimentos) | ~Z itens | ✓ Via codigoPdm |
+| **Total relevante** | **~X+Y+Z** | ✓ Todos via Bridge 2 |
+| Outros (genéricos 7830) | 113 - (X+Y+Z) | ✗ Fora escopo |
 
-**Estimativa:** ~67 itens recuperáveis (113 - 46 conforme plano-catalogo-perguntas.md).
+**Nota:** Valores reais dependem de query contra CATMAT. Ver `escopo-materiais-academia.md` para queries.
 
 ---
 
