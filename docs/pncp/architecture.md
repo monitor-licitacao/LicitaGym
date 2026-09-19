@@ -36,7 +36,9 @@ Storage       → pncp-legislation (PDFs imutáveis por versão)
 | `sync-pncp-contratacoes-editais` | `0 */6 * * *` | GET `/v1/contratacoes/*` |
 | `sync-pncp-contratacoes-atas` | `15 */6 * * *` | GET `/v1/atas` |
 | `sync-pncp-contratacoes-contratos` | `30 */6 * * *` | GET `/v1/contratos` |
-| `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração) |
+| `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração PNCP) |
+| `sync-compras-catmat` | manual/semanal | Compras.gov Dados Abertos `/modulo-material/*` (classe 7830) |
+| `link-catmat-pca` | manual | Ponte `catalogo_ponte` PCA item ↔ CATMAT por similaridade |
 | `sync-pncp-irp` | bloqueado | Gate CLA-34 |
 
 ## API da aplicação (Fase 6)
@@ -54,6 +56,7 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 - **IRP**: sem listagem na API Consulta — `sync_habilitado=false` no schema; env `IRP_SYNC_ENABLED=true` só após CLA-34
 - **Usuários PNCP**: fora do MVP ([security-mvp.md](./security-mvp.md))
 - **Matriz de contratos**: [contract-matrix.md](./contract-matrix.md) — gate para migrations de domínio
+- **Mapa de cruzamentos**: [cruzamentos.md](./cruzamentos.md) — junções PNCP × CATMAT × catálogo
 
 ## Secrets
 
@@ -69,6 +72,8 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 4. Edge Functions: `npx supabase functions serve --no-verify-jwt --env-file supabase/.env.functions.local sync-pncp-pca`
 5. PCA aceita `codigos_classificacao: ["7830"]` (padrão LicitaGym) ou `codigo_classificacao_superior` (legado); use `max_paginas` para smoke tests.
 6. Curadoria CATMAT: exporte do app HTML → `scripts/import-catmat-curadoria.ps1` ou POST em `import-catmat-curadoria`.
+7. CATMAT oficial Compras.gov: `.\scripts\invoke-sync-compras-catmat.ps1` (referência + características em lotes).
+8. Ponte PCA↔CATMAT: `.\scripts\invoke-link-catmat-pca.ps1` após sync PCA e CATMAT.
 7. **Carga anual PCA:** o índice Search (`/api/search?tipos_documento=pcaorgao`) expõe `data_publicacao_pncp` e `data_atualizacao_pncp` por órgão. Use `somente_verificacao:true` para checar se houve mudança; sync pesado só quando `data_atualizacao_pncp` avançar ou com `forcar:true`. Lastro em `private.pncp_period_anchor`.
 
 ```powershell

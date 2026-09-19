@@ -9,10 +9,11 @@ Cada linha declara chave dos dois lados, cardinalidade e natureza da junção:
 - **lógica** — junção válida sem constraint (polimórfica ou cross-schema por decisão de projeto)
 - **candidata** — junção plausível ainda não materializada; exige normalização ou confirmação semântica
 
-> **Status de verificação.** Blocos A–C foram conferidos linha a linha contra
-> `supabase/migrations/*.sql`. O bloco D depende do Swagger do Dados Abertos Compras, que estava
-> inacessível quando este documento foi escrito — está marcado `A VERIFICAR` e **não libera
-> migration** enquanto não for confirmado (mesma regra do gate em `contract-matrix.md`).
+> **Status de verificação.** Blocos A–C e G foram conferidos linha a linha contra
+> `supabase/migrations/*.sql` e contagens do banco remoto (mar/2026). O bloco D combina inventário
+> empírico em [contract-matrix.md](./contract-matrix.md) (status `testado-*`, mar/2026) com
+> semânticas ainda não `verified` contra Swagger — **não libera migration** além do que já está
+> versionado (mesma regra do gate em `contract-matrix.md`).
 
 ---
 
@@ -38,6 +39,12 @@ Cada linha declara chave dos dois lados, cardinalidade e natureza da junção:
 | `irp_intencoes.orgao_id` / `.unidade_id` / `.pca_plano_id` | orgaos / unidades / pca_planos | N:1 (nullable) | `202609180006:12,13,19` |
 | `catalogo_especificacoes.catalogo_item_id` | `catalogo_itens.id` | N:1 (`CASCADE`) | `202609180007:23` |
 | `catalogo_ponte.catalogo_item_id` | `catalogo_itens.id` | N:1 (`CASCADE`) | `202609180007:37` |
+| `pca_item_pdm.pca_item_id` | `pca_itens.id` | N:1 (`CASCADE`) | `202609180016:23` |
+| `pca_item_pdm.codigo_pdm` | `catmat_pdms.codigo_pdm` | N:1 (`CASCADE`) | `202609180016:24` |
+| `catmat_classes.codigo_grupo` | `catmat_grupos.codigo_grupo` | N:1 (`CASCADE`) | `202609180015:16` |
+| `catmat_pdms.(codigo_grupo, codigo_classe)` | `catmat_classes.(codigo_grupo, codigo_classe)` | N:1 | `202609180018` |
+| `catmat_pdm_naturezas_despesa.codigo_pdm` | `catmat_pdms.codigo_pdm` | N:1 (`CASCADE`) | `202609180015:48` |
+| `catmat_pdm_unidades.codigo_pdm` | `catmat_pdms.codigo_pdm` | N:1 (`CASCADE`) | `202609180015:61` |
 | `private.pncp_sync_request.sync_run_id` | `private.pncp_sync_run.id` | N:1 (`CASCADE`) | `202609180001:46` |
 | `private.source_record.sync_run_id` | `private.pncp_sync_run.id` | N:1 (`SET NULL`) | `202609180001:63` |
 | `private.source_record_version.source_record_id` | `private.source_record.id` | N:1 (`CASCADE`) | `202609180001:79` |
@@ -48,32 +55,46 @@ Cada linha declara chave dos dois lados, cardinalidade e natureza da junção:
 |--------|---------|-------|------------------|
 | `contratacoes_itens.origem_id` | editais / atas / contratos | `(tipo_origem, origem_id)` | polimórfica — `tipo_origem` discrimina o alvo |
 | `contratacoes_eventos.entidade_id` | qualquer domínio de contratação | `(tipo_entidade, entidade_id)` | polimórfica |
-| `catalogo_ponte.entidade_id` | `pca_itens` / `irp_itens` / `contratacoes_itens` | `(entidade_tipo, entidade_id)` | polimórfica — `CHECK` aceita os três tipos |
+| `catalogo_ponte.entidade_id` | `pca_itens` / `irp_itens` / `contratacoes_itens` | `(entidade_tipo, entidade_id)` | polimórfica — `CHECK` aceita os três tipos (`202609180007:38`) |
 | `pca_alteracoes.sync_run_id`, `irp_eventos.sync_run_id`, `contratacoes_eventos.sync_run_id` | `private.pncp_sync_run.id` | `uuid` | cross-schema; mantido solto para não acoplar `public` a `private` |
+| `pca_itens.codigo_classe_catmat` | `catmat_pdms.codigo_classe` | `integer` | classe ≠ PDM; join retorna **até 49 PDMs candidatos** por item (classe 7830) |
+| `pca_itens.classe_material_servico` | `pca_itens.codigo_classe_catmat` | backfill numérico | redundância intencional — coluna explícita em `202609180016:3-15` |
+| `catalogo_itens.codigo_catmat` | `catmat_item_caracteristicas.codigo_item` | `text` → `int` | catálogo LicitaGym ↔ características Compras.gov (endpoint 7) |
+| `catalogo_itens.codigo_pdm` | `catmat_pdms.codigo_pdm` | `text` → `int` | denormalizado em `202609180012:6`; curadoria e sync Compras.gov |
+| `catalogo_ponte` → `pca_item_pdm` | mesmo `pca_item_id` | via `catalogo_itens.codigo_pdm` | duas trilhas: match de **item** (ponte) e match de **PDM** (pdm + score) |
 
 Toda junção polimórfica **exige o discriminador no `WHERE`**. Filtrar só por `entidade_id` pode
 casar linhas de domínios diferentes, já que os UUIDs vêm de tabelas distintas.
+
+**Anti-padrão confirmado:** `pca_itens.numero_item` é sequência **dentro do plano** (`UNIQUE (pca_plano_id, numero_item)`, `202609180004:49`). **Nunca** cruzar com `catmat_pdms.codigo_pdm`.
 
 ## C. Junções candidatas (não materializadas)
 
 | origem | destino | o que falta |
 |--------|---------|-------------|
 | `pca_planos.orgao_cnpj` | `entidades.cnpj_normalizado` | `entidades` tem coluna `GENERATED` normalizada e índice (`202609180002:7,22`); o lado do PCA já entra normalizado por `normalizeCnpj` em `normalize.ts`. Junção direta, falta só declarar o uso. |
-| `pca_planos.orgao_cnpj` | `orgaos.cnpj` | `orgaos` **não tem** coluna normalizada — só um índice de expressão `UNIQUE` sobre `regexp_replace(cnpj, '[^0-9]', '', 'g')` (`202609180002:42`). A junção precisa repetir a mesma expressão para usar o índice; comparar com `orgaos.cnpj` cru faz seq scan e erra quando há pontuação. |
-| `pca_planos.unidade_codigo` | `unidades` | `codigo_unidade` **não é único global** — a unicidade é `(orgao_id, codigo_unidade)`. Resolver o órgão primeiro; chave isolada produz falso positivo. |
-| `categoria_item_pca.codigo_pncp` | item ou categoria de PCA | semântica não confirmada. `codigo_pncp` é `int UNIQUE` e é populado de `/categoriaItemPcas` por `sync-pncp-catalogo`, enquanto `pca_itens.categoria` guarda o **nome** (`categoriaItemPcaNome`). Falta confirmar se o payload traz também o código. Não criar FK antes disso. |
+| `pca_planos.orgao_cnpj` | `orgaos.cnpj` | `orgaos` **não tem** coluna normalizada — só índice de expressão `UNIQUE` sobre `regexp_replace(cnpj, '[^0-9]', '', 'g')` (`202609180002:42`). Repetir a mesma expressão para usar o índice; comparar com `orgaos.cnpj` cru faz seq scan e erra quando há pontuação. |
+| `pca_planos.unidade_codigo` | `unidades` | `codigo_unidade` **não é único global** — unicidade é `(orgao_id, codigo_unidade)`. Resolver o órgão primeiro; chave isolada produz falso positivo. |
+| `categoria_item_pca.codigo_pncp` | item ou categoria de PCA | semântica não confirmada. `codigo_pncp` é `int UNIQUE` populado de `/categoriaItemPcas`; `pca_itens.categoria` guarda o **nome** (`categoriaItemPcaNome`). Confirmar se o payload traz também o código antes de FK. |
+| `catmat_item_caracteristicas.codigo_item` | `catalogo_itens.codigo_catmat` | junção confirmada empiricamente (ver §D); FK formal pendente de gate `verified` |
 
-## D. Cruzamentos habilitados pelo Dados Abertos Compras — `A VERIFICAR`
+## D. Cruzamentos habilitados pelo Dados Abertos Compras
 
-Hipóteses de trabalho, nenhuma confirmada contra o Swagger:
+**Inventário empírico.** Endpoints material 1–7 e demais módulos estão catalogados em
+[contract-matrix.md](./contract-matrix.md) com status `testado-ok` / `testado-falha` / `testado-vazio`
+(chamadas reais registradas, mar/2026). DTOs e SQL: [schemas-consultas.md](../compras-gov/schemas-consultas.md).
+Testes decisivos pendentes de rodar localmente: [`scripts/probe-compras-api.ps1`](../../scripts/probe-compras-api.ps1).
+
+**Escopo ainda `A VERIFICAR`:** módulos fora do CATMAT material já ingerido (PGC, pesquisa de preço),
+contratos de parâmetro conflitantes e normalização dimensional de características — abaixo.
 
 | cruzamento | uso pretendido |
 |------------|----------------|
-| PDM → unidades de fornecimento | validar/padronizar `pca_itens.unidade_medida` contra as unidades permitidas do PDM |
-| PDM → natureza de despesa | leitura orçamentária por item; hoje `catmat_pdm_naturezas_despesa` está vazia |
-| **item** → características e valores | alimentar `catalogo_itens.taxonomias`, hoje preenchida à mão — ver abaixo, junção confirmada |
+| PDM → unidades de fornecimento | validar/padronizar `pca_itens.unidade_medida` contra unidades permitidas do PDM |
+| PDM → natureza de despesa | leitura orçamentária por item; endpoint 5 pode exigir `codigoPdm` — ver probe B1/B2 |
+| **item** → características e valores | alimentar `catalogo_itens.taxonomias` — junção confirmada abaixo |
 
-**Ambiguidade resolvida** (por amostra de linha real, 2026-09-18).
+**Ambiguidade resolvida** (amostra de linha real, 2026-09-18).
 `catmat_item_caracteristicas.codigo_item` é **código CATMAT de item**, não `codigo_pdm`:
 
 ```json
@@ -83,42 +104,24 @@ Hipóteses de trabalho, nenhuma confirmada contra o Swagger:
  "numero_caracteristica": 6, "sigla_unidade_medida": null}
 ```
 
-Cada linha é uma tripla **(item, característica, valor)** — a atribuição de um valor de
-característica a um item. Isso explica a "zero correspondência" que o primeiro estudo encontrou ao
-comparar essa tabela com os 49 PDMs: o lado certo da junção é o item, não o PDM.
-
-Junção que isso habilita:
+Junção habilitada:
 
 ```text
 catalogo_itens.codigo_catmat  →  catmat_item_caracteristicas.codigo_item
 ```
 
-É a **fonte oficial de `catalogo_itens.taxonomias`**, hoje preenchida à mão
-(`{"MATERIAL": "AÇO CARBONO"}` é exatamente `nome_caracteristica → nome_valor_caracteristica`).
+É a **fonte oficial de `catalogo_itens.taxonomias`**, hoje preenchida à mão ou via parser de descrição.
 
-> **Risco de junção silenciosa.** `codigo_item` é `int` (`287851`); `codigo_catmat` é `text`,
-> gravado por `import-catmat-curadoria` com `String(...).trim()` e sem padding. Se o export do app
-> HTML tiver zerado à esquerda, `'0000000287851' <> '287851'` e a junção devolve zero linhas sem
-> erro. Conferir `select codigo_catmat, length(codigo_catmat) from catalogo_itens limit 5;` antes
-> de escrever o backfill.
+> **Risco de junção silenciosa.** `codigo_item` é `int`; `codigo_catmat` é `text` sem padding.
+> `'0000000287851' <> '287851'` devolve zero linhas sem erro. Conferir antes de backfill.
 
 ### Normalizar `catmat_item_caracteristicas`
 
-**Não cruzar `sigla_unidade_medida` com `catmat_pdm_unidades`.** São duas grandezas diferentes:
+**Não cruzar `sigla_unidade_medida` com `catmat_pdm_unidades`.** Unidade de fornecimento (compra)
+≠ unidade da característica (atributo técnico). O cruzamento falha em silêncio quando siglas coincidem
+(ex.: `KG`).
 
-| coluna | o que é | exemplos |
-|--------|---------|----------|
-| `catmat_pdm_unidades` | unidade de **fornecimento** — como o item é comprado | `UN`, `CX`, `PC`, `KG` |
-| `catmat_item_caracteristicas.sigla_unidade_medida` | unidade da **característica** — dimensão de um atributo técnico | `MM`, `KG`, `W`, `V` |
-
-O cruzamento é perigoso justamente porque **falha em silêncio**: `KG` e `L` existem nos dois
-domínios, então a junção casa em parte das linhas e produz resultado plausível e errado. Na linha
-acima o campo é `null` porque "CARACTERÍSTICAS ADICIONAIS" com valor "MALHA 12 X 12" é descritiva,
-não dimensional — esperar `null` na maioria das características textuais.
-
-A tabela é uma tripla desnormalizada: repete `nome_caracteristica` em toda linha de todo item que
-tenha aquela característica, e `nome_valor_caracteristica` em toda linha que use aquele valor. A
-decomposição correta é em duas dimensões e um fato:
+Decomposição alvo (gate futuro):
 
 ```text
 catmat_caracteristicas(codigo_caracteristica PK, nome_caracteristica, sigla_unidade_medida)
@@ -126,57 +129,105 @@ catmat_caracteristica_valores(codigo_valor_caracteristica PK, codigo_caracterist
 catmat_item_caracteristica_valores(codigo_item, codigo_valor_caracteristica, numero_caracteristica)
 ```
 
-`sigla_unidade_medida` sobe para a dimensão da característica — **é essa a normalização de unidade
-que a tabela pede**. `numero_caracteristica` (a ordem do atributo na ficha do item) fica no fato.
-
-Verificar a dependência funcional antes de mover a coluna:
-
-```sql
--- zero linhas => a unidade depende só da característica, pode subir para a dimensão
-select codigo_caracteristica, nome_caracteristica,
-       array_agg(distinct sigla_unidade_medida) as unidades
-from catmat_item_caracteristicas
-group by 1, 2
-having count(distinct sigla_unidade_medida) > 1;
-
--- idem para o nome do valor
-select codigo_valor_caracteristica, array_agg(distinct nome_valor_caracteristica)
-from catmat_item_caracteristicas
-group by 1
-having count(distinct nome_valor_caracteristica) > 1;
-```
+Verificar dependência funcional antes de mover colunas — ver queries em PR #1 (`cruzamentos.md` histórico).
 
 ## E. Correções ao primeiro estudo
 
-1. **Não é preciso criar `irp_item_pdm`.** O estudo recomendou uma ponte nova espelhando
-   `pca_item_pdm`. `catalogo_ponte` já aceita `entidade_tipo IN ('pca_item', 'irp_item',
-   'contratacao_item')` (`202609180007:38`) — a ponte para IRP e para itens de contratação já existe.
-2. **`resultado → edital` é FK direta e obrigatória.** O estudo mapeou o resultado só via `item_id`.
-   `contratacoes_resultados.edital_id` é `NOT NULL`; `item_id` é nullable. Agregar resultado por
-   edital não depende de item.
+1. **Não é preciso criar `irp_item_pdm`.** `catalogo_ponte` já aceita `entidade_tipo IN ('pca_item', 'irp_item', 'contratacao_item')` (`202609180007:38`). Para IRP e itens de contratação, reutilizar a ponte existente; `pca_item_pdm` é específica do domínio PCA → PDM.
+2. **`resultado → edital` é FK direta e obrigatória.** `contratacoes_resultados.edital_id` é `NOT NULL`; `item_id` é nullable. Agregar resultado por edital não depende de item.
 3. **A coluna de payload é `payload`, não `conteudo`** (`private.source_record`, `202609180001:68`).
-4. **O risco de RLS em `private` está superestimado.** `202609180001:4-5` faz
-   `REVOKE ALL ON SCHEMA private FROM PUBLIC` e concede `USAGE` apenas a `postgres` e
-   `service_role` — `anon` e `authenticated` não alcançam essas tabelas mesmo com o schema exposto
-   no PostgREST por `202609180014`. Ligar RLS ali continua valendo como defesa em profundidade e
-   para silenciar o advisor, mas não há porta aberta.
-5. **As tabelas `catmat_*` e `pca_item_pdm` não existem em migration.** Estão apenas no banco.
-   Ver "Lacunas de integridade", item 1.
+4. **O risco de RLS em `private` está superestimado.** `202609180001:4-5` revoga `USAGE` do schema para `PUBLIC`; `202609180001:159` revoga tabelas para `anon`/`authenticated`. Ligar RLS continua valendo como defesa em profundidade, mas não há porta aberta só por expor o schema no PostgREST (`202609180014`).
+5. **`classe_material_servico = 7830` é classe CATMAT, não PDM.** Todos os 224 itens PCA ativos tinham esse valor; join por classe gera 49 PDMs candidatos — usar `pca_item_pdm` + `catalogo_ponte` para o PDM exato.
+6. **Tabelas `catmat_*` e `pca_item_pdm` têm migration.** `202609180015`–`202609180018` — versionadas no repo e aplicadas no remoto mar/2026.
 
 ## F. Lacunas de integridade encontradas
 
-1. **Drift de schema (bloqueante).** `catmat_grupos`, `catmat_classes`, `catmat_pdms`,
-   `catmat_pdm_unidades`, `catmat_pdm_naturezas_despesa`, `catmat_item_caracteristicas`,
-   `pca_item_pdm` e `pca_itens.codigo_classe_catmat` não constam de nenhuma migration. Ambiente novo
-   ou `db reset` perde a camada CATMAT inteira.
-2. **`contratacoes_atas` não tem a chave natural composta.** `contratacoes_editais` e
-   `contratacoes_contratos` têm `UNIQUE (orgao_cnpj, ano, sequencial)`; atas têm as três colunas
-   (`orgao_cnpj`, `ano`, `sequencial_ata`) mas só `numero_controle_pncp UNIQUE`. Ata que chegue sem
-   número de controle duplica silenciosamente.
-3. **Junções polimórficas sem índice.** `contratacoes_eventos (tipo_entidade, entidade_id)` e
-   `catalogo_ponte (entidade_tipo, entidade_id)` não têm índice nessas colunas — buscar o histórico
-   de um edital ou a ponte de um item faz varredura completa. `contratacoes_itens` está coberta pelo
-   `UNIQUE (tipo_origem, origem_id, numero_item)`.
-4. **`irp_participantes` tem `UNIQUE (irp_id, orgao_cnpj, codigo_unidade)` com colunas nulas**
-   (`202609180006:67`). Em Postgres, `NULL` não conflita com `NULL`: participante sem CNPJ ou sem
-   unidade pode entrar duplicado.
+| # | lacuna | impacto | ação sugerida |
+|---|--------|---------|---------------|
+| 1 | ~~`catmat_*` / `pca_item_pdm` só no banco~~ | **Resolvido** | `202609180015`, `202609180016` |
+| 2 | ~~`contratacoes_atas` sem chave composta~~ | **Resolvido** | `202609180017` |
+| 3 | ~~`catalogo_ponte` sem índice polimórfico~~ | **Resolvido** | `202609180017` |
+| 4 | ~~`contratacoes_eventos` sem índice polimórfico~~ | **Resolvido** | `202609180017` |
+| 5 | ~~`irp_participantes` UNIQUE com NULLs~~ | **Resolvido** | `202609180017`: `NULLS NOT DISTINCT` |
+| 6 | ~~`catmat_pdms` sem FK para `catmat_classes`~~ | **Resolvido** | `202609180018` |
+| 7 | Curadoria manual vs catálogo oficial | `fonte_curadoria='manual'` em subset do PDM 2640 (106 itens) | tratar filtros de curadoria como **SELECT** sobre `catalogo_itens` — não materializar como FK |
+
+Consultas de curadoria (filtros manuais no catálogo CATMAT):
+
+```sql
+-- Itens com curadoria manual LicitaGym (fitness)
+SELECT codigo_catmat, codigo_pdm, descricao, taxonomias, categoria_licitagym
+FROM catalogo_itens
+WHERE fonte_curadoria = 'manual'
+  AND classe_catmat = '7830'
+  AND ativo = true;
+
+-- PCA com PDM confirmado vs candidato por classe
+SELECT pi.numero_item, pi.descricao,
+       pip.codigo_pdm, pip.confirmado, pip.score,
+       cp.entidade_tipo IS NOT NULL AS tem_ponte_catalogo
+FROM pca_itens pi
+LEFT JOIN pca_item_pdm pip ON pip.pca_item_id = pi.id
+LEFT JOIN catalogo_ponte cp
+  ON cp.entidade_tipo = 'pca_item' AND cp.entidade_id = pi.id
+WHERE pi.ativo = true
+ORDER BY pi.pca_plano_id, pi.numero_item;
+```
+
+## G. PCA ↔ CATMAT — estado validado (mar/2026)
+
+Diagnóstico no banco remoto após sync Compras.gov + `link-catmat-pca`:
+
+| métrica | valor |
+|---------|-------|
+| `pca_itens` ativos (classe 7830) | 224 |
+| `codigo_classe_catmat` preenchido | 224/224 |
+| `catmat_pdms` ativos (classe 7830) | 49 |
+| `catalogo_itens` ativos (classe 7830) | 594 |
+| `catalogo_ponte` novos (1ª execução link) | 111 |
+| `pca_item_pdm` vínculos | 111 (17 PDMs distintos; 65 `confirmado=true`) |
+
+**Modelo de cruzamento recomendado:**
+
+```text
+pca_planos
+  └── pca_itens
+        ├── codigo_classe_catmat → catmat_pdms.codigo_classe   (candidatos, até 49)
+        ├── catalogo_ponte → catalogo_itens                    (match descrição)
+        └── pca_item_pdm → catmat_pdms.codigo_pdm              (PDM escolhido/candidato)
+```
+
+**Consulta — PDMs candidatos por classe (exploratório):**
+
+```sql
+SELECT pp.id_pca_pncp, pi.numero_item, pi.descricao,
+       cp.codigo_pdm, cp.nome_pdm
+FROM pca_planos pp
+JOIN pca_itens pi ON pi.pca_plano_id = pp.id
+JOIN catmat_pdms cp ON cp.codigo_classe = pi.codigo_classe_catmat
+WHERE pi.ativo = true AND pp.ativo = true
+ORDER BY pp.ano_exercicio DESC, pi.numero_item, cp.codigo_pdm;
+```
+
+**Consulta — plano + item + PDM vinculado:**
+
+```sql
+SELECT pp.id_pca_pncp, pp.ano_exercicio, pi.numero_item, pi.descricao,
+       pip.codigo_pdm, pip.confirmado, pip.score, pip.tipo_correspondencia
+FROM pca_planos pp
+JOIN pca_itens pi ON pi.pca_plano_id = pp.id
+LEFT JOIN pca_item_pdm pip ON pip.pca_item_id = pi.id
+WHERE pp.ativo = true AND pi.ativo = true
+ORDER BY pp.ano_exercicio DESC, pi.numero_item;
+```
+
+Mais exemplos SQL: [schemas-consultas.md](../compras-gov/schemas-consultas.md).
+
+---
+
+## Referências
+
+- [contract-matrix.md](./contract-matrix.md) — contratos de API, inventário empírico Compras.gov, gate de migrations
+- [architecture.md](./architecture.md) — sync, Edge Functions, cron
+- [schemas-consultas.md](../compras-gov/schemas-consultas.md) — DTOs Compras.gov e SQL CATMAT
+- [probe-compras-api.ps1](../../scripts/probe-compras-api.ps1) — testes decisivos PGC / natureza / preço
