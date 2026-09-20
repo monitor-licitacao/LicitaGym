@@ -73,9 +73,13 @@ $fn = @(
 foreach ($f in $fn) {
   npx supabase functions deploy $f --no-verify-jwt
 }
+
+# POC OneCompiler — JWT obrigatório (não use --no-verify-jwt)
+npx supabase functions deploy analyze-public-material
+# Secret: npx supabase secrets set ONECOMPILER_API_KEY="..."
 ```
 
-APIs de leitura (`api-pncp-*`) podem exigir JWT do app — se o front usar Supabase Auth, remova `--no-verify-jwt` só nessas após testar.
+POC: [poc-onecompiler-dados-publicos.md](../poc-onecompiler-dados-publicos.md). APIs de leitura (`api-pncp-*`) podem exigir JWT do app — se o front usar Supabase Auth, remova `--no-verify-jwt` só nessas após testar.
 
 Script:
 

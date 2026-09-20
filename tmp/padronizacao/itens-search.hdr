@@ -1,0 +1,11 @@
+HTTP/1.1 200 
+date: Sun, 20 Sep 2026 04:23:57 GMT
+content-type: text/html; charset=utf-8
+content-length: 166568
+last-modified: Wed, 26 Aug 2026 20:13:24 GMT
+vary: Accept-Encoding
+etag: "6a8f48e4-28aa8"
+vary: X-Lgpd
+accept-ranges: bytes
+strict-transport-security: max-age=31536000; includeSubDomains
+

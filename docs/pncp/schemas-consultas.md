@@ -143,8 +143,8 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 | `nomeUnidadeFornecimento` | string | `nome_unidade_fornecimento` |
 | `descricaoUnidadeFornecimento` | string | `descricao_unidade_fornecimento` |
 | `numeroSequencialUnidadeFornecimento` | int32 | `numero_sequencial` |
-| `siglaUnidadeMedida` | string | *(não persistido v1)* |
-| `capacidadeUnidadeFornecimento` | number | *(não persistido v1)* |
+| `siglaUnidadeMedida` | string | `sigla_unidade_medida` |
+| `capacidadeUnidadeFornecimento` | number | `capacidade_unidade_fornecimento` |
 | `statusUnidadeFornecimentoPdm` | boolean | `status` |
 | `dataHoraAtualizacao` | date-time | `last_synced_at` |
 

@@ -1,0 +1,67 @@
+{
+  "endpointHint": "3_consultarPdmMaterial",
+  "sourceFile": "pdmMaterial.ts",
+  "dtoInterface": "PdmMaterial",
+  "interfaceKeys": [
+    "codigoGrupo",
+    "nomeGrupo",
+    "codigoClasse",
+    "nomeClasse",
+    "codigoPdm",
+    "nomePdm",
+    "statusPdm",
+    "dataHoraAtualizacao"
+  ],
+  "sample": [
+    {
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "codigoClasse": 1005,
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "codigoPdm": 2995,
+      "nomePdm": "ARMA DE FOGO DE PEQUENO PORTE - REVÓLVER / PISTOLA",
+      "statusPdm": true,
+      "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+    },
+    {
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "codigoClasse": 1005,
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "codigoPdm": 4050,
+      "nomePdm": "CABO PARA ARMA DE FOGO",
+      "statusPdm": true,
+      "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+    },
+    {
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "codigoClasse": 1005,
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "codigoPdm": 7889,
+      "nomePdm": "FUZIS",
+      "statusPdm": true,
+      "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+    },
+    {
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "codigoClasse": 1005,
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "codigoPdm": 10799,
+      "nomePdm": "PISTOLA",
+      "statusPdm": true,
+      "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+    },
+    {
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "codigoClasse": 1005,
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "codigoPdm": 13794,
+      "nomePdm": "ANEL FERROLHO",
+      "statusPdm": true,
+      "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+    }
+  ]
+}

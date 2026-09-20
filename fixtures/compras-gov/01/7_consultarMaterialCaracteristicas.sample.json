@@ -1,0 +1,91 @@
+{
+  "endpointHint": "7_consultarMaterialCaracteristicas",
+  "sourceFile": "caracteristicaMaterial.ts",
+  "dtoInterface": "CaracteristicaMaterial",
+  "interfaceKeys": [
+    "codigoItem",
+    "itemSustentavel",
+    "statusItem",
+    "codigoCaracteristica",
+    "nomeCaracteristica",
+    "statusCaracteristica",
+    "codigoValorCaracteristica",
+    "nomeValorCaracteristica",
+    "statusValorCaracteristica",
+    "numeroCaracteristica",
+    "siglaUnidadeMedida",
+    "dataHoraAtualizacao"
+  ],
+  "sample": [
+    {
+      "codigoItem": 19,
+      "itemSustentavel": false,
+      "statusItem": true,
+      "codigoCaracteristica": "AAYZ",
+      "nomeCaracteristica": "NOME",
+      "statusCaracteristica": true,
+      "codigoValorCaracteristica": null,
+      "nomeValorCaracteristica": "JAPONA MASCULINA",
+      "statusValorCaracteristica": null,
+      "numeroCaracteristica": 1,
+      "siglaUnidadeMedida": null,
+      "dataHoraAtualizacao": "2024-05-14T03:00:00.143484"
+    },
+    {
+      "codigoItem": 27,
+      "itemSustentavel": false,
+      "statusItem": true,
+      "codigoCaracteristica": "AAYZ",
+      "nomeCaracteristica": "NOME",
+      "statusCaracteristica": true,
+      "codigoValorCaracteristica": null,
+      "nomeValorCaracteristica": "CHAPEU MASCULINO",
+      "statusValorCaracteristica": null,
+      "numeroCaracteristica": 1,
+      "siglaUnidadeMedida": null,
+      "dataHoraAtualizacao": "2022-09-10T03:00:17.159208"
+    },
+    {
+      "codigoItem": 35,
+      "itemSustentavel": false,
+      "statusItem": false,
+      "codigoCaracteristica": "AAYZ",
+      "nomeCaracteristica": "NOME",
+      "statusCaracteristica": true,
+      "codigoValorCaracteristica": null,
+      "nomeValorCaracteristica": "MIRA",
+      "statusValorCaracteristica": null,
+      "numeroCaracteristica": 1,
+      "siglaUnidadeMedida": null,
+      "dataHoraAtualizacao": "2021-10-16T09:43:08.030221"
+    },
+    {
+      "codigoItem": 43,
+      "itemSustentavel": false,
+      "statusItem": true,
+      "codigoCaracteristica": "AAYZ",
+      "nomeCaracteristica": "NOME",
+      "statusCaracteristica": true,
+      "codigoValorCaracteristica": null,
+      "nomeValorCaracteristica": "METRALHADORAS",
+      "statusValorCaracteristica": null,
+      "numeroCaracteristica": 1,
+      "siglaUnidadeMedida": null,
+      "dataHoraAtualizacao": "2021-10-16T09:43:08.030221"
+    },
+    {
+      "codigoItem": 51,
+      "itemSustentavel": false,
+      "statusItem": true,
+      "codigoCaracteristica": "AAYZ",
+      "nomeCaracteristica": "NOME",
+      "statusCaracteristica": true,
+      "codigoValorCaracteristica": null,
+      "nomeValorCaracteristica": "GELEIA",
+      "statusValorCaracteristica": null,
+      "numeroCaracteristica": 1,
+      "siglaUnidadeMedida": null,
+      "dataHoraAtualizacao": "2024-04-04T03:00:00.43578"
+    }
+  ]
+}

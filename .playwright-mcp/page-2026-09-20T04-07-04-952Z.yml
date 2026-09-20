@@ -1,0 +1,92 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img "Licita Mais Brasil" [ref=e7] [cursor=pointer]
+      - generic [ref=e8]:
+        - list [ref=e10]:
+          - listitem [ref=e11]:
+            - paragraph [ref=e13] [cursor=pointer]:
+              - link "Quem somos" [ref=e14]:
+                - /url: /quem-somos
+          - listitem [ref=e15]:
+            - paragraph [ref=e17] [cursor=pointer]:
+              - link "Planos e Pagamentos" [ref=e18]:
+                - /url: /planos-e-pagamentos
+          - listitem [ref=e19]:
+            - paragraph [ref=e21] [cursor=pointer]:
+              - link "Legislação e Regulamentos" [ref=e22]:
+                - /url: /legislacao-e-regulamentos
+          - listitem [ref=e24]:
+            - paragraph [ref=e26] [cursor=pointer]:
+              - link "Tutoriais" [ref=e27]:
+                - /url: /tutoriais
+          - listitem [ref=e28]:
+            - paragraph [ref=e30] [cursor=pointer]:
+              - link "Órgãos Públicos" [ref=e31]:
+                - /url: /contato
+          - listitem [ref=e32]:
+            - paragraph [ref=e34] [cursor=pointer]:
+              - link "Licitações Publicadas" [ref=e35]:
+                - /url: /editais
+        - button "Login" [ref=e37] [cursor=pointer]
+  - generic [ref=e40]:
+    - 'heading "Legislação e Regulamentos Licita Mais Brasil: Seu Guia Completo" [level=1] [ref=e41]'
+    - paragraph [ref=e42]: Nesta seção, reunimos as principais legislações vigentes no Brasil e os regulamentos da Plataforma Licita Mais Brasil. Nosso objetivo é simplificar o acesso e a consulta a esses documentos essenciais para todos os nossos usuários.
+    - heading "Leis" [level=1] [ref=e45]
+    - heading "Decretos" [level=1] [ref=e48]
+    - heading "Instruções normativas" [level=1] [ref=e51]
+    - heading "Regulamento da Plataforma" [level=1] [ref=e54]
+    - heading "Programa de Privacidade e Segurança da Informação (PPSI)" [level=1] [ref=e57]
+    - heading "Modelo dos Termos de Adesão dos Fornecedores" [level=1] [ref=e60]
+  - contentinfo [ref=e61]:
+    - generic [ref=e62]:
+      - link [ref=e64] [cursor=pointer]:
+        - /url: /
+        - img "Licita Mais Brasil" [ref=e65]
+      - list [ref=e67]:
+        - listitem [ref=e68]:
+          - paragraph [ref=e69] [cursor=pointer]:
+            - link "Quem somos" [ref=e70]:
+              - /url: /quem-somos
+        - listitem [ref=e71]:
+          - paragraph [ref=e72] [cursor=pointer]:
+            - link "Planos e Pagamentos" [ref=e73]:
+              - /url: /planos-e-pagamentos
+        - listitem [ref=e74]:
+          - paragraph [ref=e75] [cursor=pointer]:
+            - link "Legislação e Regulamentos" [ref=e76]:
+              - /url: /legislacao-e-regulamentos
+        - listitem [ref=e77]:
+          - paragraph [ref=e78] [cursor=pointer]:
+            - link "Tutoriais" [ref=e79]:
+              - /url: /tutoriais
+        - listitem [ref=e80]:
+          - paragraph [ref=e81] [cursor=pointer]:
+            - link "Órgãos Públicos" [ref=e82]:
+              - /url: /contato
+        - listitem [ref=e83]:
+          - paragraph [ref=e84] [cursor=pointer]:
+            - link "Licitações Publicadas" [ref=e85]:
+              - /url: /editais
+      - generic [ref=e86]:
+        - list [ref=e87]:
+          - listitem [ref=e88]:
+            - link [ref=e89] [cursor=pointer]:
+              - /url: https://www.instagram.com/licitamaisbrasil/
+              - img "instagram" [ref=e90]
+          - listitem [ref=e91]:
+            - link [ref=e92] [cursor=pointer]:
+              - /url: https://www.facebook.com/Licita-Mais-Brasil-112346811374381
+              - img "facebook" [ref=e93]
+          - listitem [ref=e94]:
+            - link [ref=e95] [cursor=pointer]:
+              - /url: https://www.youtube.com/channel/UCUr6wpYJBg53HM081-xmRSg
+              - img "youtube" [ref=e96]
+        - list [ref=e97]:
+          - listitem [ref=e98]:
+            - paragraph [ref=e99]: 0800 591 6173
+          - listitem [ref=e100]:
+            - paragraph [ref=e101]: (11) 4040-8714
+          - listitem [ref=e102]:
+            - paragraph [ref=e103]: contato@licitamaisbrasil.com.br
+    - generic [ref=e104]: © 2026 Licita Mais Brasil. Todos os direitos reservados.

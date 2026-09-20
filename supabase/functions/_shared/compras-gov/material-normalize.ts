@@ -72,6 +72,17 @@ export function normalizeNaturezaDespesa(raw: NaturezaDespesaMaterial) {
 export function normalizeUnidadeFornecimento(raw: UnidadeFornecimentoMaterial) {
   const sigla = String(raw.siglaUnidadeFornecimento ?? "").trim();
   if (!sigla) return null;
+
+  const siglaMedida = raw.siglaUnidadeMedida == null
+    ? null
+    : String(raw.siglaUnidadeMedida).trim() || null;
+
+  const capacidadeRaw = raw.capacidadeUnidadeFornecimento;
+  const capacidade = capacidadeRaw == null ? null : Number(capacidadeRaw);
+  const capacidadeOk = capacidade != null && Number.isFinite(capacidade)
+    ? capacidade
+    : null;
+
   return {
     codigo_pdm: raw.codigoPdm,
     sigla_unidade_fornecimento: sigla,
@@ -82,6 +93,10 @@ export function normalizeUnidadeFornecimento(raw: UnidadeFornecimentoMaterial) {
       ? String(raw.descricaoUnidadeFornecimento)
       : null,
     numero_sequencial: Number(raw.numeroSequencialUnidadeFornecimento ?? 1),
+    // GET 6: base measure unit + capacity — not the same as
+    // catmat_item_caracteristicas.sigla_unidade_medida (attribute unit).
+    sigla_unidade_medida: siglaMedida,
+    capacidade_unidade_fornecimento: capacidadeOk,
     status: raw.statusUnidadeFornecimentoPdm !== false,
   };
 }

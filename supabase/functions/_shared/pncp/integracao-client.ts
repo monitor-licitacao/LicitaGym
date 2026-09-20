@@ -1,4 +1,4 @@
-import { withRetry } from "./retry.ts";
+import { withRetry, fetchWithTimeout } from "./retry.ts";
 
 const DEFAULT_BASE = "https://pncp.gov.br/api/pncp/v1";
 
@@ -16,12 +16,18 @@ export class PncpIntegracaoClient {
   async getJson<T = unknown>(path: string): Promise<T> {
     const url = `${this.baseUrl.replace(/\/+$/, "")}${path}`;
     const response = await withRetry(async () => {
-      const res = await fetch(url, { headers: this.headers() });
+      const res = await fetchWithTimeout(url, { headers: this.headers() }, 20_000);
       if (res.status === 429 || res.status >= 500) {
         throw new Error(`PNCP integração HTTP ${res.status}`);
       }
       return res;
-    });
+    }, 2, 800);
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(
+        `PNCP integração HTTP ${response.status} ${path}: ${body.slice(0, 200)}`,
+      );
+    }
     return (await response.json()) as T;
   }
 

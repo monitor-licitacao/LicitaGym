@@ -1,0 +1,43 @@
+{
+  "endpointHint": "5_consultarMaterialNaturezaDespesa",
+  "sourceFile": "naturezaDespesaMaterial.ts",
+  "dtoInterface": "MaterialNaturezaDespesa",
+  "interfaceKeys": [
+    "codigoPdm",
+    "codigoNaturezaDespesa",
+    "nomeNaturezaDespesa",
+    "statusNaturezaDespesa"
+  ],
+  "sample": [
+    {
+      "codigoPdm": 16887,
+      "codigoNaturezaDespesa": "44925228",
+      "nomeNaturezaDespesa": null,
+      "statusNaturezaDespesa": null
+    },
+    {
+      "codigoPdm": 5924,
+      "codigoNaturezaDespesa": "30903030",
+      "nomeNaturezaDespesa": null,
+      "statusNaturezaDespesa": null
+    },
+    {
+      "codigoPdm": 1673,
+      "codigoNaturezaDespesa": "34903025",
+      "nomeNaturezaDespesa": null,
+      "statusNaturezaDespesa": null
+    },
+    {
+      "codigoPdm": 16392,
+      "codigoNaturezaDespesa": "30903016",
+      "nomeNaturezaDespesa": null,
+      "statusNaturezaDespesa": null
+    },
+    {
+      "codigoPdm": 19783,
+      "codigoNaturezaDespesa": "14554846",
+      "nomeNaturezaDespesa": null,
+      "statusNaturezaDespesa": null
+    }
+  ]
+}

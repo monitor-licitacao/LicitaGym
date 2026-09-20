@@ -1,0 +1,154 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img "Licita Mais Brasil" [ref=e7] [cursor=pointer]
+      - generic [ref=e8]:
+        - list [ref=e10]:
+          - listitem [ref=e11]:
+            - paragraph [ref=e13] [cursor=pointer]:
+              - link "Quem somos" [ref=e14]:
+                - /url: /quem-somos
+          - listitem [ref=e15]:
+            - paragraph [ref=e17] [cursor=pointer]:
+              - link "Planos e Pagamentos" [ref=e18]:
+                - /url: /planos-e-pagamentos
+          - listitem [ref=e19]:
+            - paragraph [ref=e21] [cursor=pointer]:
+              - link "Legislação e Regulamentos" [ref=e22]:
+                - /url: /legislacao-e-regulamentos
+          - listitem [ref=e24]:
+            - paragraph [ref=e26] [cursor=pointer]:
+              - link "Tutoriais" [ref=e27]:
+                - /url: /tutoriais
+          - listitem [ref=e28]:
+            - paragraph [ref=e30] [cursor=pointer]:
+              - link "Órgãos Públicos" [ref=e31]:
+                - /url: /contato
+          - listitem [ref=e32]:
+            - paragraph [ref=e34] [cursor=pointer]:
+              - link "Licitações Publicadas" [ref=e35]:
+                - /url: /editais
+        - button "Login" [ref=e37] [cursor=pointer]
+  - generic [ref=e40]:
+    - 'heading "Legislação e Regulamentos Licita Mais Brasil: Seu Guia Completo" [level=1] [ref=e41]'
+    - paragraph [ref=e42]: Nesta seção, reunimos as principais legislações vigentes no Brasil e os regulamentos da Plataforma Licita Mais Brasil. Nosso objetivo é simplificar o acesso e a consulta a esses documentos essenciais para todos os nossos usuários.
+    - generic [ref=e44]:
+      - heading "Leis" [level=1] [ref=e45]
+      - paragraph [ref=e107] [cursor=pointer]: Lei 12.232/2010Lei de Contratação de Serviços de Publicidade
+      - paragraph [ref=e109] [cursor=pointer]: Lei 13.303/2016Lei das estatais
+      - paragraph [ref=e111] [cursor=pointer]: Lei 14.133/2024Nova Lei de Licitações e Contratos Administrativos
+      - paragraph [ref=e113] [cursor=pointer]: Lei Complementar 123/2006Lei das Microempresas e Empresas de Pequeno Porte
+    - generic [ref=e47]:
+      - heading "Decretos" [level=1] [ref=e48]
+      - paragraph [ref=e115] [cursor=pointer]: Decreto 10.024/2019Regulamenta a licitação, na modalidade pregão, na forma eletrônica, para a aquisição de bens e a contratação de serviços comuns, incluídos os serviços comuns de engenharia, e dispõe sobre o uso da dispensa eletrônica, no âmbito da administração pública federal.
+      - paragraph [ref=e117] [cursor=pointer]: Decreto 10.667/2021Altera o Decreto nº 9.764, de 11 de abril de 2019, que dispõe sobre o recebimento de doações de bens móveis e de serviços de pessoas físicas ou jurídicas de direito privado pelos órgãos e pelas entidades da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e119] [cursor=pointer]: Decreto 10.764/2021Dispõe sobre o Comitê Gestor da Rede Nacional de Contratações Públicas, de que trata o § 1º do art. 174 da Lei nº 14.133, de 1º de abril de 2021.
+      - paragraph [ref=e121] [cursor=pointer]: Decreto 10.818/2021Regulamenta o disposto no art. 20 da Lei nº 14.133, de 1º de abril de 2021, para estabelecer o enquadramento dos bens de consumo adquiridos para suprir as demandas das estruturas da administração pública federal nas categorias de qualidade comum e de luxo.
+      - paragraph [ref=e123] [cursor=pointer]: Decreto 10.929/2022Estabelece procedimento especial para consultas públicas de decretos destinados a regulamentar dispositivo da Lei nº 14.133, de 1º de abril de 2021 - Lei de Licitações e Contratos Administrativos.
+      - paragraph [ref=e125] [cursor=pointer]: Decreto 10.947/2022Regulamenta o inciso VII do caput do art. 12 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre o plano de contratações anual e instituir o Sistema de Planejamento e Gerenciamento de Contratações no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e127] [cursor=pointer]: Decreto 11.246/2022Regulamenta o disposto no § 3º do art. 8º da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre as regras para a atuação do agente de contratação e da equipe de apoio, o funcionamento da comissão de contratação e a atuação dos gestores e fiscais de contratos, no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e129] [cursor=pointer]: Decreto 11.430/2023ARegulamenta a Lei nº 14.133, de 1º de abril de 2021, para dispor sobre a exigência, em contratações públicas, de percentual mínimo de mão de obra constituída por mulheres vítimas de violência doméstica e sobre a utilização do desenvolvimento, pelo licitante, de ações de equidade entre mulheres e homens no ambiente de trabalho como critério de desempate em licitações, no âmbito da administração pública federal direta, autárquica e fundacional.A
+      - paragraph [ref=e131] [cursor=pointer]: Decreto 11.461/2023Regulamenta o art. 31 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre os procedimentos operacionais da licitação na modalidade leilão, na forma eletrônica, para alienação de bens móveis inservíveis ou legalmente apreendidos, e institui o Sistema de Leilão Eletrônico no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e133] [cursor=pointer]: Decreto 11.462/2023Regulamenta os art. 82 a art. 86 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre o sistema de registro de preços para a contratação de bens e serviços, inclusive obras e serviços de engenharia, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e135] [cursor=pointer]: Decreto 11.802/2023Regulamenta o Programa de Aquisição de Alimentos - PAA, instituído pela Lei nº 14.628, de 20 de julho de 2023.
+      - paragraph [ref=e137] [cursor=pointer]: Decreto 11.872/2023Altera o Decreto nº 5.992, de 19 de dezembro de 2006, que dispõe sobre a concessão de diárias no âmbito da administração federal direta, autárquica e fundacional.
+      - paragraph [ref=e139] [cursor=pointer]: Decreto 11.878/2024Regulamenta o art. 79 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre o procedimento auxiliar de credenciamento para a contratação de bens e serviços, no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e141] [cursor=pointer]: Decreto 11.890/2024Regulamenta o art. 26 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre a aplicação da margem de preferência no âmbito da administração pública federal direta, autárquica e fundacional, e institui a Comissão Interministerial de Contratações Públicas para o Desenvolvimento Sustentável.
+      - paragraph [ref=e143] [cursor=pointer]: Decreto 12.174/2024Dispõe sobre as garantias trabalhistas a serem observadas na execução dos contratos administrativos no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e145] [cursor=pointer]: Decreto 12.218/2024Altera o Decreto nº 11.890, de 22 de janeiro de 2024, que regulamenta o art. 26 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre a aplicação da margem de preferência no âmbito da administração pública federal direta, autárquica e fundacional, e institui a Comissão Interministerial de Contratações Públicas para o Desenvolvimento Sustentável; o Decreto nº 1.232, de 30 de agosto de 1994, que dispõe sobre as condições e a forma de repasse regular e automático de recursos do Fundo Nacional de Saúde para os fundos de saúde estaduais, municipais e do Distrito Federal, e dá outras providências; e o Decreto nº 11.531, de 16 de maio de 2023, que dispõe sobre convênios e contratos de repasse relativos às transferências de recursos da União, e sobre parcerias sem transferências de recursos, por meio da celebração de acordos de cooperação técnica ou de acordos de adesão.
+      - paragraph [ref=e147] [cursor=pointer]: Decreto 8.538/2015Regulamenta o tratamento favorecido, diferenciado e simplificado para microempresas, empresas de pequeno porte, agricultores familiares, produtores rurais pessoa física, microempreendedores individuais e sociedades cooperativas nas contratações públicas de bens, serviços e obras no âmbito da administração pública federal.
+    - generic [ref=e50]:
+      - heading "Instruções normativas" [level=1] [ref=e51]
+      - paragraph [ref=e149] [cursor=pointer]: INSTRUÇÃO NORMATIVA AUTOR/ME Nº 62, DE 28 DE JUNHO DE 2021Altera a Instrução Normativa nº 53, de 8 de julho de 2020, que dispõe sobre as regras e os procedimentos para operação de crédito garantida por cessão fiduciária dos direitos de créditos decorrentes de contratos administrativos, realizadas entre o fornecedor e instituição financeira, por meio do Portal de Crédito digital, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e151] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES /MGI Nº 11, DE 29 DE MARÇO DE 2023Estabelece condições para o pagamento das despesas com compra de bens e prestação de serviços, de que dispõe o inciso I do art. 40 da Lei nº 14.133, de 1º de abril de 2021, e para o regime de adiantamento, por suprimento de fundos, de que tratam os arts. 45, 46 e 47 do Decreto nº 93.872, de 23 de dezembro de 1986, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e153] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES Nº 58, DE 8 DE AGOSTO DE 2022Dispõe sobre a elaboração dos Estudos Técnicos Preliminares - ETP, para a aquisição de bens e a contratação de serviços e obras, no âmbito da administração pública federal direta, autárquica e fundacional, e sobre o Sistema ETP digital.
+      - paragraph [ref=e155] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 103, DE 30 DE DEZEMBRO DE 2022Dispõe sobre os procedimentos de seleção de imóveis para locação no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e157] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 116, DE 21 DE DEZEMBRO DE 2021Estabelece procedimentos para a participação de pessoa física nas contratações públicas de que trata a Lei nº 14.133, de 1º de abril de 2021, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e159] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 26, DE 13 DE ABRIL DE 2022Dispõe sobre a dispensa, o parcelamento, a compensação e a suspensão de cobrança de débito resultante de multa administrativa e/ou indenizações, previstas na Lei nº 14.133, de 1º de abril de 2021, no âmbito da Administração Pública federal direta, autárquica e fundacional, não inscritas em dívida ativa.
+      - paragraph [ref=e161] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 42, DE 19 DE ABRIL DE 2021Altera a Instrução Normativa nº 53, de 8 de julho de 2020, que dispõe sobre as regras e os procedimentos para operação de crédito garantida por cessão fiduciária dos direitos de créditos decorrentes de contratos administrativos, realizadas entre o fornecedor e instituição financeira, por meio do Portal de Crédito digital, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e163] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 65, DE 7 DE JULHO DE 2021Dispõe sobre o procedimento administrativo para a realização de pesquisa de preços para aquisição de bens e contratação de serviços em geral, no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e165] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 67, DE 8 DE JULHO DE 2021Dispõe sobre a dispensa de licitação, na forma eletrônica, de que trata a Lei nº 14.133, de 1º de abril de 2021, e institui o Sistema de Dispensa Eletrônica, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e167] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 73, DE 30 DE SETEMBRO DE 2022Dispõe sobre a licitação pelo critério de julgamento por menor preço ou maior desconto, na forma eletrônica, para a contratação de bens, serviços e obras, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e169] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 77, DE 4 DE NOVEMBRO DE 2022Dispõe sobre a observância da ordem cronológica de pagamento das obrigações relativas ao fornecimento de bens, locações, prestação de serviços e realização de obras, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e171] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 81, DE 25 DE NOVEMBRO DE 2022Dispõe sobre a elaboração do Termo de Referência - TR, para a aquisição de bens e a contratação de serviços, no âmbito da administração pública federal direta, autárquica e fundacional, e sobre o Sistema TR digital.
+      - paragraph [ref=e173] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 91, DE 16 DE DEZEMBRO DE 2022Estabelece regras para a definição do valor estimado para a contratação de obras e serviços de engenharia nos processos de licitação e de contratação direta, de que dispõe o § 2º do art. 23 da Lei nº 14.133, de 1º de abril de 2021, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e175] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 96, DE 23 DE DEZEMBRO DE 2022Dispõe sobre a licitação pelo critério de julgamento por maior retorno econômico, na forma eletrônica, no âmbito da administração pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e177] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/ME Nº 98, DE 26 DE DEZEMBRO DE 2022Estabelece regras e diretrizes para o procedimento de contratação de serviços sob o regime de execução indireta de que dispõe a Lei nº 14.133, de 1º de abril de 2021, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e179] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 12, DE 31 DE MARÇO DE 2023Dispõe sobre a licitação pelo critério de julgamento por melhor técnica ou conteúdo artístico, na forma eletrônica, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e181] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 2, DE 7 DE FEVEREIRO DE 2023Dispõe sobre a licitação pelo critério de julgamento por técnica e preço, na forma eletrônica, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e183] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 512, DE 3 DE DEZEMBRO DE 2025Regulamenta o disposto no art. 32 da Lei nº 14.133, de 1º de abril de 2021, para dispor sobre a modalidade licitatória diálogo competitivo no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e185] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 53, DE 28 DE DEZEMBRO DE 2023Autoriza a utilização do Sistema de Cadastramento Unificado de Fornecedores - Sicaf para apresentação de documentação equivalente por empresas estrangeiras que não funcionem no País, com fins a habilitação em licitação, dispensa, inexigibilidade e nos contratos administrativos de acordo com o que dispõe o parágrafo único do art. 70 da Lei nº 14.133, de 1º de abril de 2021, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e187] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 79, DE 12 DE SETEMBRO DE 2024Altera a Instrução Normativa nº 73, de 30 de setembro de 2022, publicada no Diário Oficial da União de 03 de outubro de 2022. para prever a hipótese de sorteio, bem como para atualizar porcentuais máximos para convocação de licitantes nas modalidades aberto/fechado e fechado/aberto quando for prevista a aplicação de margens de preferência.
+      - paragraph [ref=e189] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 8, DE 23 DE MARÇO DE 2023Altera a Instrução Normativa SEGES/ME nº 67, de 8 de julho de 2021, que dispõe sobre a dispensa de licitação, na forma eletrônica, de que trata a Lei nº 14.133, de 1º de abril de 2021, e institui o Sistema de Dispensa Eletrônica, no âmbito da Administração Pública federal direta, autárquica e fundacional.
+      - paragraph [ref=e191] [cursor=pointer]: INSTRUÇÃO NORMATIVA SEGES/MGI Nº 81, DE 12 DE SETEMBRO DE 2024Dispõe sobre as regras e procedimentos para a possibilidade de compensação de jornada nos contratos de prestação de serviços contínuos, com regime de dedicação exclusiva de mão de obra, no âmbito da administração pública federal direta, autárquica e fundacional.
+    - generic [ref=e53]:
+      - heading "Regulamento da Plataforma" [level=1] [ref=e54]
+      - paragraph [ref=e193] [cursor=pointer]: Regulamento Licita Mais Brasil
+    - generic [ref=e56]:
+      - heading "Programa de Privacidade e Segurança da Informação (PPSI)" [level=1] [ref=e57]
+      - paragraph [ref=e195] [cursor=pointer]: Política de Backup de Dados
+      - paragraph [ref=e197] [cursor=pointer]: Política de Controle de Acesso
+      - paragraph [ref=e199] [cursor=pointer]: Política de Defesas Contra Malwares
+      - paragraph [ref=e201] [cursor=pointer]: Política de Desenvolvimento de Pessoas
+      - paragraph [ref=e203] [cursor=pointer]: Política de Gerenciamento de Vulnerabilidades
+      - paragraph [ref=e205] [cursor=pointer]: Política de Gestão de Ativos
+      - paragraph [ref=e207] [cursor=pointer]: Política de Gestão de Provedor de Serviços
+      - paragraph [ref=e209] [cursor=pointer]: Política de Gestão de Registros de Auditoria
+      - paragraph [ref=e211] [cursor=pointer]: Política de Proteção de Dados Pessoais
+      - paragraph [ref=e213] [cursor=pointer]: Política de Segurança da Informação
+    - generic [ref=e59]:
+      - heading "Modelo dos Termos de Adesão dos Fornecedores" [level=1] [ref=e60]
+      - paragraph [ref=e215] [cursor=pointer]: Termo de Adesão - Pessoa FísicaLicitante PJ
+      - paragraph [ref=e217] [cursor=pointer]: Termo de Adesão - Pessoa JurídicaLicitante PF
+  - contentinfo [ref=e61]:
+    - generic [ref=e62]:
+      - link [ref=e64] [cursor=pointer]:
+        - /url: /
+        - img "Licita Mais Brasil" [ref=e65]
+      - list [ref=e67]:
+        - listitem [ref=e68]:
+          - paragraph [ref=e69] [cursor=pointer]:
+            - link "Quem somos" [ref=e70]:
+              - /url: /quem-somos
+        - listitem [ref=e71]:
+          - paragraph [ref=e72] [cursor=pointer]:
+            - link "Planos e Pagamentos" [ref=e73]:
+              - /url: /planos-e-pagamentos
+        - listitem [ref=e74]:
+          - paragraph [ref=e75] [cursor=pointer]:
+            - link "Legislação e Regulamentos" [ref=e76]:
+              - /url: /legislacao-e-regulamentos
+        - listitem [ref=e77]:
+          - paragraph [ref=e78] [cursor=pointer]:
+            - link "Tutoriais" [ref=e79]:
+              - /url: /tutoriais
+        - listitem [ref=e80]:
+          - paragraph [ref=e81] [cursor=pointer]:
+            - link "Órgãos Públicos" [ref=e82]:
+              - /url: /contato
+        - listitem [ref=e83]:
+          - paragraph [ref=e84] [cursor=pointer]:
+            - link "Licitações Publicadas" [ref=e85]:
+              - /url: /editais
+      - generic [ref=e86]:
+        - list [ref=e87]:
+          - listitem [ref=e88]:
+            - link [ref=e89] [cursor=pointer]:
+              - /url: https://www.instagram.com/licitamaisbrasil/
+              - img "instagram" [ref=e90]
+          - listitem [ref=e91]:
+            - link [ref=e92] [cursor=pointer]:
+              - /url: https://www.facebook.com/Licita-Mais-Brasil-112346811374381
+              - img "facebook" [ref=e93]
+          - listitem [ref=e94]:
+            - link [ref=e95] [cursor=pointer]:
+              - /url: https://www.youtube.com/channel/UCUr6wpYJBg53HM081-xmRSg
+              - img "youtube" [ref=e96]
+        - list [ref=e97]:
+          - listitem [ref=e98]:
+            - paragraph [ref=e99]: 0800 591 6173
+          - listitem [ref=e100]:
+            - paragraph [ref=e101]: (11) 4040-8714
+          - listitem [ref=e102]:
+            - paragraph [ref=e103]: contato@licitamaisbrasil.com.br
+    - generic [ref=e104]: © 2026 Licita Mais Brasil. Todos os direitos reservados.

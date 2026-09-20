@@ -162,12 +162,26 @@ WHERE fonte_curadoria = 'manual'
   AND classe_catmat = '7830'
   AND ativo = true;
 
--- Classe 7220 (pisos) no catálogo, pendente de curadoria
-SELECT codigo_catmat, codigo_pdm, descricao, categoria_licitagym
+-- Classe 7220 — trigo (academia) vs joio (fora de escopo)
+-- Taxonomia canônica: taxonomia-licitagym.md
+-- Regra específica: taxonomia-piso-7220.md
+-- Migration: 202609200612_cluster_piso_7220.sql (fonte_curadoria = cluster_7220_v1)
+SELECT codigo_catmat, codigo_pdm, descricao,
+       categoria_licitagym,
+       taxonomias->>'cluster' AS cluster,
+       taxonomias->>'subtipo' AS subtipo
 FROM catalogo_itens
 WHERE classe_catmat = '7220'
   AND ativo = true
-  AND categoria_licitagym IS NULL;
+  AND taxonomias->>'cluster' = 'trigo';
+
+-- Joio 7220 (tapete, carpete, pedra/tecido em PDM de revestimento)
+SELECT codigo_pdm, taxonomias->>'subtipo_material' AS material, count(*)
+FROM catalogo_itens
+WHERE classe_catmat = '7220' AND ativo
+  AND taxonomias->>'cluster' = 'joio'
+GROUP BY 1, 2
+ORDER BY 3 DESC;
 
 -- PCA com PDM confirmado vs candidato por classe
 SELECT pi.numero_item, pi.descricao,
@@ -177,6 +191,8 @@ FROM pca_itens pi
 LEFT JOIN pca_item_pdm pip ON pip.pca_item_id = pi.id
 LEFT JOIN catalogo_ponte cp
   ON cp.entidade_tipo = 'pca_item' AND cp.entidade_id = pi.id
+
+
 WHERE pi.ativo = true
 ORDER BY pi.pca_plano_id, pi.numero_item;
 ```
@@ -192,7 +208,7 @@ Diagnóstico no banco remoto (`inventario_dados.sql` / MCP). Snapshot antigo (22
 | `catalogo_ponte` (total) | 222 |
 | `catalogo_itens` ativos (classe 7830) | 594 |
 | `catmat_pdms` ativos (classe 7830) | 49 |
-| `catalogo_itens` / `catmat_pdms` classe 7220 | curadoria — sync `72/7220`; **não** entra no gate PCA |
+| `catalogo_itens` classe 7220 | **930** sync; **225** trigo (`categoria_licitagym='piso'`, `cluster_7220_v1`); **705** joio; **não** entra no gate PCA |
 
 **Perguntas de produto (catálogo assistente):** equivalência item LicitaGym = **PONTE-01/02/03**; PDM escolhido = **PCA-09**; candidatos por classe = **PCA-08**. Ver [catalogo-perguntas-assistente.md](./catalogo-perguntas-assistente.md).
 
@@ -239,5 +255,6 @@ Mais exemplos SQL: [schemas-consultas.md](../compras-gov/schemas-consultas.md).
 
 - [contract-matrix.md](./contract-matrix.md) — contratos de API, inventário empírico Compras.gov, gate de migrations
 - [architecture.md](./architecture.md) — sync, Edge Functions, cron
+- [catalogo-eletronico-padronizacao.md](./catalogo-eletronico-padronizacao.md) — CEP Seges (minutas oficiais; ≠ CATMAT; sem fitness 7830)
 - [schemas-consultas.md](../compras-gov/schemas-consultas.md) — DTOs Compras.gov e SQL CATMAT
 - [probe-compras-api.ps1](../../scripts/probe-compras-api.ps1) — testes decisivos PGC / natureza / preço

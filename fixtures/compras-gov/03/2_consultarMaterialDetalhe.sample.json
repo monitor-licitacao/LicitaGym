@@ -1,0 +1,61 @@
+{
+  "endpointHint": "2_consultarMaterialDetalhe",
+  "sourceFile": "pesquisaPrecoDetalhe.ts",
+  "dtoInterface": "PesquisaPrecoDetalhe",
+  "interfaceKeys": [
+    "idCompra",
+    "idItemCompra",
+    "numeroItemCompra",
+    "codigoItemCatalogo",
+    "objetoCompra",
+    "descricaoDetalhadaItem",
+    "dataAtualizacaoFato"
+  ],
+  "sample": [
+    {
+      "idCompra": "4000105900042025",
+      "idItemCompra": 8120793,
+      "numeroItemCompra": 1,
+      "codigoItemCatalogo": 233523,
+      "objetoCompra": "Objeto: Pregão Eletrônico - Aquisição de mobiliário.",
+      "descricaoDetalhadaItem": "CADEIRA ESCRITÓRIO, MATERIAL ESTRUTURA TUBO AÇO, MATERIAL REVESTIMENTO ASSENTO E ENCOSTO COURO, MATERIAL ENCOSTO ESPUMA INJETADA, MATERIAL ASSENTO ESPUMA INJETADA, TRATAMENTO SUPERFICIAL ESTRUTURA PINTADO, TIPO BASE GIRATÓRIO, TIPO ENCOSTO ALTO, APOIO BRAÇO COM BRAÇOS, REGULAGEM VERTICAL COM REGULAGEM, COR PRETA, CARACTERÍSTICAS ADICIONAIS COM RODÍZIOS",
+      "dataAtualizacaoFato": "2026-05-06T04:00:00.005452"
+    },
+    {
+      "idCompra": "9001605000432022",
+      "idItemCompra": 1296427,
+      "numeroItemCompra": 21,
+      "codigoItemCatalogo": 233523,
+      "objetoCompra": "Objeto: Pregão Eletrônico - Registro de Preços, válido por 12 (doze) meses, para eventuais aquisições de mobiliários diversos (móveis de madeira, móveis em plástico modulado, painéis divisórios, beliche em madeira, colchão de solteiro, armários multiuso em MDP, caixas plásticas empilháveis, cadeiras diversas), conforme Anexo I (Termo de Referência).",
+      "descricaoDetalhadaItem": "",
+      "dataAtualizacaoFato": "2023-08-16T04:00:00.046325"
+    },
+    {
+      "idCompra": "9001605000762022",
+      "idItemCompra": 1693989,
+      "numeroItemCompra": 5,
+      "codigoItemCatalogo": 233523,
+      "objetoCompra": "Objeto: Pregão Eletrônico - Registro de Preços, válido por 12 (doze) meses, para eventuais aquisições de mobiliários diversos, conforme Anexo I (Termo de Referência).",
+      "descricaoDetalhadaItem": "",
+      "dataAtualizacaoFato": "2023-10-29T04:00:00.003263"
+    },
+    {
+      "idCompra": "98798905900062026",
+      "idItemCompra": 11697982,
+      "numeroItemCompra": 26,
+      "codigoItemCatalogo": 233523,
+      "objetoCompra": "Objeto: Pregão Eletrônico - Registro de preços para Aquisição de Equipamentos e Mobiliários para atender as secretarias municipais de Vera Cruz do Oeste - PR.",
+      "descricaoDetalhadaItem": "CADEIRA ESCRITÓRIO, MATERIAL ESTRUTURA TUBO AÇO, MATERIAL REVESTIMENTO ASSENTO E ENCOSTO COURO, MATERIAL ENCOSTO ESPUMA INJETADA, MATERIAL ASSENTO ESPUMA INJETADA, TRATAMENTO SUPERFICIAL ESTRUTURA PINTADO, TIPO BASE GIRATÓRIO, TIPO ENCOSTO ALTO, APOIO BRAÇO COM BRAÇOS, REGULAGEM VERTICAL COM REGULAGEM, COR PRETA, CARACTERÍSTICAS ADICIONAIS COM RODÍZIOS",
+      "dataAtualizacaoFato": "2026-08-06T03:00:47.858674"
+    },
+    {
+      "idCompra": "98197505900302024",
+      "idItemCompra": 7949006,
+      "numeroItemCompra": 34,
+      "codigoItemCatalogo": 233523,
+      "objetoCompra": "Objeto: Pregão Eletrônico - CONTRATAÇÃO de EMPRESA PARA O FORNECIMENTO DE MOBILIÁRIO E ELETRO EM GERAL PARA ATENDER AS NECESSIDADES DE TODA A PREFEITURA DE CAJAZEIRAS-PB",
+      "descricaoDetalhadaItem": "CADEIRA ESCRITÓRIO, MATERIAL ESTRUTURA TUBO AÇO, MATERIAL REVESTIMENTO ASSENTO E ENCOSTO COURO, MATERIAL ENCOSTO ESPUMA INJETADA, MATERIAL ASSENTO ESPUMA INJETADA, TRATAMENTO SUPERFICIAL ESTRUTURA PINTADO, TIPO BASE GIRATÓRIO, TIPO ENCOSTO ALTO, APOIO BRAÇO COM BRAÇOS, REGULAGEM VERTICAL COM REGULAGEM, COR PRETA, CARACTERÍSTICAS ADICIONAIS COM RODÍZIOS",
+      "dataAtualizacaoFato": "2026-04-15T04:00:00.002735"
+    }
+  ]
+}

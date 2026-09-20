@@ -77,7 +77,7 @@ Parâmetro de produto: `PNCP_PCA_CLASSIFICACOES` em `_shared/pncp/licitagym-catm
 | CAT-04 | Quantos itens no catálogo LicitaGym classe 7830? | Catálogo | `catalogo_itens` | `classe_catmat = :classe_gate` | **respondivel** (594) | CAT-04 | Contar `catalogo_itens` sem `classe_catmat` — mistura 7830 + 7220 |
 | CAT-05 | Qual a natureza de despesa deste PDM? | CATMAT | `catmat_pdm_naturezas_despesa` | PDM 7830 | **vazio** (0 linhas) | CAT-05 | Inventar natureza ou usar endpoint não ingerido |
 | CAT-06 | Qual item CATMAT oficial (hierarquia completa)? | CATMAT | futuro `catmat_itens` + joins | 7830 | **nao-aplicado** | `catmat_item_completo.sql` | Prometer matview que não existe no banco |
-| CAT-07 | Quais itens 7220 estão no catálogo pendentes de curadoria? | Catálogo | `catalogo_itens` | `classe_catmat = '7220'` | **respondivel** após sync (sem `categoria_licitagym` até curar) | — | Tratar 7220 como fitness / expandir PCA para 7220 |
+| CAT-07 | Quais itens 7220 são trigo (piso academia)? | Catálogo | `catalogo_itens` | `classe_catmat = '7220'` AND `categoria_licitagym = 'piso'` | **respondivel** — 225 trigo / 705 joio (`cluster_7220_v1`) | [`taxonomia-piso-7220.md`](taxonomia-piso-7220.md) | Tratar joio como fitness / expandir PCA para 7220 |
 
 ### Preço praticado
 

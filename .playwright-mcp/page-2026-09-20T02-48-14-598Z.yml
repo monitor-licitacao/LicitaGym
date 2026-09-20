@@ -1,0 +1,332 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner:
+      - heading "Compras eletrônicas" [level=1] [ref=e3]
+    - main [ref=e33]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e477]:
+            - generic [ref=e478]:
+              - button "Tela inicial" [ref=e482] [cursor=pointer]
+              - text: Acompanhar Contratação
+              - generic [ref=e485]: "Pregão Eletrônico : UASG 982381 - N° 90227/2025 (SRP) (Lei 14.133/2021)"
+            - generic [ref=e487]:
+              - button "Recarregar página" [ref=e490] [cursor=pointer]
+              - generic [ref=e493]:
+                - button "Documentos e demais informações da contratação no PNCP" [ref=e497] [cursor=pointer]
+                - button "Downloads relacionados a compra" [ref=e503] [cursor=pointer]
+                - button "Quadro Informativo" [ref=e508] [cursor=pointer]
+                - button "Informações adicionais da compra" [ref=e513] [cursor=pointer]
+                - button [ref=e520] [cursor=pointer]
+          - generic [ref=e37]:
+            - generic [ref=e39]:
+              - button "Tela inicial" [ref=e43] [cursor=pointer]
+              - text: Acompanhar Contratação
+            - generic [ref=e46]:
+              - paragraph [ref=e48]: Acompanhar Contratação
+              - button "Recarregar página" [ref=e52] [cursor=pointer]
+            - generic [ref=e55]:
+              - generic [ref=e56]:
+                - generic [ref=e57]:
+                  - paragraph [ref=e58]: Pregão Eletrônico N° 90227/2025 (SRP) (Lei 14.133/2021)
+                  - paragraph [ref=e59]: UASG 982381 - PREFEITURA MUNICIPAL DE CARUARU - PE
+                - generic [ref=e62]:
+                  - generic [ref=e63]: "Critério julgamento: Menor Preço / Maior Desconto"
+                  - generic [ref=e64]: "Modo disputa: Aberto"
+              - generic [ref=e68]:
+                - button "Documentos e demais informações da contratação no PNCP" [ref=e72] [cursor=pointer]
+                - button "Downloads relacionados a compra" [ref=e78] [cursor=pointer]
+                - button "Quadro Informativo" [ref=e83] [cursor=pointer]
+                - button "Informações adicionais da compra" [ref=e88] [cursor=pointer]
+                - button [ref=e95] [cursor=pointer]
+              - generic [ref=e97]: Contratação homologada
+          - generic [ref=e203]:
+            - generic [ref=e205]:
+              - generic [ref=e208]:
+                - generic [ref=e209]: 1 Revestimento Piso
+                - generic [ref=e211]: Sem benefícios ME/EPP
+                - generic [ref=e213]: Homologado
+              - generic [ref=e219]:
+                - generic [ref=e220]:
+                  - generic [ref=e221]: "Qtde solicitada:"
+                  - generic [ref=e222]: "Qtde aceita:"
+                  - generic [ref=e223]: Valor estimado (unitário)
+                - generic [ref=e224]:
+                  - generic [ref=e225]: "1"
+                  - generic [ref=e226]: "1"
+                  - generic [ref=e227]: R$ 10.974.577,1900
+              - generic [ref=e228]:
+                - button [ref=e231] [cursor=pointer]
+                - button "Mostrar detalhes do item" [ref=e235] [cursor=pointer]
+            - generic [ref=e240]:
+              - tablist [ref=e243]:
+                - tab "Propostas" [selected] [ref=e244] [cursor=pointer]
+                - tab "Histórico de recursos" [ref=e245] [cursor=pointer]
+                - tab "Histórico de remanescentes" [ref=e246] [cursor=pointer]
+              - tabpanel "Propostas" [ref=e247]:
+                - generic [ref=e248]: "Os detalhes poderão ser visualizados por fornecedor. Clique para expandir e acesse dados como: proposta, anexo e chat."
+                - generic [ref=e251]:
+                  - generic [ref=e254]:
+                    - generic [ref=e259]:
+                      - generic [ref=e260]:
+                        - generic [ref=e261]: 57.396.418/0001-87
+                        - generic [ref=e262]: Desclassificada
+                      - generic [ref=e264]:
+                        - generic [ref=e265]: PLAYPISO PISOS ESPORTIVOS LTDA
+                        - generic [ref=e266]: SP
+                    - generic [ref=e269]:
+                      - generic [ref=e270]:
+                        - generic [ref=e271]: Valor ofertado (unitário)
+                        - generic [ref=e272]: Valor negociado (unitário)
+                      - generic [ref=e273]:
+                        - generic [ref=e274]: R$ 10.096.611,0200
+                        - generic [ref=e277]: "-"
+                    - button "Ocultar proposta do item" [expanded] [ref=e547] [cursor=pointer]
+                    - generic [ref=e551]:
+                      - button "Chat" [ref=e553] [cursor=pointer]
+                      - generic [ref=e557]:
+                        - button "Proposta" [ref=e558] [cursor=pointer]
+                        - generic [ref=e563]:
+                          - generic [ref=e565]:
+                            - generic [ref=e566]: Motivo da desclassificação
+                            - generic [ref=e567]: A empresa PLAYPISO PISOS ESPORTIVOS LTDA não atendeu às exigências editalícias, conforme paracer técnico disponibilizado.
+                          - generic [ref=e568]:
+                            - generic [ref=e569]:
+                              - generic [ref=e570]: Valor proposta (unitário | total)
+                              - generic [ref=e571]:
+                                - generic [ref=e572]: R$ 10.974.500,0000 |
+                                - generic [ref=e574]: R$ 10.974.500,0000
+                            - generic [ref=e575]:
+                              - generic [ref=e576]: Valor ofertado (unitário | total)
+                              - generic [ref=e577]:
+                                - generic [ref=e578]: R$ 10.096.611,0200 |
+                                - text: R$ 10.096.611,0200
+                            - generic [ref=e580]:
+                              - generic [ref=e581]: Valor negociado (unitário | total)
+                              - generic [ref=e582]: "-"
+                          - generic [ref=e585]:
+                            - generic [ref=e586]:
+                              - generic [ref=e587]: Quantidade ofertada
+                              - generic [ref=e588]: "1"
+                            - generic [ref=e589]:
+                              - generic [ref=e590]: Marca/Fabricante
+                              - generic [ref=e591]: PLAYPISO
+                            - generic [ref=e592]:
+                              - generic [ref=e593]: Modelo/Versao
+                              - generic [ref=e594]: Play Modular
+                          - generic [ref=e595]:
+                            - generic [ref=e596]:
+                              - generic [ref=e597]: Participação desempate ME/EPP
+                              - generic [ref=e598]: Não se aplica
+                            - generic [ref=e599]:
+                              - generic [ref=e600]: Participação disputa final
+                              - generic [ref=e601]: Não se aplica
+                          - generic [ref=e603]:
+                            - generic [ref=e604]: Declaração de conteúdo nacional
+                            - generic [ref=e605]: Não
+                      - button "Anexos" [ref=e607] [cursor=pointer]
+                      - button "Diligências" [ref=e612] [cursor=pointer]
+                  - generic [ref=e286]:
+                    - generic [ref=e291]:
+                      - generic [ref=e292]:
+                        - generic [ref=e293]: 41.171.531/0001-24
+                        - generic [ref=e294]: Desclassificada
+                      - generic [ref=e296]:
+                        - generic [ref=e297]: NEVES ENGENHARIA - PROJETOS E CONSTRUCOES LTDA
+                        - generic [ref=e298]: PR
+                    - generic [ref=e301]:
+                      - generic [ref=e302]:
+                        - generic [ref=e303]: Valor ofertado (unitário)
+                        - generic [ref=e304]: Valor negociado (unitário)
+                      - generic [ref=e305]:
+                        - generic [ref=e306]: R$ 10.200.000,0000
+                        - generic [ref=e309]: "-"
+                    - button "Mostrar proposta do item" [ref=e314] [cursor=pointer]
+                  - generic [ref=e318]:
+                    - generic [ref=e323]:
+                      - generic [ref=e324]:
+                        - generic [ref=e325]: 43.866.048/0001-90
+                        - generic [ref=e326]:
+                          - generic [ref=e327]: Programa de integridade
+                          - generic [ref=e328]: Adjudicada
+                      - generic [ref=e329]:
+                        - generic [ref=e330]: ELEVA CAPACITACAO E REPRESENTACAO EDUCACIONAL LTDA
+                        - generic [ref=e331]: PB
+                    - generic [ref=e334]:
+                      - generic [ref=e335]:
+                        - generic [ref=e336]: Valor ofertado (unitário)
+                        - generic [ref=e337]: Valor negociado (unitário)
+                      - generic [ref=e338]:
+                        - generic [ref=e339]: R$ 10.854.360,0000
+                        - generic [ref=e342]: "-"
+                    - button "Ocultar proposta do item" [expanded] [ref=e522] [cursor=pointer]
+                    - generic [ref=e526]:
+                      - button "Chat" [ref=e528] [cursor=pointer]
+                      - generic [ref=e532]:
+                        - button "Proposta" [ref=e533] [cursor=pointer]
+                        - generic [ref=e617]:
+                          - generic [ref=e618]:
+                            - generic [ref=e619]:
+                              - generic [ref=e620]: Valor proposta (unitário | total)
+                              - generic [ref=e621]:
+                                - generic [ref=e622]: R$ 10.973.577,9900 |
+                                - generic [ref=e624]: R$ 10.973.577,9900
+                            - generic [ref=e625]:
+                              - generic [ref=e626]: Valor ofertado (unitário | total)
+                              - generic [ref=e627]:
+                                - generic [ref=e628]: R$ 10.854.360,0000 |
+                                - text: R$ 10.854.360,0000
+                            - generic [ref=e630]:
+                              - generic [ref=e631]: Valor negociado (unitário | total)
+                              - generic [ref=e632]: "-"
+                          - generic [ref=e635]:
+                            - generic [ref=e636]:
+                              - generic [ref=e637]: Quantidade ofertada
+                              - generic [ref=e638]: "1"
+                            - generic [ref=e639]:
+                              - generic [ref=e640]: Marca/Fabricante
+                              - generic [ref=e641]: cf edital proposta e anexos
+                            - generic [ref=e642]:
+                              - generic [ref=e643]: Modelo/Versao
+                              - generic [ref=e644]: cf edital proposta e anexos
+                          - generic [ref=e645]:
+                            - generic [ref=e646]:
+                              - generic [ref=e647]: Participação desempate ME/EPP
+                              - generic [ref=e648]: Não se aplica
+                            - generic [ref=e649]:
+                              - generic [ref=e650]: Participação disputa final
+                              - generic [ref=e651]: Não se aplica
+                          - generic [ref=e653]:
+                            - generic [ref=e654]: Critério de desempate utilizado no aceite da proposta
+                            - generic [ref=e655]: Não se aplica
+                          - generic [ref=e657]:
+                            - generic [ref=e658]: Declaração de conteúdo nacional
+                            - generic [ref=e659]: Não
+                      - generic [ref=e537]:
+                        - button "Anexos" [ref=e538] [cursor=pointer]
+                        - table [ref=e667]:
+                          - rowgroup
+                          - rowgroup [ref=e668]:
+                            - row [ref=e669]:
+                              - cell "DocHab.zip" [ref=e670]
+                              - cell "15/01/2026 16:55:40" [ref=e671]
+                              - cell [ref=e672]:
+                                - button [ref=e675] [cursor=pointer]
+                            - row [ref=e677]:
+                              - cell "Proposta.zip" [ref=e678]
+                              - cell "15/01/2026 17:24:16" [ref=e679]
+                              - cell [ref=e680]:
+                                - button [active] [ref=e683] [cursor=pointer]
+                            - row [ref=e685]:
+                              - cell "Recibo ECD 2023 SPED.pdf" [ref=e686]
+                              - cell "03/02/2026 08:50:59" [ref=e687]
+                              - cell [ref=e688]:
+                                - button [ref=e691] [cursor=pointer]
+                            - row [ref=e693]:
+                              - cell "Recibo ECD 2024 SPED.pdf" [ref=e694]
+                              - cell "03/02/2026 08:50:59" [ref=e695]
+                              - cell [ref=e696]:
+                                - button [ref=e699] [cursor=pointer]
+                            - row [ref=e701]:
+                              - cell "CRC LEANDRO 2023.pdf" [ref=e702]
+                              - cell "03/02/2026 09:21:51" [ref=e703]
+                              - cell [ref=e704]:
+                                - button [ref=e707] [cursor=pointer]
+                            - row [ref=e709]:
+                              - cell "CRCDigital.pdf" [ref=e710]
+                              - cell "03/02/2026 09:21:52" [ref=e711]
+                              - cell [ref=e712]:
+                                - button [ref=e715] [cursor=pointer]
+                            - row [ref=e717]:
+                              - cell "CRC 1.pdf" [ref=e718]
+                              - cell "03/02/2026 09:21:52" [ref=e719]
+                              - cell [ref=e720]:
+                                - button [ref=e723] [cursor=pointer]
+                      - button "Diligências" [ref=e543] [cursor=pointer]
+                  - generic [ref=e351]:
+                    - generic [ref=e356]:
+                      - generic [ref=e357]:
+                        - generic [ref=e358]: 42.376.992/0001-04
+                        - generic [ref=e359]:
+                          - text: ME/EPP
+                          - generic [ref=e360]: Programa de integridade
+                      - generic [ref=e361]:
+                        - generic [ref=e362]: GLOBAL COMERCIO DE VARIEDADES LTDA
+                        - generic [ref=e363]: MG
+                    - generic [ref=e366]:
+                      - generic [ref=e367]:
+                        - generic [ref=e368]: Valor ofertado (unitário)
+                        - generic [ref=e369]: Valor negociado (unitário)
+                      - generic [ref=e370]:
+                        - generic [ref=e371]: R$ 10.964.000,0000
+                        - generic [ref=e374]: "-"
+                    - button "Mostrar proposta do item" [ref=e379] [cursor=pointer]
+                  - generic [ref=e383]:
+                    - generic [ref=e388]:
+                      - generic [ref=e389]:
+                        - generic [ref=e390]: 30.231.212/0001-40
+                        - generic [ref=e391]: Programa de integridade
+                      - generic [ref=e393]:
+                        - generic [ref=e394]: MOVEPLAST INDUSTRIA DE MOVEIS LTDA
+                        - generic [ref=e395]: AL
+                    - generic [ref=e398]:
+                      - generic [ref=e399]:
+                        - generic [ref=e400]: Valor ofertado (unitário)
+                        - generic [ref=e401]: Valor negociado (unitário)
+                      - generic [ref=e402]:
+                        - generic [ref=e403]: R$ 10.974.577,1900
+                        - generic [ref=e406]: "-"
+                    - button "Mostrar proposta do item" [ref=e411] [cursor=pointer]
+                  - generic [ref=e415]:
+                    - generic [ref=e420]:
+                      - generic [ref=e421]: 17.992.979/0001-24
+                      - generic [ref=e423]:
+                        - generic [ref=e424]: MMS PINOVA EQUIPAMENTOS E INSTALACOES ESPORTIVAS S.A
+                        - generic [ref=e425]: SP
+                    - generic [ref=e428]:
+                      - generic [ref=e429]:
+                        - generic [ref=e430]: Valor ofertado (unitário)
+                        - generic [ref=e431]: Valor negociado (unitário)
+                      - generic [ref=e432]:
+                        - generic [ref=e433]: R$ 10.974.577,1900
+                        - generic [ref=e436]: "-"
+                    - button "Mostrar proposta do item" [ref=e441] [cursor=pointer]
+                  - generic [ref=e445]:
+                    - generic [ref=e450]:
+                      - generic [ref=e451]: 29.033.765/0001-00
+                      - generic [ref=e453]:
+                        - generic [ref=e454]: CIAFLOOR INDUSTRIA E COMECIO DE ARTIGOS DE BORRACHA LTDA
+                        - generic [ref=e455]: PR
+                    - generic [ref=e458]:
+                      - generic [ref=e459]:
+                        - generic [ref=e460]: Valor ofertado (unitário)
+                        - generic [ref=e461]: Valor negociado (unitário)
+                      - generic [ref=e462]:
+                        - generic [ref=e463]: R$ 10.974.577,1990
+                        - generic [ref=e466]: "-"
+                    - button "Mostrar proposta do item" [ref=e471] [cursor=pointer]
+            - button "Voltar" [ref=e474] [cursor=pointer]
+        - generic "Compras.gov.br" [ref=e7]
+    - contentinfo [ref=e9]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - link "Notícias" [ref=e16] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/noticias
+          - link "Eventos" [ref=e18] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/eventos
+          - link "Legislação" [ref=e20] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao
+          - link "Webinários" [ref=e22] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/cursos-e-capacitacoes
+          - link "Central de Atendimento" [ref=e24] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/canais_atendimento/central-de-atendimento
+        - generic [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: http://www.acessoainformacao.gov.br/
+            - img "Imagem" [ref=e28]
+          - link "Governo Federal" [ref=e29] [cursor=pointer]:
+            - /url: http://www.brasil.gov.br/
+      - img "hCaptcha logo" [ref=e32] [cursor=pointer]
+  - generic [ref=e728]:
+    - generic [ref=e729]: Aguarde ...
+    - generic [ref=e730]: Estamos processando a sua solicitação

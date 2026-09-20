@@ -1,0 +1,45 @@
+{
+  "endpointHint": "2_consultarOrgao",
+  "sourceFile": "orgao.ts",
+  "dtoInterface": "Orgao",
+  "interfaceKeys": [
+    "codigoOrgao",
+    "nomeOrgao",
+    "nomeMnemonicoOrgao",
+    "cnpjCpfOrgao",
+    "codigoOrgaoVinculado",
+    "cnpjCpfOrgaoVinculado",
+    "nomeOrgaoVinculado",
+    "codigoOrgaoSuperior",
+    "cnpjCpfOrgaoSuperior",
+    "nomeOrgaoSuperior",
+    "codigoTipoAdministracao",
+    "nomeTipoAdministracao",
+    "poder",
+    "esfera",
+    "usoSisg",
+    "statusOrgao",
+    "dataHoraMovimento"
+  ],
+  "sample": [
+    {
+      "codigoOrgao": 97000,
+      "nomeOrgao": "REGIAO CENTRO-OESTE",
+      "nomeMnemonicoOrgao": "REGIAO CENTRO-OESTE",
+      "cnpjCpfOrgao": "0",
+      "codigoOrgaoVinculado": 99900,
+      "cnpjCpfOrgaoVinculado": "0",
+      "nomeOrgaoVinculado": "REPUBLICA FEDERATIVA DO BRASIL",
+      "codigoOrgaoSuperior": null,
+      "cnpjCpfOrgaoSuperior": null,
+      "nomeOrgaoSuperior": null,
+      "codigoTipoAdministracao": 11,
+      "nomeTipoAdministracao": "ADMINISTRACAO DIRETA ESTADUAL",
+      "poder": "E",
+      "esfera": "E",
+      "usoSisg": false,
+      "statusOrgao": true,
+      "dataHoraMovimento": "2007-11-30T23:00:00"
+    }
+  ]
+}

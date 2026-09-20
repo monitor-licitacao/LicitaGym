@@ -1,0 +1,55 @@
+{
+  "endpointHint": "2_consultarClasseMaterial",
+  "sourceFile": "classeMaterial.ts",
+  "dtoInterface": "ClasseMaterial",
+  "interfaceKeys": [
+    "codigoClasse",
+    "codigoGrupo",
+    "nomeGrupo",
+    "nomeClasse",
+    "statusClasse",
+    "dataHoraAtualizacao"
+  ],
+  "sample": [
+    {
+      "codigoClasse": 1005,
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ATÉ 120MM",
+      "statusClasse": true,
+      "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+    },
+    {
+      "codigoClasse": 1010,
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ACIMA DE 30MM ATÉ 75MM",
+      "statusClasse": true,
+      "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+    },
+    {
+      "codigoClasse": 1015,
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ACIMA DE 75MM ATÉ 125MM",
+      "statusClasse": true,
+      "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+    },
+    {
+      "codigoClasse": 1020,
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ACIMA DE 125MM ATÉ 150MM",
+      "statusClasse": true,
+      "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+    },
+    {
+      "codigoClasse": 1025,
+      "codigoGrupo": 10,
+      "nomeGrupo": "ARMAMENTO",
+      "nomeClasse": "ARMAS DE FOGO DE CALIBRE ACIMA DE 150MM ATÉ 200MM",
+      "statusClasse": true,
+      "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+    }
+  ]
+}

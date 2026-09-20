@@ -1,0 +1,29 @@
+{
+  "extractedAt": "2026-09-20T14:14:38.091Z",
+  "sections": {
+    "01": [
+      "2_consultarClasseMaterial.sample.json",
+      "3_consultarPdmMaterial.sample.json",
+      "4_consultarItemMaterial.sample.json",
+      "5_consultarMaterialNaturezaDespesa.sample.json",
+      "6_consultarMaterialUnidadeFornecimento.sample.json",
+      "7_consultarMaterialCaracteristicas.sample.json"
+    ],
+    "03": [
+      "1_consultarMaterial.sample.json",
+      "1_consultarMaterial_item.sample.json",
+      "2_consultarMaterialDetalhe.sample.json"
+    ],
+    "04": [
+      "2_consultarPgcDetalheCatalogo.sample.json"
+    ],
+    "05": [
+      "2_consultarOrgao.sample.json",
+      "1_consultarUasg.sample.json"
+    ],
+    "06": [
+      "1_consultarLicitacao.sample.json",
+      "2_consultarItemLicitacao.sample.json"
+    ]
+  }
+}

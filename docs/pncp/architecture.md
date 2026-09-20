@@ -57,6 +57,8 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 - **Usuários PNCP**: fora do MVP ([security-mvp.md](./security-mvp.md))
 - **Matriz de contratos**: [contract-matrix.md](./contract-matrix.md) — gate para migrations de domínio
 - **Mapa de cruzamentos**: [cruzamentos.md](./cruzamentos.md) — junções PNCP × CATMAT × catálogo
+- **CEP (padronização Seges)**: [catalogo-eletronico-padronizacao.md](./catalogo-eletronico-padronizacao.md) — ≠ CATMAT; fitness 7830 ausente na verificação 2026-09-20
+- **POC OneCompiler**: [poc-onecompiler-dados-publicos.md](../poc-onecompiler-dados-publicos.md) — regra `material-spec-consistency@0.1.0` via `analyze-public-material`
 
 ## Secrets
 

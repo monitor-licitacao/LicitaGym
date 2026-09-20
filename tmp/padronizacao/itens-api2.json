@@ -1,0 +1,483 @@
+{
+  "@components": {
+    "actions": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@actions"
+    }, 
+    "aliases": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@aliases"
+    }, 
+    "breadcrumbs": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@breadcrumbs"
+    }, 
+    "contextnavigation": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@contextnavigation"
+    }, 
+    "navigation": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@navigation"
+    }, 
+    "navroot": {
+      "@id": "https://www.gov.br/pncp/pt-br", 
+      "@type": "LRF", 
+      "title": "Portal Nacional de Contrata\u00e7\u00f5es P\u00fablicas - PNCP"
+    }, 
+    "translations": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@translations"
+    }, 
+    "types": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@types"
+    }, 
+    "workflow": {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/@workflow"
+    }
+  }, 
+  "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados", 
+  "@type": "Document", 
+  "UID": "d63c372689964ecfa4992c4f55083592", 
+  "allow_discussion": false, 
+  "alt_card": "", 
+  "blocks": {
+    "822b8e3a-c8ee-4a32-8d12-bb428eca93a3": {
+      "@type": "cardsBlock", 
+      "align": "center", 
+      "backgroundColor": "gray", 
+      "buttonLabel": "", 
+      "cardSize": "lg", 
+      "cards": [
+        {
+          "@id": "2f469d99-417b-4470-8210-11af46280512", 
+          "source": [
+            {
+              "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/agua-mineral-natural-sem-gas", 
+              "UID": "27b6490dfa274dab8e142e64d81db296", 
+              "image_scales": {
+                "image_card": [
+                  {
+                    "content-type": "image/png", 
+                    "download": "@@images/image_card-512-a45e090255865254e400b5b38de3a53f.png", 
+                    "filename": "agua-mineral-natural-sem-gas.png", 
+                    "height": 512, 
+                    "scales": {
+                      "icon": {
+                        "download": "@@images/image_card-32-7de8b06adbee687f8aa20d2d0eb463f1.png", 
+                        "height": 32, 
+                        "width": 32
+                      }, 
+                      "mini": {
+                        "download": "@@images/image_card-200-340e4072c03c6d858bdcd11bf521f86c.png", 
+                        "height": 200, 
+                        "width": 200
+                      }, 
+                      "preview": {
+                        "download": "@@images/image_card-400-ebb8240b567026371bb4eab469484f32.png", 
+                        "height": 400, 
+                        "width": 400
+                      }, 
+                      "thumb": {
+                        "download": "@@images/image_card-128-997a0eebd4e8586652bb5535527cadf4.png", 
+                        "height": 128, 
+                        "width": 128
+                      }, 
+                      "tile": {
+                        "download": "@@images/image_card-64-d32f63ee390d98e8898370bb89f34845.png", 
+                        "height": 64, 
+                        "width": 64
+                      }
+                    }, 
+                    "size": 22667, 
+                    "width": 512
+                  }
+                ]
+              }, 
+              "title": "\u00c1gua mineral natural, sem g\u00e1s"
+            }
+          ]
+        }, 
+        {
+          "@id": "5640d808-5a5e-4fe2-83ed-91ad508d449e", 
+          "source": [
+            {
+              "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/cafe-e-acucar", 
+              "UID": "99afd75c13d94ea0835583468623f14f", 
+              "image_scales": {
+                "image_card": [
+                  {
+                    "content-type": "image/png", 
+                    "download": "@@images/image_card-512-245dd46098b07dc19c2e7d9e63c82529.png", 
+                    "filename": "cafe-e-acucar.png", 
+                    "height": 512, 
+                    "scales": {
+                      "icon": {
+                        "download": "@@images/image_card-32-eaa914bfb33cd8f0e9fa87497c885d05.png", 
+                        "height": 32, 
+                        "width": 32
+                      }, 
+                      "mini": {
+                        "download": "@@images/image_card-200-c889df850acf9e5558fd5a0e399e43f4.png", 
+                        "height": 200, 
+                        "width": 200
+                      }, 
+                      "preview": {
+                        "download": "@@images/image_card-400-d1e8fc06b2620d18aa1d566dcc1202a2.png", 
+                        "height": 400, 
+                        "width": 400
+                      }, 
+                      "thumb": {
+                        "download": "@@images/image_card-128-dad46d6f961c30db2c11910241172b2c.png", 
+                        "height": 128, 
+                        "width": 128
+                      }, 
+                      "tile": {
+                        "download": "@@images/image_card-64-7cfcdd3011bdf32bbe7b1122608d8ac5.png", 
+                        "height": 64, 
+                        "width": 64
+                      }
+                    }, 
+                    "size": 12683, 
+                    "width": 512
+                  }
+                ]
+              }, 
+              "title": "Caf\u00e9 e a\u00e7\u00facar"
+            }
+          ]
+        }
+      ], 
+      "columns": "4", 
+      "subtitle": "", 
+      "title": ""
+    }, 
+    "d23537b1-4e39-4b7b-9003-be6738392b7b": {
+      "@type": "slate", 
+      "plaintext": "A utiliza\u00e7\u00e3o do Cat\u00e1logo Eletr\u00f4nico de Padroniza\u00e7\u00e3o\u00a0\u00e9 de observ\u00e2ncia obrigat\u00f3ria pelos \u00f3rg\u00e3os e entidades da Administra\u00e7\u00e3o P\u00fablica federal\u00a0direta, aut\u00e1rquica e fundacional e da Administra\u00e7\u00e3o P\u00fablica estadual, distrital ou municipal, direta ou indireta, quando executarem recursos da Uni\u00e3o decorrentes de transfer\u00eancias volunt\u00e1rias, nos termos do art. 2\u00ba da\u00a0 Portaria Seges/ME n\u00ba 938, de 2 fevereiro de 2022, sendo facultativa para todos os entes n\u00e3o enquadrados no espectro sobredito, sendo que\u00a0a n\u00e3o utiliza\u00e7\u00e3o do Cat\u00e1logo \u00e9 uma excepcionalidade, que dever\u00e1 ser justificada por escrito e anexada ao processo de contrata\u00e7\u00e3o.", 
+      "value": [
+        {
+          "children": [
+            {
+              "text": "A "
+            }, 
+            {
+              "children": [
+                {
+                  "text": "utiliza\u00e7\u00e3o"
+                }
+              ], 
+              "type": "strong"
+            }, 
+            {
+              "text": " do "
+            }, 
+            {
+              "children": [
+                {
+                  "text": "Cat\u00e1logo Eletr\u00f4nico de Padroniza\u00e7\u00e3o\u00a0"
+                }
+              ], 
+              "type": "strong"
+            }, 
+            {
+              "text": "\u00e9 de "
+            }, 
+            {
+              "children": [
+                {
+                  "text": "observ\u00e2ncia obrigat\u00f3ria pelos \u00f3rg\u00e3os e entidades da Administra\u00e7\u00e3o P\u00fablica federal\u00a0direta, aut\u00e1rquica e fundacional e da Administra\u00e7\u00e3o P\u00fablica estadual, distrital ou municipal"
+                }
+              ], 
+              "type": "strong"
+            }, 
+            {
+              "text": ", direta ou indireta, "
+            }, 
+            {
+              "children": [
+                {
+                  "text": "quando executarem recursos da Uni\u00e3o decorrentes de transfer\u00eancias volunt\u00e1rias"
+                }
+              ], 
+              "type": "strong"
+            }, 
+            {
+              "text": ", nos termos do art. 2\u00ba da\u00a0 "
+            }, 
+            {
+              "children": [
+                {
+                  "text": "Portaria Seges/ME n\u00ba 938, de 2 fevereiro de 2022"
+                }
+              ], 
+              "data": {
+                "target": "_blank", 
+                "title": "", 
+                "url": "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/portarias/portaria-seges-me-no-938-de-2-de-fevereiro-de-2022"
+              }, 
+              "type": "link"
+            }, 
+            {
+              "text": ", sendo facultativa para todos os entes n\u00e3o enquadrados no espectro sobredito, sendo que\u00a0a n\u00e3o utiliza\u00e7\u00e3o do Cat\u00e1logo \u00e9 uma excepcionalidade, que dever\u00e1 ser justificada por escrito e anexada ao processo de contrata\u00e7\u00e3o."
+            }
+          ], 
+          "type": "p"
+        }
+      ]
+    }, 
+    "dbbc5426-75c1-417d-b062-eed316bb1618": {
+      "@type": "SectionTitleBlock", 
+      "title": "Itens Padronizados"
+    }, 
+    "f9a57864-6ac8-4a40-a0fb-516072b219b6": {
+      "@type": "slate", 
+      "plaintext": "Confira abaixo os itens que comp\u00f5em o Cat\u00e1logo Eletr\u00f4nico de Padroniza\u00e7\u00e3o", 
+      "value": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "text": "Confira abaixo os itens que comp\u00f5em o Cat\u00e1logo Eletr\u00f4nico de Padroniza\u00e7\u00e3o"
+                }
+              ], 
+              "type": "strong"
+            }
+          ], 
+          "type": "p"
+        }
+      ]
+    }
+  }, 
+  "blocks_layout": {
+    "items": [
+      "dbbc5426-75c1-417d-b062-eed316bb1618", 
+      "d23537b1-4e39-4b7b-9003-be6738392b7b", 
+      "f9a57864-6ac8-4a40-a0fb-516072b219b6", 
+      "822b8e3a-c8ee-4a32-8d12-bb428eca93a3"
+    ]
+  }, 
+  "changeNote": "", 
+  "contributors": [], 
+  "created": "2023-01-13T11:58:28+00:00", 
+  "creators": [], 
+  "descricao_card": "", 
+  "description": "", 
+  "effective": "2023-01-13T12:26:42+00:00", 
+  "exclude_from_nav": false, 
+  "expires": null, 
+  "icone_card": null, 
+  "id": "itens-padronizados", 
+  "image_card": null, 
+  "is_folderish": true, 
+  "items": [
+    {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/itens-padronizados", 
+      "@type": "Link", 
+      "description": "", 
+      "effective": "2023-01-13T12:26:42+00:00", 
+      "end": null, 
+      "getObjSize": "0 KB", 
+      "getRemoteUrl": "resolveuid/d63c372689964ecfa4992c4f55083592", 
+      "head_title": null, 
+      "image_field": "", 
+      "image_scales": null, 
+      "mime_type": "text/plain", 
+      "nav_title": null, 
+      "review_state": "published", 
+      "start": null, 
+      "title": "Itens padronizados", 
+      "type_title": "Link"
+    }, 
+    {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/agua-mineral-natural-sem-gas", 
+      "@type": "Document", 
+      "description": "", 
+      "effective": "2023-01-13T12:26:00+00:00", 
+      "end": null, 
+      "getObjSize": "22.1 KB", 
+      "getRemoteUrl": null, 
+      "head_title": null, 
+      "image_field": "", 
+      "image_scales": {
+        "image_card": [
+          {
+            "content-type": "image/png", 
+            "download": "@@images/image_card-512-a45e090255865254e400b5b38de3a53f.png", 
+            "filename": "agua-mineral-natural-sem-gas.png", 
+            "height": 512, 
+            "scales": {
+              "icon": {
+                "download": "@@images/image_card-32-7de8b06adbee687f8aa20d2d0eb463f1.png", 
+                "height": 32, 
+                "width": 32
+              }, 
+              "mini": {
+                "download": "@@images/image_card-200-340e4072c03c6d858bdcd11bf521f86c.png", 
+                "height": 200, 
+                "width": 200
+              }, 
+              "preview": {
+                "download": "@@images/image_card-400-ebb8240b567026371bb4eab469484f32.png", 
+                "height": 400, 
+                "width": 400
+              }, 
+              "thumb": {
+                "download": "@@images/image_card-128-997a0eebd4e8586652bb5535527cadf4.png", 
+                "height": 128, 
+                "width": 128
+              }, 
+              "tile": {
+                "download": "@@images/image_card-64-d32f63ee390d98e8898370bb89f34845.png", 
+                "height": 64, 
+                "width": 64
+              }
+            }, 
+            "size": 22667, 
+            "width": 512
+          }
+        ]
+      }, 
+      "mime_type": "text/plain", 
+      "nav_title": null, 
+      "review_state": "published", 
+      "start": null, 
+      "title": "\u00c1gua mineral natural, sem g\u00e1s", 
+      "type_title": "P\u00e1gina"
+    }, 
+    {
+      "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados/cafe-e-acucar", 
+      "@type": "Document", 
+      "description": "", 
+      "effective": "2023-05-22T18:49:00+00:00", 
+      "end": null, 
+      "getObjSize": "12.4 KB", 
+      "getRemoteUrl": null, 
+      "head_title": null, 
+      "image_field": "", 
+      "image_scales": {
+        "image_card": [
+          {
+            "content-type": "image/png", 
+            "download": "@@images/image_card-512-245dd46098b07dc19c2e7d9e63c82529.png", 
+            "filename": "cafe-e-acucar.png", 
+            "height": 512, 
+            "scales": {
+              "icon": {
+                "download": "@@images/image_card-32-eaa914bfb33cd8f0e9fa87497c885d05.png", 
+                "height": 32, 
+                "width": 32
+              }, 
+              "mini": {
+                "download": "@@images/image_card-200-c889df850acf9e5558fd5a0e399e43f4.png", 
+                "height": 200, 
+                "width": 200
+              }, 
+              "preview": {
+                "download": "@@images/image_card-400-d1e8fc06b2620d18aa1d566dcc1202a2.png", 
+                "height": 400, 
+                "width": 400
+              }, 
+              "thumb": {
+                "download": "@@images/image_card-128-dad46d6f961c30db2c11910241172b2c.png", 
+                "height": 128, 
+                "width": 128
+              }, 
+              "tile": {
+                "download": "@@images/image_card-64-7cfcdd3011bdf32bbe7b1122608d8ac5.png", 
+                "height": 64, 
+                "width": 64
+              }
+            }, 
+            "size": 12683, 
+            "width": 512
+          }
+        ]
+      }, 
+      "mime_type": "text/plain", 
+      "nav_title": null, 
+      "review_state": "published", 
+      "start": null, 
+      "title": "Caf\u00e9 e a\u00e7\u00facar", 
+      "type_title": "P\u00e1gina"
+    }
+  ], 
+  "items_total": 3, 
+  "language": {
+    "title": "Portugu\u00eas (Brasil)", 
+    "token": "pt-br"
+  }, 
+  "layout": "document_view", 
+  "lock": {
+    "locked": false, 
+    "stealable": true
+  }, 
+  "modified": "2026-03-30T17:42:09+00:00", 
+  "nav_title": null, 
+  "next_item": {}, 
+  "parent": {
+    "@id": "https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao", 
+    "@type": "Document", 
+    "description": "", 
+    "effective": "2022-11-29T14:57:00+00:00", 
+    "end": null, 
+    "getObjSize": null, 
+    "getRemoteUrl": null, 
+    "head_title": null, 
+    "image_field": null, 
+    "image_scales": {
+      "image_card": [
+        {
+          "content-type": "image/png", 
+          "download": "@@images/image_card-512-d291814f60cecb128f322e4cdad0c47f.png", 
+          "filename": "catalogo-eletronico-de-padronizacao.png", 
+          "height": 512, 
+          "scales": {
+            "icon": {
+              "download": "@@images/image_card-32-d4d60be248403e670928ea04badc96f5.png", 
+              "height": 32, 
+              "width": 32
+            }, 
+            "mini": {
+              "download": "@@images/image_card-200-448bb18cb71425c98277928e45b3ff58.png", 
+              "height": 200, 
+              "width": 200
+            }, 
+            "preview": {
+              "download": "@@images/image_card-400-cc67d25cde672450726615d1431e7aad.png", 
+              "height": 400, 
+              "width": 400
+            }, 
+            "thumb": {
+              "download": "@@images/image_card-128-0e3127e6963a6e5ce9bfd864c6e21779.png", 
+              "height": 128, 
+              "width": 128
+            }, 
+            "tile": {
+              "download": "@@images/image_card-64-edd93aa3bfa6b9440193d9c8ef8f9f00.png", 
+              "height": 64, 
+              "width": 64
+            }
+          }, 
+          "size": 12753, 
+          "width": 512
+        }
+      ]
+    }, 
+    "mime_type": null, 
+    "nav_title": null, 
+    "review_state": "published", 
+    "start": null, 
+    "title": "Cat\u00e1logo Eletr\u00f4nico de Padroniza\u00e7\u00e3o", 
+    "type_title": "P\u00e1gina"
+  }, 
+  "preview_caption_link": null, 
+  "preview_image_link": null, 
+  "previous_item": {}, 
+  "relatedItems": [], 
+  "review_state": "published", 
+  "rights": "", 
+  "subjects": [], 
+  "title": "Itens padronizados", 
+  "titulo_card": "", 
+  "type_title": "P\u00e1gina", 
+  "version": "current", 
+  "versioning_enabled": true, 
+  "working_copy": null, 
+  "working_copy_of": null
+}

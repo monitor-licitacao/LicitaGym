@@ -62,6 +62,10 @@ export type UnidadeFornecimentoMaterial = {
   nomeUnidadeFornecimento?: string;
   descricaoUnidadeFornecimento?: string;
   numeroSequencialUnidadeFornecimento?: number;
+  /** Unidade de medida base (≠ unidade de fornecimento). */
+  siglaUnidadeMedida?: string | null;
+  /** Quantidade da unidade de medida por unidade de fornecimento. */
+  capacidadeUnidadeFornecimento?: number | null;
   statusUnidadeFornecimentoPdm?: boolean;
   dataHoraAtualizacao?: string;
 };

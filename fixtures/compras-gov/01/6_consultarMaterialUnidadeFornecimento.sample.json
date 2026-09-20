@@ -1,0 +1,79 @@
+{
+  "endpointHint": "6_consultarMaterialUnidadeFornecimento",
+  "sourceFile": "unidadeFornecimentoMaterial.ts",
+  "dtoInterface": "UnidadeFornecimento",
+  "interfaceKeys": [
+    "codigoPdm",
+    "siglaUnidadeFornecimento",
+    "nomeUnidadeFornecimento",
+    "descricaoUnidadeFornecimento",
+    "siglaUnidadeMedida",
+    "capacidadeUnidadeFornecimento",
+    "numeroSequencialUnidadeFornecimento",
+    "statusUnidadeFornecimentoPdm",
+    "statusUnidadeFornecimento",
+    "dataHoraAtualizacao"
+  ],
+  "sample": [
+    {
+      "codigoPdm": 80,
+      "siglaUnidadeFornecimento": "RO",
+      "nomeUnidadeFornecimento": "ROLO",
+      "descricaoUnidadeFornecimento": "UMA CONFIGURAÇÃO CILÍNDRIA DE MATERIAL FLEXÍVEL QUE FOI ENROLADO SOBRE SI MESMO, TAL COMO, TECIDOS, FITA,PAPEL ABRASIVO,PAPEL HIGIÊNICO, PAPEL FOTOSENSÍVEL E FILME.  PODE  UTILIZARUM NÚCLEO COM OU SEM REBORDOS.",
+      "siglaUnidadeMedida": "M",
+      "capacidadeUnidadeFornecimento": 300,
+      "numeroSequencialUnidadeFornecimento": 5,
+      "statusUnidadeFornecimentoPdm": true,
+      "statusUnidadeFornecimento": true,
+      "dataHoraAtualizacao": "2021-10-16T09:30:54.651407"
+    },
+    {
+      "codigoPdm": 81,
+      "siglaUnidadeFornecimento": "UN",
+      "nomeUnidadeFornecimento": "UNIDADE",
+      "descricaoUnidadeFornecimento": "UMA QUANTIDADE NORMALIZADA OU NUMERICA DE UM ITEM DE  ABASTECIMENTO. NÃO UTILIZAR SE FOR APLICÁVEL DE UM TERMO MAIS ESPECÍFICO, TAL COMO, JOGO, CONJUNTO, COLEÇÃO, GRUPO, FOLHA,  TIRA, COMPRIMENTO ETC.",
+      "siglaUnidadeMedida": null,
+      "capacidadeUnidadeFornecimento": 0,
+      "numeroSequencialUnidadeFornecimento": 1,
+      "statusUnidadeFornecimentoPdm": true,
+      "statusUnidadeFornecimento": true,
+      "dataHoraAtualizacao": "2021-10-16T09:30:54.651407"
+    },
+    {
+      "codigoPdm": 82,
+      "siglaUnidadeFornecimento": "FL",
+      "nomeUnidadeFornecimento": "FOLHA",
+      "descricaoUnidadeFornecimento": "PEçA DE MATERIAL PLANO, DE FORMA RETANGULAR E DE ESPESSURAUNIFORME, QUE é MUITO FINA COMPARADA COM O SEU COMPRIMENTO ELARGURA, TAL COMO METAL, PLáSTICO, PAPEL ETC. A UTILIZAçãODESTE TERMO NãO ESTá LIMITADA A QUALQUER GRUPO DE ARTIGOS OUCLASSES NATO DE ABASTECIMENTO. CONTUDO DEVERá SER SEMPRE  A-PLICADO QUANDO O TERMO \"FOLHA\" FOR UTILIZADO NO NOME DE ARTIGO PARA DAR A IDéIA DA SUA FORMA, COMO POR EXEMPLO, FOLHA DEALUMíNIO, EXCETO OS DA CLASSE 7210.",
+      "siglaUnidadeMedida": null,
+      "capacidadeUnidadeFornecimento": 0,
+      "numeroSequencialUnidadeFornecimento": 1,
+      "statusUnidadeFornecimentoPdm": true,
+      "statusUnidadeFornecimento": true,
+      "dataHoraAtualizacao": "2021-10-16T09:30:54.651407"
+    },
+    {
+      "codigoPdm": 83,
+      "siglaUnidadeFornecimento": "UN",
+      "nomeUnidadeFornecimento": "UNIDADE",
+      "descricaoUnidadeFornecimento": "UMA QUANTIDADE NORMALIZADA OU NUMERICA DE UM ITEM DE  ABASTECIMENTO. NÃO UTILIZAR SE FOR APLICÁVEL DE UM TERMO MAIS ESPECÍFICO, TAL COMO, JOGO, CONJUNTO, COLEÇÃO, GRUPO, FOLHA,  TIRA, COMPRIMENTO ETC.",
+      "siglaUnidadeMedida": null,
+      "capacidadeUnidadeFornecimento": 0,
+      "numeroSequencialUnidadeFornecimento": 1,
+      "statusUnidadeFornecimentoPdm": true,
+      "statusUnidadeFornecimento": true,
+      "dataHoraAtualizacao": "2021-10-16T09:30:54.651407"
+    },
+    {
+      "codigoPdm": 84,
+      "siglaUnidadeFornecimento": "UN",
+      "nomeUnidadeFornecimento": "UNIDADE",
+      "descricaoUnidadeFornecimento": "UMA QUANTIDADE NORMALIZADA OU NUMERICA DE UM ITEM DE  ABASTECIMENTO. NÃO UTILIZAR SE FOR APLICÁVEL DE UM TERMO MAIS ESPECÍFICO, TAL COMO, JOGO, CONJUNTO, COLEÇÃO, GRUPO, FOLHA,  TIRA, COMPRIMENTO ETC.",
+      "siglaUnidadeMedida": null,
+      "capacidadeUnidadeFornecimento": 0,
+      "numeroSequencialUnidadeFornecimento": 1,
+      "statusUnidadeFornecimentoPdm": true,
+      "statusUnidadeFornecimento": true,
+      "dataHoraAtualizacao": "2021-10-16T09:30:54.651407"
+    }
+  ]
+}

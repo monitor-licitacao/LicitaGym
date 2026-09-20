@@ -1,0 +1,38 @@
+[
+  {
+    "secao_codigo": "03",
+    "titulo": "IN SEGES/ME nº 65/2021 - Pesquisa de preços",
+    "url_canonica": "https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao/instrucoes-normativas/instrucao-normativa-seges-me-no-65-de-7-de-julho-de-2021",
+    "papel": "referencia"
+  },
+  {
+    "secao_codigo": "04",
+    "titulo": "Decreto nº 10.947/2022 - Plano de Contratações Anual",
+    "url_canonica": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2022/decreto/d10947.htm",
+    "papel": "referencia"
+  },
+  {
+    "secao_codigo": "06",
+    "titulo": "Lei nº 8.666/1993 - Licitações e Contratos (legado)",
+    "url_canonica": "https://www.planalto.gov.br/ccivil_03/leis/l8666cons.htm",
+    "papel": "rege"
+  },
+  {
+    "secao_codigo": "07",
+    "titulo": "Lei nº 14.133/2021 - Licitações e Contratos Administrativos",
+    "url_canonica": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm",
+    "papel": "rege"
+  },
+  {
+    "secao_codigo": "08",
+    "titulo": "Decreto nº 11.462/2023 - Sistema de Registro de Preços",
+    "url_canonica": "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/decreto/d11462.htm",
+    "papel": "rege"
+  },
+  {
+    "secao_codigo": "09",
+    "titulo": "Lei nº 14.133/2021 - Licitações e Contratos Administrativos",
+    "url_canonica": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm",
+    "papel": "rege"
+  }
+]

@@ -1,0 +1,16 @@
+HTTP/1.1 200 
+date: Sun, 20 Sep 2026 04:24:01 GMT
+content-type: application/json
+content-length: 17568
+vary: Accept-Encoding
+age: 61
+cache-control: max-age=30, s-maxage=900, public, must-revalidate
+cache-status: Souin; hit; ttl=839; key=*****; detail=OTTER
+request: -Cache-Control
+x-cache-crule: api
+x-frame-options: SAMEORIGIN
+x-cache-nrule: pncp_api
+link: <http://www.gov.br/pncp/++api++/pt-br/catalogo-eletronico-de-padronizacao/itens-padronizados>; rel="canonical"
+x-cache-status: MISS
+strict-transport-security: max-age=31536000; includeSubDomains
+

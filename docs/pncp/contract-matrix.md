@@ -64,6 +64,14 @@ Status: `testado-ok` = chamada real bem-sucedida registrada; `testado-falha` = e
 `testado-vazio` = HTTP 200 sem registros; `nao-testado` = só catalogado.
 Nenhum é `verified` contra o Swagger ao vivo — **o gate de migrations continua valendo.**
 
+**Smoke offline (fixtures + contratos DTO):** `tests/compras-gov/smoke/{01,03–11,97–99,autenticacao}/`
+cruzando amostras em `fixtures/compras-gov/` com [`docs/compras-gov/contracts/index.ts`](../compras-gov/contracts/index.ts)
+e [schemas-consultas.md](../compras-gov/schemas-consultas.md). Rodar: `deno test --allow-read tests/compras-gov/smoke`.
+
+**Legislação × seção API:** tabelas `compras_api_secoes` / `compras_api_secao_legislacao`
+(migration `202609201200_compras_api_secao_legislacao.sql`) ligam módulos 03/04/06/07/08/09 a
+`legislacao_documentos` ([legislacao.md](../legislacao.md)).
+
 ### 01 — CATÁLOGO MATERIAL (CATMAT)
 
 | # | path `/modulo-material/…` | params | status | volume real |

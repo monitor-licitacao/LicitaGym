@@ -20,7 +20,8 @@ function extractDocumentLinks(html: string, baseUrl: string): Array<{ titulo: st
     const titulo = match[2].replace(/<[^>]+>/g, "").trim();
     if (!href || !titulo) continue;
     const lower = href.toLowerCase();
-    if (!lower.endsWith(".pdf") && !lower.includes("legislacao")) continue;
+    // Só baixar PDFs. Links "legislacao" sem .pdf são páginas HTML do portal.
+    if (!lower.endsWith(".pdf") && !lower.includes(".pdf?")) continue;
     const url = href.startsWith("http") ? href : new URL(href, baseUrl).toString();
     links.push({ titulo, url });
   }
@@ -162,8 +163,14 @@ Deno.serve(async (req) => {
             mensagem: link.titulo,
           });
         }
-      } catch {
+      } catch (error) {
         stats.erros++;
+        await logSyncRequest(client, {
+          syncRunId: runId,
+          endpoint: link.url,
+          parametros: { titulo: link.titulo },
+          erro: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

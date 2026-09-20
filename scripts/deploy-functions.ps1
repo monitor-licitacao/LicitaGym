@@ -7,7 +7,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$functions = @(
+# Sync / jobs internos: deploy com --no-verify-jwt (Bearer SYNC_CRON_SECRET).
+$cronFunctions = @(
   "sync-pncp-pca",
   "import-catmat-curadoria",
   "sync-pncp-legislation",
@@ -15,6 +16,7 @@ $functions = @(
   "sync-pncp-contratacoes-atas",
   "sync-pncp-contratacoes-contratos",
   "sync-pncp-catalogo",
+  "sync-pncp-orgaos",
   "sync-compras-catmat",
   "link-catmat-pca",
   "sync-pncp-irp",
@@ -23,6 +25,11 @@ $functions = @(
   "api-pncp-contratacoes",
   "api-pncp-irp",
   "calculate-distance-webrouter"
+)
+
+# APIs autenticadas: JWT obrigatório (sem --no-verify-jwt).
+$jwtFunctions = @(
+  "analyze-public-material"
 )
 
 if (-not $env:SUPABASE_ACCESS_TOKEN) {
@@ -37,20 +44,27 @@ Write-Host "CLI version:" (npx supabase -v)
 
 $failed = @()
 
-foreach ($name in $functions) {
-  Write-Host "`n=== Deploy $name ===" -ForegroundColor Cyan
+function Deploy-Function([string]$name, [switch]$RequireJwt) {
+  Write-Host "`n=== Deploy $name$(if ($RequireJwt) { ' [JWT]' } else { ' [no-verify-jwt]' }) ===" -ForegroundColor Cyan
   $deployArgs = @(
     "functions", "deploy", $name,
-    "--project-ref", $ProjectRef,
-    "--no-verify-jwt"
+    "--project-ref", $ProjectRef
   )
+  if (-not $RequireJwt) { $deployArgs += "--no-verify-jwt" }
   if ($UseApi) { $deployArgs += "--use-api" }
   if ($Debug) { $deployArgs += "--debug" }
 
   & npx supabase @deployArgs
   if ($LASTEXITCODE -ne 0) {
-    $failed += $name
+    $script:failed += $name
   }
+}
+
+foreach ($name in $cronFunctions) {
+  Deploy-Function $name
+}
+foreach ($name in $jwtFunctions) {
+  Deploy-Function $name -RequireJwt
 }
 
 if ($failed.Count -gt 0) {

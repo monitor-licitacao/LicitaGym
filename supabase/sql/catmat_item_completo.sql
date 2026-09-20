@@ -22,9 +22,10 @@
 --   numeroSequencialUnidadeFornecimento              -> coluna `numero_sequencial`
 --   nomeGrupo / nomeClasse                           -> coluna `nome` nas duas
 --   statusUnidadeFornecimentoPdm                     -> coluna `status`
--- E dois campos do DTO NÃO são persistidos na v1:
---   siglaUnidadeMedida e capacidadeUnidadeFornecimento em catmat_pdm_unidades.
--- Referenciá-los aqui quebraria a matview — por isso ficam de fora.
+-- E campos do DTO de unidade agora persistidos em catmat_pdm_unidades:
+--   siglaUnidadeMedida → sigla_unidade_medida
+--   capacidadeUnidadeFornecimento → capacidade_unidade_fornecimento
+-- Não confundir com catmat_item_caracteristicas.sigla_unidade_medida (atributo).
 --
 -- VALIDAÇÃO JÁ FEITA
 -- Executado em PostgreSQL 16.13 contra um fixture com a hierarquia mínima
@@ -155,13 +156,12 @@ WITH carac AS (
 unidades AS (
   SELECT
     u.codigo_pdm,
-    -- Só colunas da v1. A API também devolve siglaUnidadeMedida e
-    -- capacidadeUnidadeFornecimento ("UN com capacidade 2 KG"), que ainda não
-    -- são persistidas — quando forem, entram aqui.
     jsonb_agg(jsonb_build_object(
-      'sigla',     u.sigla_unidade_fornecimento,
-      'nome',      u.nome_unidade_fornecimento,
-      'descricao', u.descricao_unidade_fornecimento
+      'sigla',       u.sigla_unidade_fornecimento,
+      'nome',        u.nome_unidade_fornecimento,
+      'descricao',   u.descricao_unidade_fornecimento,
+      'sigla_medida', u.sigla_unidade_medida,
+      'capacidade',  u.capacidade_unidade_fornecimento
     ) ORDER BY u.numero_sequencial) AS unidades_fornecimento
   FROM public.catmat_pdm_unidades u
   GROUP BY u.codigo_pdm

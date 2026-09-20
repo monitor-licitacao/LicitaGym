@@ -8,8 +8,10 @@ const VOLATILE_KEYS = new Set([
 ]);
 
 export async function sha256Hex(input: string | Uint8Array): Promise<string> {
-  const data = typeof input === "string" ? new TextEncoder().encode(input) : input;
-  const hash = await crypto.subtle.digest("SHA-256", data);
+  const source = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const data = new Uint8Array(source.byteLength);
+  data.set(source);
+  const hash = await crypto.subtle.digest("SHA-256", data.buffer);
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");

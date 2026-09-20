@@ -2,7 +2,8 @@
 
 Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.gov.br**.
 
-- **Fonte Swagger (DTOs):** `compras_gov_schemas.json` (OpenAPI components)
+- **Fonte Swagger (DTOs):** tabelas campo→Postgres neste documento + contratos em [`contracts/index.ts`](./contracts/index.ts)
+- **Smoke:** `tests/compras-gov/smoke/` + fixtures `fixtures/compras-gov/`
 - **Base URL:** `https://dadosabertos.compras.gov.br`
 - **Escopo LicitaGym:** CATMAT material grupo **78** / classe **7830** (equipamentos fitness). Catálogo também aceita grupo **72** / classe **7220** (revestimentos para pisos) para curadoria. PCA e `PNCP_PCA_CLASSIFICACOES` permanecem só **7830**.
 - **Matriz de contratos:** [`docs/pncp/contract-matrix.md`](../pncp/contract-matrix.md)
@@ -152,8 +153,8 @@ Classe 7220 = REVESTIMENTOS PARA PISOS (grupo 72). Entra no catálogo para curad
 | `nomeUnidadeFornecimento` | string | `nome_unidade_fornecimento` |
 | `descricaoUnidadeFornecimento` | string | `descricao_unidade_fornecimento` |
 | `numeroSequencialUnidadeFornecimento` | int32 | `numero_sequencial` |
-| `siglaUnidadeMedida` | string | *(não persistido v1)* |
-| `capacidadeUnidadeFornecimento` | number | *(não persistido v1)* |
+| `siglaUnidadeMedida` | string | `sigla_unidade_medida` |
+| `capacidadeUnidadeFornecimento` | number | `capacidade_unidade_fornecimento` |
 | `statusUnidadeFornecimentoPdm` | boolean | `status` |
 | `dataHoraAtualizacao` | date-time | `last_synced_at` |
 
@@ -219,7 +220,110 @@ Classe 7220 = REVESTIMENTOS PARA PISOS (grupo 72). Entra no catálogo para curad
 
 ---
 
-## 3. Tabelas Postgres — resumo para SQL
+## 3. PGC — Planejamento e Gerenciamento de Contratações (`FtPgcDetalheDTO`)
+
+**Status smoke:** `fixture-ok` — amostras em `fixtures/compras-gov/04/`.
+
+**GET** `/modulo-pgc/2_consultarPgcDetalheCatalogo`
+
+Params reais nos testes: `pagina`, `tamanhoPagina`, `anoPcaProjetoCompra`, `tipo`, `codigo`.
+
+| Campo API | Tipo | Uso |
+|-----------|------|-----|
+| `codigoUasg` / `nomeUasg` | string | UASG |
+| `orgao` | string | CNPJ ou nome do órgão (instável como chave) |
+| `codigoPdmMaterial` | number | PDM CATMAT |
+| `codigoItemCatalogo` | string | Item CATMAT |
+| `codigoClasseMaterial` / `codigoGrupoMaterial` | number | Hierarquia CATMAT |
+| `quantidadeItem` / `valorUnitarioItem` / `valorTotalItem` | number | Demanda planejada |
+| `anoPcaProjetoCompra` | number | Ano do PCA |
+| `numeroItemPncp` | number | Ponte PNCP |
+| `dataHoraPublicacaoPncp` | date-time | Publicação PNCP |
+
+**Legislação:** Decreto nº 10.947/2022 (PCA) — FK em `compras_api_secao_legislacao` seção `04`.
+
+---
+
+## 4. UASG / Órgão (`DmCorpUasgDTO`, `DmCorpOrgaoDTO`)
+
+**Status smoke:** `fixture-ok` — `fixtures/compras-gov/05/`.
+
+### 4.1 UASG — `GET /modulo-uasg/1_consultarUasg`
+
+| Campo API | Tipo | Uso |
+|-----------|------|-----|
+| `codigoUasg` | string | Código UASG |
+| `nomeUasg` | string | Nome |
+| `codigoMunicipioIbge` | number | IBGE |
+| `codigoOrgao` | number | Órgão vinculado |
+| `cnpjCpfOrgao` | string | CNPJ órgão |
+| `statusUasg` | boolean | Ativo/inativo (`false` retornou dados nos testes) |
+| `siglaUf` | string | UF |
+
+### 4.2 Órgão — `GET /modulo-uasg/2_consultarOrgao`
+
+| Campo API | Tipo | Uso |
+|-----------|------|-----|
+| `codigoOrgao` | number | Código |
+| `nomeOrgao` | string | Nome |
+| `cnpjCpfOrgao` | string | CNPJ |
+| `poder` / `esfera` | string | Classificação |
+| `statusOrgao` | boolean | Ativo |
+
+---
+
+## 5. LEGADO — Lei 8.666 (`TbVw*`)
+
+**Status smoke:** `fixture-ok` — `fixtures/compras-gov/06/`.
+
+**Legislação:** Lei nº 8.666/1993 — FK seção `06` (`papel=rege`). Campo `pertence14133` na licitação indica overlap com regime novo.
+
+### 5.1 Licitação — `GET …/1_consultarLicitacao`
+
+| Campo API | Tipo | Uso |
+|-----------|------|-----|
+| `id_compra` | string | ID compra legado |
+| `uasg` | number | UASG |
+| `modalidade` / `nome_modalidade` | number/string | Modalidade |
+| `objeto` | string | Objeto |
+| `pertence14133` | boolean | Flag regime 14.133 |
+| `data_publicacao` | date | Publicação |
+
+### 5.2 Item licitação — `GET …/2_consultarItemLicitacao`
+
+| Campo API | Tipo | Uso |
+|-----------|------|-----|
+| `id_compra` / `id_compra_item` | string | Chaves |
+| `numero_item_licitacao` | number | Item |
+| `codigo_item_material` | number | CATMAT quando material |
+| `descricao_item` | string | Descrição |
+| `quantidade` / `valor_estimado` | number | Quantidade / valor |
+
+---
+
+## 6. Seções ainda sem contrato campo-a-campo (`nao-testado`)
+
+Pastas smoke existem; fixtures e tabelas DTO **não** inventadas.
+
+| Código | Módulo | Path tipico | Nota |
+|--------|--------|-------------|------|
+| 07 | CONTRATAÇÕES (Lei 14.133) | `/modulo-contratacoes/` | FK legislação → Lei 14.133/2021 |
+| 08 | ARP | `/modulo-arp/` | FK → Decreto 11.462/2023 |
+| 09 | CONTRATOS | `/modulo-contratos/` | FK → Lei 14.133/2021 |
+| 10 | FORNECEDOR | `/modulo-fornecedor/` | PII — cuidado |
+| 11 | OCDS | `/modulo-ocds/` | Ver erros estruturais em openapi/dto-errors |
+| 97 | INDICADORES | — | fora escopo produto |
+| 98 | ALICE | — | integração externa |
+| 99 | USUARIOS | — | **não catalogar** (PII/senha) |
+| AUTENTICACAO | Auth | — | live-only |
+
+Contratos machine-readable: [`docs/compras-gov/contracts/index.ts`](./contracts/index.ts).  
+Smoke: `tests/compras-gov/smoke/`.
+
+---
+
+## 7. Tabelas Postgres — resumo para SQL
+
 
 ### 3.1 Hierarquia CATMAT (`catmat_*`)
 
@@ -316,7 +420,7 @@ private.pncp_period_anchor  -- checkpoint Search API PCA
 
 ---
 
-## 4. Consultas SQL prontas
+## 8. Consultas SQL prontas
 
 ### 4.1 Validação pós-sync CATMAT 7830
 
@@ -445,7 +549,7 @@ FROM pca_itens;
 
 ---
 
-## 5. Regras de tipos e formatação
+## 9. Regras de tipos e formatação
 
 | Domínio | Armazenar | Exibir |
 |---------|-----------|--------|
@@ -458,7 +562,7 @@ FROM pca_itens;
 
 ---
 
-## 6. Normalização proposta (`pca_itens`) — roadmap
+## 10. Normalização proposta (`pca_itens`) — roadmap
 
 **Princípio:** não sobrescrever dados originais sincronizados do PNCP. Separar valor recebido, valor para busca e valor padronizado.
 
@@ -499,7 +603,7 @@ Antes de criar `unidades_medida` global:
 
 ---
 
-## 7. Mapa rápido API → sync → tabela
+## 11. Mapa rápido API → sync → tabela
 
 | Endpoint | Edge Function | Tabela(s) |
 |----------|---------------|-----------|
@@ -515,10 +619,15 @@ Antes de criar `unidades_medida` global:
 
 ---
 
-## 8. Referências
+## 12. Referências
 
+- Smoke tests por seção: `tests/compras-gov/smoke/`
+- Contratos DTO: [`docs/compras-gov/contracts/index.ts`](./contracts/index.ts)
+- Fixtures reais: `fixtures/compras-gov/`
+- Legislação FK: tabelas `compras_api_secoes` / `compras_api_secao_legislacao` + [legislacao.md](../legislacao.md)
 - [Swagger CATÁLOGO MATERIAL](https://dadosabertos.compras.gov.br/swagger-ui/index.html#/01%20-%20CAT%C3%81LOGO%20-%20MATERIAL)
 - DTOs locais: `supabase/functions/_shared/compras-gov/material-types.ts`
 - Mapa de cruzamentos: [`docs/pncp/cruzamentos.md`](../pncp/cruzamentos.md)
 - Migrations: `supabase/migrations/202609180007_catalogo.sql`, `202609180015_catmat_compras.sql`, `202609180004_pca.sql`
 - Script sync: `scripts/invoke-sync-compras-catmat.ps1`
+- Script extract fixtures: `scripts/extract-compras-fixtures.mjs`

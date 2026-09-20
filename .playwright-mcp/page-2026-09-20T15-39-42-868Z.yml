@@ -1,0 +1,11 @@
+- main [ref=e2]:
+  - heading "Você está quase lá" [level=1] [ref=e4]
+  - paragraph [ref=e5]: Este site usa o ChatGPT para fazer seu login com segurança
+  - generic [ref=e6]:
+    - link "Continuar com o ChatGPT" [ref=e7] [cursor=pointer]:
+      - /url: https://licitagym-catmat.fiscalvectracargo.chatgpt.site/signin-with-chatgpt?return_to=%2F
+    - generic [ref=e9]:
+      - text: Você pode consultar a
+      - link "Política de Privacidade" [ref=e10] [cursor=pointer]:
+        - /url: https://openai.com/policies/privacy-policy
+      - text: da OpenAI

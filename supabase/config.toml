@@ -67,3 +67,6 @@ site_url = "http://127.0.0.1:3000"
 
 # Edge Functions: deploy com --no-verify-jwt para sync jobs (Bearer SYNC_CRON_SECRET).
 # Local: npx supabase functions serve --no-verify-jwt --env-file supabase/.env.functions.local
+# POC análise pública: JWT obrigatório (gateway + getUser no handler).
+[functions.analyze-public-material]
+verify_jwt = true

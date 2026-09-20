@@ -1,0 +1,114 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner:
+      - heading "Compras eletrônicas" [level=1] [ref=e3]
+    - main [ref=e33]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e39]:
+              - button "Tela inicial" [ref=e43] [cursor=pointer]
+              - text: Acompanhar Contratação
+            - generic [ref=e46]:
+              - paragraph [ref=e48]: Acompanhar Contratação
+              - button "Recarregar página" [ref=e52] [cursor=pointer]
+            - generic [ref=e55]:
+              - generic [ref=e56]:
+                - generic [ref=e57]:
+                  - paragraph [ref=e58]: Pregão Eletrônico N° 90227/2025 (SRP) (Lei 14.133/2021)
+                  - paragraph [ref=e59]: UASG 982381 - PREFEITURA MUNICIPAL DE CARUARU - PE
+                - generic [ref=e62]:
+                  - generic [ref=e63]: "Critério julgamento: Menor Preço / Maior Desconto"
+                  - generic [ref=e64]: "Modo disputa: Aberto"
+              - generic [ref=e68]:
+                - button "Documentos e demais informações da contratação no PNCP" [ref=e72] [cursor=pointer]
+                - button "Downloads relacionados a compra" [ref=e78] [cursor=pointer]
+                - button "Quadro Informativo" [ref=e83] [cursor=pointer]
+                - button "Informações adicionais da compra" [ref=e88] [cursor=pointer]
+                - button [ref=e95] [cursor=pointer]
+              - generic [ref=e97]: Contratação homologada
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - tablist [ref=e107]:
+                - tab "Itens" [selected] [ref=e108] [cursor=pointer]
+              - tabpanel "Itens" [ref=e109]:
+                - generic [ref=e110]: A relação de propostas e histórico de recursos do item poderão ser acessados através do ícone O termo de julgamento e o termo de homologação estarão disponíveis após a conclusão destas etapas, respectivamente.
+                - generic [ref=e119]:
+                  - generic [ref=e122]:
+                    - generic [ref=e123]: 1 Revestimento Piso
+                    - generic [ref=e125]: Sem benefícios ME/EPP
+                    - generic [ref=e127]: Homologado
+                  - generic [ref=e131]:
+                    - generic [ref=e132]:
+                      - generic [ref=e133]: Qtde solicitada
+                      - generic [ref=e134]: Valor estimado (unitário)
+                    - generic [ref=e135]:
+                      - generic [ref=e136]: "1"
+                      - generic [ref=e137]: R$ 10.974.577,1900
+                  - generic [ref=e140]:
+                    - menubar [ref=e143]:
+                      - menuitem [ref=e144]:
+                        - generic [ref=e146] [cursor=pointer]
+                    - button "Visualizar propostas do item" [ref=e152] [cursor=pointer]
+                    - button "Ocultar detalhes do item" [expanded] [active] [ref=e159] [cursor=pointer]
+                  - generic [ref=e162]:
+                    - generic [ref=e164]:
+                      - generic [ref=e165]: Descrição detalhada
+                      - generic [ref=e166]: "Revestimento Piso Material: Borracha, Largura: 100CM, Comprimento: 100CM, Espessura: 4CM, Características Adicionais: Proteção Contra Impacto"
+                    - generic [ref=e167]:
+                      - generic [ref=e168]:
+                        - generic [ref=e169]: Quantidade mínima
+                        - generic [ref=e170]: "1"
+                      - generic [ref=e171]:
+                        - generic [ref=e172]: Quantidade solicitada
+                        - generic [ref=e173]: "1"
+                      - generic [ref=e174]:
+                        - generic [ref=e175]: Unidade de fornecimento
+                        - generic [ref=e176]: Metro
+                      - generic [ref=e177]:
+                        - generic [ref=e178]: Critério de julgamento
+                        - generic [ref=e179]: Menor Preço
+                      - generic [ref=e180]:
+                        - generic [ref=e181]: Valor estimado (unitário)
+                        - generic [ref=e182]: R$ 10.974.577,1900
+                      - generic [ref=e183]:
+                        - generic [ref=e184]: Valor estimado (total)
+                        - generic [ref=e185]: R$ 10.974.577,1900
+                      - generic [ref=e186]:
+                        - generic [ref=e187]: Orçamento sigiloso
+                        - generic [ref=e188]: Não
+                      - generic [ref=e189]:
+                        - generic [ref=e190]: Intervalo mínimo entre Lances
+                        - generic [ref=e191]: 1,00%
+                      - generic [ref=e192]:
+                        - generic [ref=e193]: Tratamento diferenciado
+                        - generic [ref=e194]: Sem benefícios ME/EPP (Art. 4º, lei 14.133/2021)
+                      - generic [ref=e195]:
+                        - generic [ref=e196]: Aplicabilidade margem de preferência
+                        - generic [ref=e197]: Não
+                      - generic [ref=e198]:
+                        - generic [ref=e199]: Exigência de conteúdo nacional
+                        - generic [ref=e200]: Não
+            - button "Voltar para pesquisa" [ref=e158] [cursor=pointer]
+        - generic "Compras.gov.br" [ref=e7]
+    - contentinfo [ref=e9]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - link "Notícias" [ref=e16] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/noticias
+          - link "Eventos" [ref=e18] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/eventos
+          - link "Legislação" [ref=e20] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao
+          - link "Webinários" [ref=e22] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/cursos-e-capacitacoes
+          - link "Central de Atendimento" [ref=e24] [cursor=pointer]:
+            - /url: https://www.gov.br/compras/pt-br/canais_atendimento/central-de-atendimento
+        - generic [ref=e26]:
+          - link [ref=e27] [cursor=pointer]:
+            - /url: http://www.acessoainformacao.gov.br/
+            - img "Imagem" [ref=e28]
+          - link "Governo Federal" [ref=e29] [cursor=pointer]:
+            - /url: http://www.brasil.gov.br/
+      - img "hCaptcha logo" [ref=e32] [cursor=pointer]
+  - tooltip "Ocultar detalhes do item"

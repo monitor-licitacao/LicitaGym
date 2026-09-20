@@ -1,0 +1,15 @@
+HTTP/1.1 200 
+date: Sun, 20 Sep 2026 04:23:59 GMT
+content-type: text/html; charset=utf-8
+content-length: 189037
+vary: Accept-Encoding
+etag: W/"2e26d-bfDH5YgqsitPKuN1FKzbbbpuFVk"
+x-cache-nrule: pncp_content
+access-control-allow-origin: https://www.gov.br
+access-control-allow-credentials: true
+access-control-allow-methods: GET, POST, OPTIONS
+access-control-allow-headers: Origin, Content-Type, Accept, Authorization
+link: <http://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao/@search?b_size=100>; rel="canonical"
+x-cache-status: MISS
+strict-transport-security: max-age=31536000; includeSubDomains
+

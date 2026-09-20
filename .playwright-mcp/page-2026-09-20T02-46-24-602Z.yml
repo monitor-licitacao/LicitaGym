@@ -1,0 +1,25 @@
+- generic [ref=e2]:
+  - banner:
+    - heading "Compras eletrônicas" [level=1] [ref=e3]
+  - main:
+    - generic "Compras.gov.br" [ref=e7]
+  - contentinfo [ref=e9]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - link "Notícias" [ref=e16] [cursor=pointer]:
+          - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/noticias
+        - link "Eventos" [ref=e18] [cursor=pointer]:
+          - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/eventos
+        - link "Legislação" [ref=e20] [cursor=pointer]:
+          - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/legislacao
+        - link "Webinários" [ref=e22] [cursor=pointer]:
+          - /url: https://www.gov.br/compras/pt-br/acesso-a-informacao/cursos-e-capacitacoes
+        - link "Central de Atendimento" [ref=e24] [cursor=pointer]:
+          - /url: https://www.gov.br/compras/pt-br/canais_atendimento/central-de-atendimento
+      - generic [ref=e26]:
+        - link [ref=e27] [cursor=pointer]:
+          - /url: http://www.acessoainformacao.gov.br/
+          - img "Imagem" [ref=e28]
+        - link "Governo Federal" [ref=e29] [cursor=pointer]:
+          - /url: http://www.brasil.gov.br/
+    - img "hCaptcha logo" [ref=e32] [cursor=pointer]
