@@ -1,0 +1,159 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
+import { createServiceClient } from "../_shared/pncp/supabase-admin.ts";
+
+type LinkBody = {
+  classe_catmat?: string;
+  limite?: number;
+  /** Deslocamento estável (ordenacao por id) para paginar todos os pca_itens da classe. */
+  offset?: number;
+  /** Similaridade mínima 0-1 para match por descrição (default 0.55). */
+  limiar_similaridade?: number;
+};
+
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSet(text: string): Set<string> {
+  return new Set(text.split(" ").filter((t) => t.length > 2));
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const token of a) {
+    if (b.has(token)) inter++;
+  }
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
+  if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const body = (await req.json().catch(() => ({}))) as LinkBody;
+  const classeCatmat = body.classe_catmat ?? "7830";
+  const limite = Math.min(Math.max(body.limite ?? 500, 1), 1000);
+  const offset = Math.max(body.offset ?? 0, 0);
+  const limiar = body.limiar_similaridade ?? 0.55;
+  const rangeEnd = offset + limite - 1;
+
+  const client = createServiceClient();
+
+  const { data: pcaItens, error: pcaError } = await client
+    .from("pca_itens")
+    .select("id, descricao, classe_material_servico, codigo_classe_catmat, ativo")
+    .eq("ativo", true)
+    .eq("classe_material_servico", classeCatmat)
+    .order("id", { ascending: true })
+    .range(offset, rangeEnd);
+  if (pcaError) return jsonResponse({ error: pcaError.message }, 500);
+
+  const { data: catalogoItens, error: catError } = await client
+    .from("catalogo_itens")
+    .select("id, codigo_catmat, codigo_pdm, descricao, classe_catmat, ativo")
+    .eq("ativo", true)
+    .eq("classe_catmat", classeCatmat);
+  if (catError) return jsonResponse({ error: catError.message }, 500);
+
+  const catalogoIndex = (catalogoItens ?? []).map((item) => ({
+    ...item,
+    tokens: tokenSet(normalizeText(item.descricao)),
+  }));
+
+  const stats = {
+    analisados: 0,
+    vinculos_novos: 0,
+    vinculos_atualizados: 0,
+    pdm_vinculos: 0,
+    ignorados: 0,
+    erros: 0,
+  };
+
+  for (const pcaItem of pcaItens ?? []) {
+    stats.analisados++;
+    const pcaTokens = tokenSet(normalizeText(pcaItem.descricao));
+    if (pcaTokens.size === 0) {
+      stats.ignorados++;
+      continue;
+    }
+
+    let best: { id: string; codigo_pdm: string | null; score: number } | null = null;
+    for (const cat of catalogoIndex) {
+      const score = jaccard(pcaTokens, cat.tokens);
+      if (!best || score > best.score) {
+        best = { id: cat.id, codigo_pdm: cat.codigo_pdm, score };
+      }
+    }
+
+    if (!best || best.score < limiar) {
+      stats.ignorados++;
+      continue;
+    }
+
+    const tipo = best.score >= 0.85 ? "exata" : best.score >= 0.7 ? "provavel" : "incerta";
+    const evidencia = `jaccard=${best.score.toFixed(3)};classe=${classeCatmat}`;
+
+    const { data: ponteExistente } = await client
+      .from("catalogo_ponte")
+      .select("id")
+      .eq("entidade_tipo", "pca_item")
+      .eq("entidade_id", pcaItem.id)
+      .eq("catalogo_item_id", best.id)
+      .maybeSingle();
+
+    const { error: ponteError } = await client.from("catalogo_ponte").upsert({
+      catalogo_item_id: best.id,
+      entidade_tipo: "pca_item",
+      entidade_id: pcaItem.id,
+      tipo_correspondencia: tipo,
+      evidencia,
+    }, { onConflict: "catalogo_item_id,entidade_tipo,entidade_id" });
+
+    if (ponteError) {
+      stats.erros++;
+      continue;
+    }
+    if (ponteExistente) stats.vinculos_atualizados++;
+    else stats.vinculos_novos++;
+
+    const codigoPdm = best.codigo_pdm ? Number(best.codigo_pdm) : NaN;
+    if (Number.isFinite(codigoPdm)) {
+      const { error: pdmError } = await client.from("pca_item_pdm").upsert({
+        pca_item_id: pcaItem.id,
+        codigo_pdm: codigoPdm,
+        tipo_correspondencia: tipo,
+        score: best.score,
+        evidencia: `catalogo_ponte;${evidencia}`,
+        confirmado: tipo === "exata",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "pca_item_id,codigo_pdm" });
+
+      if (pdmError) stats.erros++;
+      else stats.pdm_vinculos++;
+    }
+  }
+
+  const batchSize = pcaItens?.length ?? 0;
+  const proximoOffset = offset + batchSize;
+
+  return jsonResponse({
+    status: "concluida",
+    classe_catmat: classeCatmat,
+    limiar_similaridade: limiar,
+    offset,
+    limite,
+    proximo_offset: proximoOffset,
+    tem_mais: batchSize >= limite,
+    ...stats,
+  });
+});

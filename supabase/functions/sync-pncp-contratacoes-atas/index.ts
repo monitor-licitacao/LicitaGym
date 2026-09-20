@@ -1,6 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
-import { PncpConsultaClient, formatPncpDate } from "../_shared/pncp/consulta-client.ts";
+import {
+  clampConsultaPageSize,
+  formatPncpDate,
+  PncpConsultaClient,
+} from "../_shared/pncp/consulta-client.ts";
 import { acquireSyncLock } from "../_shared/pncp/lock.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
 import { normalizeAta } from "../_shared/pncp/normalize.ts";
@@ -11,6 +15,10 @@ import {
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
 import { inactivateNotSeen, upsertByHash } from "../_shared/pncp/upsert.ts";
+import {
+  isNationalPncpSyncEnabled,
+  nationalPncpSyncGate,
+} from "../_shared/pncp/licitagym-scope-gate.ts";
 
 type SyncBody = {
   data_inicial?: string;
@@ -22,6 +30,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
   if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+  if (!isNationalPncpSyncEnabled()) {
+    return nationalPncpSyncGate("contratacoes-atas");
+  }
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;
   const hoje = new Date();
@@ -45,6 +56,7 @@ Deno.serve(async (req) => {
   }
 
   const stats = { novos: 0, alterados: 0, inalterados: 0, erros: 0, recebidos: 0 };
+  const tamanhoPagina = clampConsultaPageSize("atasContratos");
 
   try {
     let pagina = 1;
@@ -56,13 +68,14 @@ Deno.serve(async (req) => {
         dataInicial,
         dataFinal,
         pagina,
+        tamanhoPagina,
       });
       const respostaHash = await sha256Hex(JSON.stringify(responseBody));
 
       await logSyncRequest(client, {
         syncRunId: runId,
         endpoint,
-        parametros: { dataInicial, dataFinal, pagina },
+        parametros: { dataInicial, dataFinal, pagina, tamanhoPagina },
         pagina,
         statusHttp: status,
         tempoRespostaMs: elapsedMs,

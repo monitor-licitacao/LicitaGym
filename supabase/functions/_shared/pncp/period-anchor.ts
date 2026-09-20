@@ -1,5 +1,6 @@
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { PcaSearchPeriodSummary } from "./search-client.ts";
+import { parsePncpTimestamp } from "./search-client.ts";
 
 export type PeriodAnchorRow = {
   id: string;
@@ -14,8 +15,45 @@ export type PeriodAnchorRow = {
   metadata: Record<string, unknown>;
 };
 
+export type PcaScopedProbe = {
+  codigo_classificacao: string;
+  total_registros: number;
+};
+
 const RESOURCE = "pca_search";
 const SCOPE = "pcaorgao";
+
+export function buildTotalRegistrosClasseMap(
+  probes: PcaScopedProbe[],
+): Record<string, number> {
+  return Object.fromEntries(
+    probes.map((p) => [p.codigo_classificacao, p.total_registros]),
+  );
+}
+
+function scopedTotalsChanged(
+  anchor: PeriodAnchorRow | null,
+  probes: PcaScopedProbe[],
+): string | null {
+  if (!probes.length || !anchor?.metadata) return null;
+  const prev = anchor.metadata.total_registros_classe as
+    | Record<string, number>
+    | undefined;
+  if (!prev || !Object.keys(prev).length) return null;
+
+  for (const probe of probes) {
+    const before = prev[probe.codigo_classificacao];
+    if (before === undefined) {
+      return `classe_nova:${probe.codigo_classificacao}`;
+    }
+    if (probe.total_registros !== before) {
+      return probe.total_registros > before
+        ? `total_registros_classe_cresceu:${probe.codigo_classificacao}`
+        : `total_registros_classe_diminuiu:${probe.codigo_classificacao}`;
+    }
+  }
+  return null;
+}
 
 export async function getPeriodAnchor(
   client: SupabaseClient,
@@ -32,24 +70,41 @@ export async function getPeriodAnchor(
   return data as PeriodAnchorRow | null;
 }
 
+/**
+ * Decide se pula carga anual. Sinal primário: totalRegistros por classe (Consulta).
+ * Sinal secundário: max_data_atualizacao do Search (pcaorgao).
+ */
 export function shouldSkipAnnualLoad(
   anchor: PeriodAnchorRow | null,
-  summary: PcaSearchPeriodSummary,
+  summary: PcaSearchPeriodSummary | null,
+  scopedProbes: PcaScopedProbe[] = [],
 ): { skip: boolean; reason: string | null } {
-  if (!anchor?.ultima_carga_completa || !anchor.ultima_data_atualizacao) {
+  if (!anchor?.ultima_carga_completa) {
     return { skip: false, reason: null };
   }
-  if (!summary.max_data_atualizacao) {
-    return { skip: false, reason: "indice_sem_data_atualizacao" };
+
+  if (summary && summary.total_indexado > (anchor.total_indexado ?? 0)) {
+    return { skip: false, reason: "total_indexado_cresceu" };
   }
 
-  const anchorTs = Date.parse(anchor.ultima_data_atualizacao);
-  const indexTs = Date.parse(summary.max_data_atualizacao);
-  if (!Number.isFinite(anchorTs) || !Number.isFinite(indexTs)) {
-    return { skip: false, reason: "datas_invalidas" };
+  const scopedChange = scopedTotalsChanged(anchor, scopedProbes);
+  if (scopedChange) {
+    return { skip: false, reason: scopedChange };
   }
 
-  if (indexTs <= anchorTs) {
+  if (summary?.max_data_atualizacao && anchor.ultima_data_atualizacao) {
+    const anchorTs = parsePncpTimestamp(anchor.ultima_data_atualizacao);
+    const indexTs = parsePncpTimestamp(summary.max_data_atualizacao);
+    if (
+      anchorTs !== null &&
+      indexTs !== null &&
+      indexTs > anchorTs
+    ) {
+      return { skip: false, reason: "indice_search_atualizado" };
+    }
+  }
+
+  if (anchor.ultima_data_atualizacao || scopedProbes.length > 0) {
     return {
       skip: true,
       reason: "periodo_inalterado_desde_ultima_carga",
@@ -59,24 +114,37 @@ export function shouldSkipAnnualLoad(
   return { skip: false, reason: null };
 }
 
+function summaryMetadata(summary: PcaSearchPeriodSummary | null) {
+  if (!summary) return {};
+  return {
+    min_data_publicacao_amostra: summary.min_data_publicacao_amostra,
+    amostra: summary.amostra,
+    orgaos_amostra: summary.orgaos_amostra,
+  };
+}
+
 export async function upsertPeriodProbe(
   client: SupabaseClient,
-  summary: PcaSearchPeriodSummary,
+  summary: PcaSearchPeriodSummary | null,
   extraMetadata: Record<string, unknown> = {},
+  anoFallback?: number,
 ) {
+  const ano = summary?.ano ?? anoFallback;
+  if (ano === undefined) {
+    throw new Error("upsertPeriodProbe: ano obrigatorio");
+  }
   const now = new Date().toISOString();
   const { error } = await client.schema("private").from("pncp_period_anchor").upsert(
     {
       resource_type: RESOURCE,
       scope_key: SCOPE,
-      ano_exercicio: summary.ano,
-      ultima_data_publicacao: summary.max_data_publicacao,
-      ultima_data_atualizacao: summary.max_data_atualizacao,
-      total_indexado: summary.total_indexado,
+      ano_exercicio: ano,
+      ultima_data_publicacao: summary?.max_data_publicacao ?? null,
+      ultima_data_atualizacao: summary?.max_data_atualizacao ?? null,
+      total_indexado: summary?.total_indexado ?? null,
       ultima_verificacao: now,
       metadata: {
-        min_data_publicacao: summary.min_data_publicacao,
-        amostra: summary.amostra,
+        ...summaryMetadata(summary),
         ...extraMetadata,
       },
       updated_at: now,
@@ -88,22 +156,28 @@ export async function upsertPeriodProbe(
 
 export async function markPeriodLoadComplete(
   client: SupabaseClient,
-  summary: PcaSearchPeriodSummary,
+  summary: PcaSearchPeriodSummary | null,
+  extraMetadata: Record<string, unknown> = {},
+  anoFallback?: number,
 ) {
+  const ano = summary?.ano ?? anoFallback;
+  if (ano === undefined) {
+    throw new Error("markPeriodLoadComplete: ano obrigatorio");
+  }
   const now = new Date().toISOString();
   const { error } = await client.schema("private").from("pncp_period_anchor").upsert(
     {
       resource_type: RESOURCE,
       scope_key: SCOPE,
-      ano_exercicio: summary.ano,
-      ultima_data_publicacao: summary.max_data_publicacao,
-      ultima_data_atualizacao: summary.max_data_atualizacao,
-      total_indexado: summary.total_indexado,
+      ano_exercicio: ano,
+      ultima_data_publicacao: summary?.max_data_publicacao ?? null,
+      ultima_data_atualizacao: summary?.max_data_atualizacao ?? null,
+      total_indexado: summary?.total_indexado ?? null,
       ultima_verificacao: now,
       ultima_carga_completa: now,
       metadata: {
-        min_data_publicacao: summary.min_data_publicacao,
-        amostra: summary.amostra,
+        ...summaryMetadata(summary),
+        ...extraMetadata,
       },
       updated_at: now,
     },

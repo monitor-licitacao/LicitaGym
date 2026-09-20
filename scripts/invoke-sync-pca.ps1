@@ -3,7 +3,7 @@ param(
   [int]$Ano = (Get-Date).Year,
   [int]$MaxPaginas = 100,
   [int]$PaginaInicial = 1,
-  [int]$TamanhoPagina = 20,
+  [int]$TamanhoPagina = 500,
   [string[]]$CodigosClassificacao = @("7830"),
   [switch]$SomenteVerificacao,
   [switch]$Forcar,

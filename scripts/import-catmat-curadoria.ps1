@@ -3,7 +3,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$JsonPath,
 
-  [string]$BaseUrl = "http://127.0.0.1:54321",
+  [string]$BaseUrl = "https://ifaiagegyicjzlpskafh.supabase.co",
 
   [string]$Secret
 )
@@ -27,8 +27,7 @@ if (-not (Test-Path $JsonPath)) {
   throw "Arquivo não encontrado: $JsonPath"
 }
 
-$payload = Get-Content -Raw -Path $JsonPath | ConvertFrom-Json
-$body = if ($payload.itens) { $payload } else { @{ itens = @($payload) } }
+$body = Get-Content -Raw -Path $JsonPath | ConvertFrom-Json
 
 Invoke-RestMethod `
   -Method POST `

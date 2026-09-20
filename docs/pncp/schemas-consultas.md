@@ -175,6 +175,44 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 
 ---
 
+### 1.8 Piso — `DmMaterialPDMDTO` (extensão escopo)
+
+**GET** `/modulo-material/3_consultarPdmMaterial`
+
+**Situação:** PDM de piso **NÃO está em 78/7830**. Descoberta via busca em toda CATMAT.
+
+| Campo API | Tipo | Postgres `catalogo_itens` |
+|-----------|------|--------------------------|
+| `codigoPdm` | int64 | `codigo_pdm` |
+| `nomePdm` | string | `descricao` + `taxonomias.material` = 'piso' |
+| `codigoGrupo` | int64 | `grupo_catmat` |
+| `codigoClasse` | int64 | `classe_catmat` |
+| `statusPdm` | boolean | `ativo` |
+| `dataHoraAtualizacao` | date-time | `last_synced_at` |
+
+**Exemplo esperado** (após descoberta):
+```
+codigoPdm: 123456
+nomePdm: "Piso de Borracha 50x50cm"
+codigoGrupo: 45
+codigoClasse: 4567
+statusPdm: true
+```
+
+**Curadoria LicitaGym:**
+| Campo | Valor |
+|-------|-------|
+| `categoria_licitagym` | `'piso'` |
+| `taxonomias.material` | `'piso'` |
+| `taxonomias.subtipo` | `'borracha'` \| `'vinílico'` \| `'madeira'` |
+| `taxonomias.dimensoes` | `'50x50cm'` \| `'1x1m'` \| `'variável'` |
+
+**Nota:** Fora do escopo padrão 78/7830, mas relacionado a materiais de academia. Identificado via busca em toda CATMAT e marcado com `categoria_licitagym = 'piso'` para filtro local.
+
+**Status:** Aguardando descoberta de codigoPdm via busca pública (Todas as Licitações, CATMAT).
+
+---
+
 ## 2. Pesquisa de preço — material (`FtPesqPrecoCompraMaterialDTO`)
 
 Útil para **cotações** e benchmark de preços. Ainda **não ingerido** no Postgres LicitaGym — consulta direta à API.
