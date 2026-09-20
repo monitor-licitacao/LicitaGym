@@ -61,3 +61,4 @@ starlette==1.0.1
 langchain-core==1.2.22
 huggingface-hub==1.31.0
 pillow==10.4.0+aikido.12
+websockets==16.1
