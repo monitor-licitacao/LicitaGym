@@ -6,18 +6,19 @@ Fonte definitiva: Swagger e manual oficial. Status `verified` = confirmado no Op
 |---------|--------|--------|------|------|---------------------|-----------|---------------|---------|
 | PCA listagem (itens por classificação) | consulta | GET | `/api/consulta/v1/pca/` | nenhuma | `anoPca`, `codigoClassificacaoSuperior`, `pagina` | `tamanhoPagina` (20–500; omitir = ~200); retorno `paginasRestantes`, `totalRegistros`, `data[]` com `idPcaPncp` + `itens[]` | `idPcaPncp` (`{CNPJ14}-0-{seq6}/{ano}`) | CATMAT grupo/classe ou CATSER seção |
 | PCA órgão (índice Search) | search | GET | `/api/search/` | nenhuma | `tipos_documento=pcaorgao`, `pagina` | `tam_pagina`, `anos`, `ordenacao=-data` | `orgao_cnpj` + `ano` | **Lastro de período:** `data_publicacao_pncp`, `data_atualizacao_pncp` — decide se roda carga anual |
-| PCA atualização global | consulta | GET | `/api/consulta/v1/pca/atualizacao` | nenhuma | `dataInicio`, `dataFim`, `pagina` | ⚠️ params `dataInicio`/`dataFim` (não `dataInicial`) | `idPcaPncp` | alternativa incremental por janela |
-| PCA por usuário | consulta | GET | `/api/consulta/v1/pca/usuario` | nenhuma | `anoPca`, `idUsuario`, `pagina` | idem | `idPcaPncp` | `idUsuario` é portal PNCP, não usuário Monitor |
+| PCA atualização global | consulta | GET | `/api/consulta/v1/pca/atualizacao` | nenhuma | `dataInicio`, `dataFim`, `pagina` | `tamanhoPagina` (20–500); ⚠️ params `dataInicio`/`dataFim` (não `dataInicial`) | `idPcaPncp` | alternativa incremental por janela |
+| PCA por usuário | consulta | GET | `/api/consulta/v1/pca/usuario` | nenhuma | `anoPca`, `idUsuario`, `pagina` | `tamanhoPagina` (20–500) | `idPcaPncp` | `idUsuario` é portal PNCP, não usuário Monitor |
 | PCA detalhe órgão | integração | GET | `/api/pncp/v1/orgaos/{cnpj}/pca/{ano}/{sequencial}` | credencial órgão | `cnpj`, `ano`, `sequencial` | — | `cnpj` + `ano` + `sequencial` | uso para enriquecimento, não listagem global |
 | PCA itens | integração | GET | `/api/pncp/v1/orgaos/{cnpj}/pca/{ano}/{sequencial}/itens` | credencial órgão | path + `pagina` | `pagina`, `tamanhoPagina` | `(idPcaPncp, numeroItem)` | — |
-| Contratações publicação | consulta | GET | `/api/consulta/v1/contratacoes/publicacao` | nenhuma | `dataInicial`, `dataFinal`, `codigoModalidadeContratacao`, `pagina` | `pagina`, `tamanhoPagina` (10–50) | `numeroControlePNCP` / `cnpj`+`ano`+`sequencial` | exige modalidade por consulta |
-| Contratações proposta | consulta | GET | `/api/consulta/v1/contratacoes/proposta` | nenhuma | `dataFinal`, `pagina` | idem | idem | — |
-| Contratações atualização | consulta | GET | `/api/consulta/v1/contratacoes/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `codigoModalidadeContratacao`, `pagina` | idem | idem | preferível para incremental |
+| Contratações publicação | consulta | GET | `/api/consulta/v1/contratacoes/publicacao` | nenhuma | `dataInicial`, `dataFinal`, `codigoModalidadeContratacao`, `pagina` | `tamanhoPagina` (10–**50**) | `numeroControlePNCP` / `cnpj`+`ano`+`sequencial` | exige modalidade por consulta |
+| Contratações proposta | consulta | GET | `/api/consulta/v1/contratacoes/proposta` | nenhuma | `dataFinal`, `codigoModalidadeContratacao`, `pagina` | `tamanhoPagina` (10–**50**) | idem | — |
+| Contratações atualização | consulta | GET | `/api/consulta/v1/contratacoes/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `codigoModalidadeContratacao`, `pagina` | `tamanhoPagina` (10–**50**) | idem | preferível para incremental |
 | Contratação detalhe | consulta | GET | `/api/consulta/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}` | nenhuma | path | — | `cnpj`+`anoCompra`+`sequencialCompra` | — |
-| Atas vigência | consulta | GET | `/api/consulta/v1/atas` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `pagina`, `tamanhoPagina` (10–500) | `numeroControlePNCP` ata | — |
-| Atas atualização | consulta | GET | `/api/consulta/v1/atas/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | idem | idem | — |
-| Contratos publicação | consulta | GET | `/api/consulta/v1/contratos` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | idem | `numeroControlePNCP` contrato | — |
-| Contratos atualização | consulta | GET | `/api/consulta/v1/contratos/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | idem | idem | — |
+| Atas vigência | consulta | GET | `/api/consulta/v1/atas` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `tamanhoPagina` (10–500) | `numeroControlePNCPAta` | envelope `PaginaRetornoAtaRegistroPrecoPeriodoDTO` |
+| Atas atualização | consulta | GET | `/api/consulta/v1/atas/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `tamanhoPagina` (10–500) | idem | idem |
+| Contratos publicação | consulta | GET | `/api/consulta/v1/contratos` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `tamanhoPagina` (10–500) | `numeroControlePNCP` contrato | — |
+| Contratos atualização | consulta | GET | `/api/consulta/v1/contratos/atualizacao` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `tamanhoPagina` (10–500) | idem | — |
+| Instrumentos cobrança inclusão | consulta | GET | `/api/consulta/v1/instrumentoscobranca/inclusao` | nenhuma | `dataInicial`, `dataFinal`, `pagina` | `tamanhoPagina` (10–**100**) | — | probe 2026-09-19: 500 → 400 |
 | IRP listagem global | consulta | — | — | — | — | — | — | **LACUNA**: manual consulta v1.0 não expõe listagem IRP |
 | IRP detalhe | integração | GET | `/api/pncp/v1/orgaos/{cnpj}/irp/{ano}/{sequencial}` | credencial órgão | path | — | `cnpj`+`ano`+`sequencial` | ingestão exige descoberta por órgão monitorado |
 | IRP itens | integração | GET | `/api/pncp/v1/orgaos/{cnpj}/irp/{ano}/{sequencial}/itens` | credencial órgão | path + `pagina` | `pagina`, `tamanhoPagina` | `(irp_key, numeroItem)` | — |
@@ -200,6 +201,7 @@ desta matriz ainda não existe: o Swagger não pôde ser lido, e o gate acima va
 ## Referências
 
 - [cruzamentos.md](./cruzamentos.md) — junções entre tabelas (FK, lógicas, candidatas, PCA↔CATMAT)
+- [schemas-consultas-pncp.md](./schemas-consultas-pncp.md) — mapeamento OpenAPI Consulta → Postgres
 - [Swagger Consulta](https://pncp.gov.br/api/consulta/swagger-ui/index.html)
 - [Swagger Integração](https://pncp.gov.br/api/pncp/swagger-ui/index.html)
 - [Manual API Consultas v1.0](https://www.gov.br/pncp/pt-br/pncp/copy_of_manuais/ManualPNCPAPIConsultasVerso1.0.pdf)

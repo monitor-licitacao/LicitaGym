@@ -24,7 +24,7 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 | Param | Tipo | Observação |
 |-------|------|------------|
 | `pagina` | int | Obrigatório em vários endpoints |
-| `tamanhoPagina` | int | Intervalo típico **10–500** (validar no Swagger por endpoint) |
+| `tamanhoPagina` | int | Intervalo **10–500**; sync LicitaGym usa default **500** (`clampComprasGovPageSize`) |
 | `statusGrupo` / `statusClasse` / `statusPdm` / `statusItem` | boolean | `true` = somente ativos (padrão do sync LicitaGym) |
 
 **Contagens validadas (classe 7830, mar/2026)**

@@ -174,27 +174,29 @@ WHERE pi.ativo = true
 ORDER BY pi.pca_plano_id, pi.numero_item;
 ```
 
-## G. PCA ↔ CATMAT — estado validado (mar/2026)
+## G. PCA ↔ CATMAT ↔ catálogo LicitaGym — estado validado (2026-09-19)
 
-Diagnóstico no banco remoto após sync Compras.gov + `link-catmat-pca`:
+Diagnóstico no banco remoto (`inventario_dados.sql` / MCP). Snapshot antigo (224 itens, 111 pontes) **substituído** após carga nacional escopo 7830.
 
 | métrica | valor |
 |---------|-------|
-| `pca_itens` ativos (classe 7830) | 224 |
-| `codigo_classe_catmat` preenchido | 224/224 |
-| `catmat_pdms` ativos (classe 7830) | 49 |
+| `pca_itens` ativos (classe 7830) | 3.220 |
+| `pca_item_pdm` vínculos | 227 (181 `confirmado=true` — ver PCA-09) |
+| `catalogo_ponte` (total) | 222 |
 | `catalogo_itens` ativos (classe 7830) | 594 |
-| `catalogo_ponte` novos (1ª execução link) | 111 |
-| `pca_item_pdm` vínculos | 111 (17 PDMs distintos; 65 `confirmado=true`) |
+| `catmat_pdms` ativos (classe 7830) | 49 |
+
+**Perguntas de produto (catálogo assistente):** equivalência item LicitaGym = **PONTE-01/02/03**; PDM escolhido = **PCA-09**; candidatos por classe = **PCA-08**. Ver [catalogo-perguntas-assistente.md](./catalogo-perguntas-assistente.md).
 
 **Modelo de cruzamento recomendado:**
 
 ```text
 pca_planos
   └── pca_itens
-        ├── codigo_classe_catmat → catmat_pdms.codigo_classe   (candidatos, até 49)
-        ├── catalogo_ponte → catalogo_itens                    (match descrição)
-        └── pca_item_pdm → catmat_pdms.codigo_pdm              (PDM escolhido/candidato)
+        ├── codigo_classe_catmat → catmat_pdms.codigo_classe   (candidatos, até 49 — PCA-08)
+        ├── codigo_item_origem → catalogo_itens.codigo_catmat   (exata PNCP — PONTE-01)
+        ├── catalogo_ponte → catalogo_itens                    (Jaccard / curadoria — PONTE-01)
+        └── pca_item_pdm → catmat_pdms.codigo_pdm              (PDM escolhido — PCA-09)
 ```
 
 **Consulta — PDMs candidatos por classe (exploratório):**
