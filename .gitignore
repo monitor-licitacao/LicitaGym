@@ -1,56 +1,39 @@
+```
+# Dependencies
+node_modules/
+
+# Environment
 .env
 .env.local
-supabase/.env
-supabase/.env.local
-supabase/.env.functions.local
-supabase/.branches
-supabase/.temp
-supabase/snippets/
+*.env.*
 
-.cursor/
+# Logs and temp files
+*.log
+*.tmp
 
-# Agent skills vendorizadas por `npx skills add` — reproduza com skills-lock.json
-.claude/skills/
-skills/
-skills-lock.json
-data/
+# Editors
+.vscode/
+.idea/
 
-# Symlinks criados por `npx skills add` (multi-agent)
-.adal/
-.aider-desk/
-.agents/
-.augment/
-.autohand/
-.bob/
-.codeartsdoer/
-.codebuddy/
-.codemaker/
-.codestudio/
-.commandcode/
-.continue/
-.cortex/
-.crush/
-.devin/
-.forge/
-.goose/
-.hermes/
-.iflow/
-.junie/
-.kiro/
-.kode/
-.mcpjam/
-.mux/
-.neovate/
-.openhands/
-.pi/
-.pochi/
-.qoder/
-.qwen/
-.roo/
-.rovodev/
-.tabnine/
-.trae/
-.vibe/
-.windsurf/
-.zencoder/
-scripts/*.log
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py~
+*.py.class
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# System
+.DS_Store
+Thumbs.db
+```
