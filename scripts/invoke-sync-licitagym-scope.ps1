@@ -1,8 +1,9 @@
 # Pipeline escopo LicitaGym: CATMAT 78/7830 -> PCA 7830 -> link catalogo_ponte
 param(
   [int]$Ano = (Get-Date).Year,
-  [int]$PcaPaginasPorRodada = 6,
-  [int]$PcaTamanhoPagina = 500,
+  [int]$PcaPaginasPorRodada = 2,
+  [int]$PcaTamanhoPagina = 250,
+  [int]$PcaTimeoutSec = 1200,
   [switch]$SkipCatmat,
   [switch]$SkipPca,
   [switch]$SkipLink,
@@ -74,7 +75,7 @@ if (-not $SkipPca) {
 
     Write-Host "  Rodada $rodada pagina_inicial=$pagina..." -ForegroundColor DarkCyan
     try {
-      $json = Invoke-EdgeJson -FunctionName "sync-pncp-pca" -Body $body -TimeoutSec 600
+      $json = Invoke-EdgeJson -FunctionName "sync-pncp-pca" -Body $body -TimeoutSec $PcaTimeoutSec
     }
     catch {
       Write-Host "  Falha PCA: $($_.Exception.Message)" -ForegroundColor Red
@@ -105,22 +106,16 @@ if (-not $SkipPca) {
 
 if (-not $SkipLink) {
   Write-Host "`n[3/3] link-catmat-pca (7830)..." -ForegroundColor Cyan
-  $totalVinculos = 0
-  do {
-    $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
-      classe_catmat       = "7830"
-      limiar_similaridade = 0.55
-      limite              = 500
-    } -TimeoutSec 180
-    $analisados = if ($null -ne $json.analisados) { [int]$json.analisados } else { 0 }
-    $vinculos = if ($null -ne $json.vinculos_novos) { [int]$json.vinculos_novos } else { 0 }
-    $pdmV = if ($null -ne $json.pdm_vinculos) { [int]$json.pdm_vinculos } else { 0 }
-    $totalVinculos += $vinculos
-    Write-Host ("  analisados={0} vinculos_novos={1} pdm={2}" -f $analisados, $vinculos, $pdmV) -ForegroundColor Green
-    if ($analisados -le 0 -or $vinculos -le 0) { break }
-    Start-Sleep -Seconds 2
-  } while ($true)
-  Write-Host "  Total vinculos nesta execucao: $totalVinculos" -ForegroundColor Cyan
+  Write-Host "  (uma rodada; function sem offset - repetir invoke se precisar mais itens)" -ForegroundColor DarkGray
+  $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
+    classe_catmat         = "7830"
+    limiar_similaridade = 0.55
+    limite                = 500
+  } -TimeoutSec 180
+  $analisados = if ($null -ne $json.analisados) { [int]$json.analisados } else { 0 }
+  $vinculos = if ($null -ne $json.vinculos_novos) { [int]$json.vinculos_novos } else { 0 }
+  $pdmV = if ($null -ne $json.pdm_vinculos) { [int]$json.pdm_vinculos } else { 0 }
+  Write-Host ("  analisados={0} vinculos_novos={1} pdm={2} status={3}" -f $analisados, $vinculos, $pdmV, $json.status) -ForegroundColor Green
 }
 
 Write-Host "`nPipeline escopo concluido." -ForegroundColor Cyan
