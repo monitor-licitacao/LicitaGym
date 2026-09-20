@@ -5,6 +5,8 @@ import { createServiceClient } from "../_shared/pncp/supabase-admin.ts";
 type LinkBody = {
   classe_catmat?: string;
   limite?: number;
+  /** Deslocamento estável (ordenacao por id) para paginar todos os pca_itens da classe. */
+  offset?: number;
   /** Similaridade mínima 0-1 para match por descrição (default 0.55). */
   limiar_similaridade?: number;
 };
@@ -40,8 +42,10 @@ Deno.serve(async (req) => {
 
   const body = (await req.json().catch(() => ({}))) as LinkBody;
   const classeCatmat = body.classe_catmat ?? "7830";
-  const limite = body.limite ?? 500;
+  const limite = Math.min(Math.max(body.limite ?? 500, 1), 1000);
+  const offset = Math.max(body.offset ?? 0, 0);
   const limiar = body.limiar_similaridade ?? 0.55;
+  const rangeEnd = offset + limite - 1;
 
   const client = createServiceClient();
 
@@ -50,7 +54,8 @@ Deno.serve(async (req) => {
     .select("id, descricao, classe_material_servico, codigo_classe_catmat, ativo")
     .eq("ativo", true)
     .eq("classe_material_servico", classeCatmat)
-    .limit(limite);
+    .order("id", { ascending: true })
+    .range(offset, rangeEnd);
   if (pcaError) return jsonResponse({ error: pcaError.message }, 500);
 
   const { data: catalogoItens, error: catError } = await client
@@ -68,6 +73,7 @@ Deno.serve(async (req) => {
   const stats = {
     analisados: 0,
     vinculos_novos: 0,
+    vinculos_atualizados: 0,
     pdm_vinculos: 0,
     ignorados: 0,
     erros: 0,
@@ -97,6 +103,14 @@ Deno.serve(async (req) => {
     const tipo = best.score >= 0.85 ? "exata" : best.score >= 0.7 ? "provavel" : "incerta";
     const evidencia = `jaccard=${best.score.toFixed(3)};classe=${classeCatmat}`;
 
+    const { data: ponteExistente } = await client
+      .from("catalogo_ponte")
+      .select("id")
+      .eq("entidade_tipo", "pca_item")
+      .eq("entidade_id", pcaItem.id)
+      .eq("catalogo_item_id", best.id)
+      .maybeSingle();
+
     const { error: ponteError } = await client.from("catalogo_ponte").upsert({
       catalogo_item_id: best.id,
       entidade_tipo: "pca_item",
@@ -109,7 +123,8 @@ Deno.serve(async (req) => {
       stats.erros++;
       continue;
     }
-    stats.vinculos_novos++;
+    if (ponteExistente) stats.vinculos_atualizados++;
+    else stats.vinculos_novos++;
 
     const codigoPdm = best.codigo_pdm ? Number(best.codigo_pdm) : NaN;
     if (Number.isFinite(codigoPdm)) {
@@ -128,10 +143,17 @@ Deno.serve(async (req) => {
     }
   }
 
+  const batchSize = pcaItens?.length ?? 0;
+  const proximoOffset = offset + batchSize;
+
   return jsonResponse({
     status: "concluida",
     classe_catmat: classeCatmat,
     limiar_similaridade: limiar,
+    offset,
+    limite,
+    proximo_offset: proximoOffset,
+    tem_mais: batchSize >= limite,
     ...stats,
   });
 });

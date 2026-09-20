@@ -105,17 +105,29 @@ if (-not $SkipPca) {
 }
 
 if (-not $SkipLink) {
-  Write-Host "`n[3/3] link-catmat-pca (7830)..." -ForegroundColor Cyan
-  Write-Host "  (uma rodada; function sem offset - repetir invoke se precisar mais itens)" -ForegroundColor DarkGray
-  $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
-    classe_catmat         = "7830"
-    limiar_similaridade = 0.55
-    limite                = 500
-  } -TimeoutSec 180
-  $analisados = if ($null -ne $json.analisados) { [int]$json.analisados } else { 0 }
-  $vinculos = if ($null -ne $json.vinculos_novos) { [int]$json.vinculos_novos } else { 0 }
-  $pdmV = if ($null -ne $json.pdm_vinculos) { [int]$json.pdm_vinculos } else { 0 }
-  Write-Host ("  analisados={0} vinculos_novos={1} pdm={2} status={3}" -f $analisados, $vinculos, $pdmV, $json.status) -ForegroundColor Green
+  Write-Host "`n[3/3] link-catmat-pca (7830) paginado..." -ForegroundColor Cyan
+  $linkOffset = 0
+  $linkRodada = 0
+  $totNovos = 0
+  do {
+    $linkRodada++
+    $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
+      classe_catmat         = "7830"
+      limiar_similaridade = 0.55
+      limite                = 500
+      offset                = $linkOffset
+    } -TimeoutSec 300
+    $analisados = if ($null -ne $json.analisados) { [int]$json.analisados } else { 0 }
+    $vinculos = if ($null -ne $json.vinculos_novos) { [int]$json.vinculos_novos } else { 0 }
+    $pdmV = if ($null -ne $json.pdm_vinculos) { [int]$json.pdm_vinculos } else { 0 }
+    $totNovos += $vinculos
+    Write-Host ("  rodada={0} offset={1} analisados={2} novos={3} pdm={4} tem_mais={5}" -f `
+        $linkRodada, $linkOffset, $analisados, $vinculos, $pdmV, $json.tem_mais) -ForegroundColor Green
+    if (-not $json.tem_mais -or $analisados -le 0) { break }
+    $linkOffset = [int]$json.proximo_offset
+    Start-Sleep -Seconds 2
+  } while ($true)
+  Write-Host "  Total vinculos_novos nesta execucao: $totNovos" -ForegroundColor Cyan
 }
 
 Write-Host "`nPipeline escopo concluido." -ForegroundColor Cyan
