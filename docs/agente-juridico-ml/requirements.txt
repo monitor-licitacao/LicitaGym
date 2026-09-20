@@ -43,7 +43,7 @@ streamlit>=1.31.0
 plotly>=5.19.0
 
 ### Opcional - Treinamento Avançado
-torch>=2.2.0
+torch==2.9.0
 accelerate>=0.27.0
 bitsandbytes>=0.42.0
 
