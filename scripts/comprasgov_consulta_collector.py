@@ -80,7 +80,6 @@ class ConsultaComprasGovCollector:
     def inicializa_catlogo_placeholder(self):
         """Placeholder enquanto schema JSON não chegar"""
         logger.warning("Schema JSON não fornecido. Usando placeholder vazio.")
-        # Endpoints que conhecemos: será preenchido após schema completo
 
     def carrega_schema(self, caminho: str):
         """Carrega 77 endpoints do schema JSON"""

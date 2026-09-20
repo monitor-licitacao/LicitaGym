@@ -1,0 +1,20 @@
+
+table[data-v-51b63f2d] {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+th[data-v-51b63f2d],
+td[data-v-51b63f2d] {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 0.9rem;
+}
+th[data-v-51b63f2d] {
+  font-weight: 600;
+  color: #444;
+}
+code[data-v-51b63f2d] {
+  font-size: 0.8rem;
+}
