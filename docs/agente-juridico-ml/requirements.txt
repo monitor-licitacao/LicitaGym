@@ -5,7 +5,7 @@
 ### Core ML & NLP
 tensorflow>=2.15.0
 tensorflow-text>=2.15.0
-transformers>=4.38.0
+transformers==5.13.0
 sentence-transformers==5.6.0
 langchain==0.2.0
 langchain-community>=0.0.20
