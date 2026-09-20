@@ -162,6 +162,13 @@ WHERE fonte_curadoria = 'manual'
   AND classe_catmat = '7830'
   AND ativo = true;
 
+-- Classe 7220 (pisos) no catálogo, pendente de curadoria
+SELECT codigo_catmat, codigo_pdm, descricao, categoria_licitagym
+FROM catalogo_itens
+WHERE classe_catmat = '7220'
+  AND ativo = true
+  AND categoria_licitagym IS NULL;
+
 -- PCA com PDM confirmado vs candidato por classe
 SELECT pi.numero_item, pi.descricao,
        pip.codigo_pdm, pip.confirmado, pip.score,
@@ -185,6 +192,7 @@ Diagnóstico no banco remoto (`inventario_dados.sql` / MCP). Snapshot antigo (22
 | `catalogo_ponte` (total) | 222 |
 | `catalogo_itens` ativos (classe 7830) | 594 |
 | `catmat_pdms` ativos (classe 7830) | 49 |
+| `catalogo_itens` / `catmat_pdms` classe 7220 | curadoria — sync `72/7220`; **não** entra no gate PCA |
 
 **Perguntas de produto (catálogo assistente):** equivalência item LicitaGym = **PONTE-01/02/03**; PDM escolhido = **PCA-09**; candidatos por classe = **PCA-08**. Ver [catalogo-perguntas-assistente.md](./catalogo-perguntas-assistente.md).
 

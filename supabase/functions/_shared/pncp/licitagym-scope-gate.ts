@@ -1,6 +1,7 @@
 import { jsonResponse } from "../http.ts";
 import {
   defaultPcaClassificacoes,
+  isCatalogoCatmatClasseAllowed,
   LICITAGYM_CATMAT_CLASSE,
   LICITAGYM_CATMAT_GRUPO,
 } from "./licitagym-catmat.ts";
@@ -24,10 +25,11 @@ export function assertPcaClassificacoesInScope(codigos: string[]): string | null
 
 export function assertCatmatClasseInScope(codigoGrupo: number, codigoClasse: number): string | null {
   if (!isStrictLicitagymScope()) return null;
-  const grupoOk = String(codigoGrupo) === LICITAGYM_CATMAT_GRUPO;
-  const classeOk = String(codigoClasse) === LICITAGYM_CATMAT_CLASSE;
-  if (grupoOk && classeOk) return null;
-  return `CATMAT fora do escopo (${LICITAGYM_CATMAT_GRUPO}/${LICITAGYM_CATMAT_CLASSE}): ${codigoGrupo}/${codigoClasse}`;
+  if (isCatalogoCatmatClasseAllowed(codigoGrupo, codigoClasse)) return null;
+  return (
+    `CATMAT fora do escopo do catálogo (${LICITAGYM_CATMAT_GRUPO}/${LICITAGYM_CATMAT_CLASSE} fitness, ` +
+    `72/7220 piso): ${codigoGrupo}/${codigoClasse}`
+  );
 }
 
 export function nationalPncpSyncGate(resource: string) {

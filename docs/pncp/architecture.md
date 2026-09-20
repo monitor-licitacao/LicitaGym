@@ -37,7 +37,7 @@ Storage       → pncp-legislation (PDFs imutáveis por versão)
 | `sync-pncp-contratacoes-atas` | `15 */6 * * *` | GET `/v1/atas` |
 | `sync-pncp-contratacoes-contratos` | `30 */6 * * *` | GET `/v1/contratos` |
 | `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração PNCP) |
-| `sync-compras-catmat` | manual/semanal | Compras.gov Dados Abertos `/modulo-material/*` (classe 7830) |
+| `sync-compras-catmat` | manual/semanal | Compras.gov Dados Abertos `/modulo-material/*` (7830 fitness; 7220 piso curadoria) |
 | `link-catmat-pca` | manual | Ponte `catalogo_ponte` PCA item ↔ CATMAT por similaridade |
 | `sync-pncp-irp` | bloqueado | Gate CLA-34 |
 

@@ -4,7 +4,7 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 
 - **Fonte Swagger (DTOs):** `compras_gov_schemas.json` (OpenAPI components)
 - **Base URL:** `https://dadosabertos.compras.gov.br`
-- **Escopo LicitaGym:** CATMAT material grupo **78** / classe **7830** (equipamentos fitness)
+- **Escopo LicitaGym:** CATMAT material grupo **78** / classe **7830** (equipamentos fitness). Catálogo também aceita grupo **72** / classe **7220** (revestimentos para pisos) para curadoria. PCA e `PNCP_PCA_CLASSIFICACOES` permanecem só **7830**.
 - **Matriz de contratos:** [`docs/pncp/contract-matrix.md`](../pncp/contract-matrix.md)
 - **Mapa de cruzamentos:** [`docs/pncp/cruzamentos.md`](../pncp/cruzamentos.md)
 
@@ -33,6 +33,14 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 |--------|------|-------|
 | Somente ativos (`status*=true`) | 49 | 594 |
 | Todos (sem filtro de status) | 53 | 646 |
+
+**Contagens oficiais (classe 7220, 2026-09-19, API Dados Abertos)**
+
+| Filtro | PDMs | Itens |
+|--------|------|-------|
+| Somente ativos (`status*=true`) | 14 | ~1133 |
+
+Classe 7220 = REVESTIMENTOS PARA PISOS (grupo 72). Entra no catálogo para curadoria; **não** amplia o gate de PCA.
 
 ---
 
@@ -81,7 +89,7 @@ Referência para montar queries SQL e chamadas à API **Dados Abertos Compras.go
 | `statusPdm` | boolean | `status` |
 | `dataHoraAtualizacao` | date-time | `data_atualizacao_origem` |
 
-**Filtro LicitaGym:** `codigoGrupo=78`, `codigoClasse=7830`
+**Filtro LicitaGym:** `codigoGrupo=78`, `codigoClasse=7830` (fitness). Segundo recorte do catálogo: `codigoGrupo=72`, `codigoClasse=7220` (pisos, curadoria).
 
 ---
 

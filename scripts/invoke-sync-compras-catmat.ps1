@@ -1,4 +1,4 @@
-# Sync CATMAT Compras.gov.br (classe 7830 por padrao) + loop de caracteristicas
+# Sync CATMAT Compras.gov.br (classe 7830 fitness por padrao; 72/7220 piso via -CodigoGrupo/-CodigoClasse) + loop de caracteristicas
 param(
   [int]$CodigoGrupo = 78,
   [int]$CodigoClasse = 7830,

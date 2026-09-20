@@ -30,6 +30,7 @@ Quatro estados (+ um subestado de eval):
 |---------|-------------------|
 | PCA / plano | `EXISTS (SELECT 1 FROM pca_itens i WHERE i.pca_plano_id = p.id AND i.classe_material_servico = :classe_gate)` — plano **não** tem coluna de classe |
 | CATMAT / catálogo | `classe_catmat = :classe_gate` ou `catmat_pdms.codigo_classe = 7830` |
+| Catálogo 7220 (piso, curadoria) | `classe_catmat = '7220'` — **não** entra no `classe_gate` 7830 nem no PCA |
 | Preço praticado | `codigo_item_catalogo` → futuro `catmat_itens` (nao-aplicado) |
 | Órgão / UF | **Sem gate de classe** — dimensão neutra; hoje `orgaos`/`unidades` vazios |
 | Contratação / IRP | Gate indireto via FK nullable a `pca_planos` (domínios vazios) |
@@ -73,9 +74,10 @@ Parâmetro de produto: `PNCP_PCA_CLASSIFICACOES` em `_shared/pncp/licitagym-catm
 | CAT-01 | Quais PDMs existem na classe academia? | CATMAT | `catmat_pdms` | `codigo_classe = 7830` | **respondivel** (49) | CAT-01 | — |
 | CAT-02 | Quais unidades de fornecimento valem para este PDM? | CATMAT | `catmat_pdm_unidades` ON `codigo_pdm` | PDM da classe 7830 | **respondivel** (56 linhas) | CAT-02 | Confundir unidade de **fornecimento** com `sigla_unidade_medida` de característica |
 | CAT-03 | Quais características técnicas tem este item? | CATMAT | `catalogo_itens.codigo_catmat` → `catmat_item_caracteristicas.codigo_item` | item 7830 | **respondivel** | CAT-03 | Comparar `codigo_catmat` text com int **sem cast** — zero linhas silencioso |
-| CAT-04 | Quantos itens no catálogo LicitaGym classe 7830? | Catálogo | `catalogo_itens` | `classe_catmat` | **respondivel** (594) | CAT-04 | — |
+| CAT-04 | Quantos itens no catálogo LicitaGym classe 7830? | Catálogo | `catalogo_itens` | `classe_catmat = :classe_gate` | **respondivel** (594) | CAT-04 | Contar `catalogo_itens` sem `classe_catmat` — mistura 7830 + 7220 |
 | CAT-05 | Qual a natureza de despesa deste PDM? | CATMAT | `catmat_pdm_naturezas_despesa` | PDM 7830 | **vazio** (0 linhas) | CAT-05 | Inventar natureza ou usar endpoint não ingerido |
 | CAT-06 | Qual item CATMAT oficial (hierarquia completa)? | CATMAT | futuro `catmat_itens` + joins | 7830 | **nao-aplicado** | `catmat_item_completo.sql` | Prometer matview que não existe no banco |
+| CAT-07 | Quais itens 7220 estão no catálogo pendentes de curadoria? | Catálogo | `catalogo_itens` | `classe_catmat = '7220'` | **respondivel** após sync (sem `categoria_licitagym` até curar) | — | Tratar 7220 como fitness / expandir PCA para 7220 |
 
 ### Preço praticado
 
