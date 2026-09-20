@@ -55,3 +55,5 @@ black>=24.2.0
 flake8>=7.0.0
 mypy>=1.8.0
 jupyter>=1.0.0
+
+starlette==1.0.1
