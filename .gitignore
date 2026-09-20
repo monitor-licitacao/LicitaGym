@@ -1,39 +1,65 @@
 ```
 # Dependencies
 node_modules/
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Editors
-.vscode/
-.idea/
-
-# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.py~
-*.py.class
+.Python
+venv/
+env/
+ENV/
+.venv/
+.env
+.env.local
+.env.*
+!docs/agente-juridico-ml/requirements.txt
 
-# Build artifacts
-dist/
+# Build and distribution artifacts
 build/
+dist/
 *.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Python specific
+*.py[cod]
+*$py.class
+*$pyc.class
+*.so
+.Python
+*.sqlite3
+*.sqlite3-journal
+
+# Coverage reports
 .coverage
 coverage/
 htmlcov/
-.pytest_cache/
-.mypy_cache/
 
-# System
-.DS_Store
-Thumbs.db
+# Environment variables (except the requirements.txt which is in the docs folder)
+.env
+.env.local
+.env.*
+
+# Package lock files
+package-lock.json
 ```
