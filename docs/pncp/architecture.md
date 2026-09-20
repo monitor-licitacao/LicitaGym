@@ -38,7 +38,7 @@ Storage       → pncp-legislation (PDFs imutáveis por versão)
 | `sync-pncp-contratacoes-contratos` | `30 */6 * * *` | GET `/v1/contratos` |
 | `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração PNCP) |
 | `sync-compras-catmat` | manual/semanal | Compras.gov Dados Abertos `/modulo-material/*` (7830 fitness; 7220 piso curadoria) |
-| `link-catmat-pca` | manual | Ponte `catalogo_ponte` PCA item ↔ CATMAT por similaridade |
+| `link-catmat-pca` | manual | Ponte `catalogo_ponte` PCA item ↔ CATMAT (Jaccard; body `offset`/`limite` pagina por `pca_itens.id`) |
 | `sync-pncp-irp` | bloqueado | Gate CLA-34 |
 
 ## API da aplicação (Fase 6)
@@ -73,7 +73,8 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 5. PCA aceita `codigos_classificacao: ["7830"]` (padrão LicitaGym) ou `codigo_classificacao_superior` (legado); use `max_paginas` para smoke tests.
 6. Curadoria CATMAT: exporte do app HTML → `scripts/import-catmat-curadoria.ps1` ou POST em `import-catmat-curadoria`.
 7. CATMAT oficial Compras.gov: `.\scripts\invoke-sync-compras-catmat.ps1` (referência + características em lotes).
-8. Ponte PCA↔CATMAT: `.\scripts\invoke-link-catmat-pca.ps1` após sync PCA e CATMAT.
+8. Ponte PCA↔CATMAT: `.\scripts\invoke-link-catmat-pca-all.ps1` (ou lote via `-Offset` em `invoke-link-catmat-pca.ps1`) após sync PCA e CATMAT.
+9. Validar anti-churn PCA: `.\scripts\invoke-validate-pca-anti-churn.ps1` (2 rodadas).
 7. **Carga anual PCA:** o índice Search (`/api/search?tipos_documento=pcaorgao`) expõe `data_publicacao_pncp` e `data_atualizacao_pncp` por órgão. Use `somente_verificacao:true` para checar se houve mudança; sync pesado só quando `data_atualizacao_pncp` avançar ou com `forcar:true`. Lastro em `private.pncp_period_anchor`.
 
 ```powershell

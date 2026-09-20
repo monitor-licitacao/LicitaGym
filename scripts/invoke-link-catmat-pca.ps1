@@ -3,6 +3,7 @@ param(
   [string]$ClasseCatmat = "7830",
   [double]$LimiarSimilaridade = 0.55,
   [int]$Limite = 500,
+  [int]$Offset = 0,
   [string]$BaseUrl = "https://ifaiagegyicjzlpskafh.supabase.co",
   [string]$Secret
 )
@@ -20,6 +21,7 @@ $body = @{
   classe_catmat         = $ClasseCatmat
   limiar_similaridade   = $LimiarSimilaridade
   limite                = $Limite
+  offset                = $Offset
 }
 
 $response = Invoke-WebRequest `
