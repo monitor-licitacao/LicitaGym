@@ -177,6 +177,36 @@ function readOrgaoCnpj(item: Record<string, unknown>): string {
   return normalizeCnpj(item.orgaoEntidadeCnpj ?? item.cnpjOrgao ?? item.orgao_cnpj);
 }
 
+/** Colunas `date`: aceita ISO date-time e trunca para YYYY-MM-DD. */
+function readOptionalDate(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  return raw.length >= 10 ? raw.slice(0, 10) : raw;
+}
+
+function readModalidadeCodigo(item: Record<string, unknown>): number | null {
+  const raw = item.modalidadeId ?? item.codigoModalidadeContratacao;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function readAtaStatus(item: Record<string, unknown>): string | null {
+  if (item.cancelado === true) return "cancelada";
+  if (item.cancelado === false) return "ativa";
+  if (item.situacaoAta != null && item.situacaoAta !== "") {
+    return String(item.situacaoAta);
+  }
+  return null;
+}
+
+function readCompraControleRef(item: Record<string, unknown>): string | null {
+  const raw = item.numeroControlePNCPCompra ?? item.numeroControlePncpCompra;
+  if (raw == null || raw === "") return null;
+  return String(raw).trim() || null;
+}
+
 function resolveCompraControle(item: Record<string, unknown>): ParsedControleCompra | null {
   const candidates = [
     item.numeroControlePNCP,
@@ -224,24 +254,34 @@ export function normalizePcaPlano(plan: Record<string, unknown>, fallbackAno: nu
   };
 }
 
+function parseCodigoClasseCatmat(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(String(value).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
 export function normalizePcaItem(
   item: Record<string, unknown>,
   _plan: Record<string, unknown>,
 ) {
   const numeroItem = Number(item.numeroItem ?? item.numero_item ?? 0);
+  const classeRaw = item.classificacaoSuperiorCodigo != null
+    ? String(item.classificacaoSuperiorCodigo)
+    : null;
   return {
     numero_item: numeroItem,
     descricao: item.descricaoItem ? String(item.descricaoItem) : null,
     categoria: item.categoriaItemPcaNome ? String(item.categoriaItemPcaNome) : null,
-    classe_material_servico: item.classificacaoSuperiorCodigo != null
-      ? String(item.classificacaoSuperiorCodigo)
-      : null,
+    classe_material_servico: classeRaw,
+    codigo_classe_catmat: parseCodigoClasseCatmat(classeRaw),
     quantidade: item.quantidadeEstimada != null ? Number(item.quantidadeEstimada) : null,
     unidade_medida: item.unidadeFornecimento ? String(item.unidadeFornecimento) : null,
     valor_unitario_estimado: item.valorUnitario != null ? Number(item.valorUnitario) : null,
     valor_total_estimado: item.valorTotal != null ? Number(item.valorTotal) : null,
     data_prevista_contratacao: item.dataDesejada ?? null,
     status: item.status ? String(item.status) : null,
+    pdm_codigo_origem: item.pdmCodigo != null ? String(item.pdmCodigo).trim() || null : null,
+    codigo_item_origem: item.codigoItem != null ? String(item.codigoItem).trim() || null : null,
   };
 }
 
@@ -272,13 +312,14 @@ export function normalizeEdital(item: Record<string, unknown>) {
     ano,
     sequencial,
     numero_processo: item.processo ? String(item.processo) : null,
-    modalidade_codigo: item.codigoModalidadeContratacao != null
-      ? Number(item.codigoModalidadeContratacao)
-      : null,
+    modalidade_codigo: readModalidadeCodigo(item),
     objeto: item.objetoCompra ? String(item.objetoCompra) : item.objeto ? String(item.objeto) : null,
     descricao: item.informacaoComplementar ? String(item.informacaoComplementar) : null,
     valor_estimado: item.valorTotalEstimado != null ? Number(item.valorTotalEstimado) : null,
     data_publicacao: item.dataPublicacaoPncp ?? item.dataPublicacao ?? null,
+    data_abertura: item.dataAberturaProposta ?? null,
+    data_encerramento: item.dataEncerramentoProposta ?? null,
+    data_atualizacao_origem: item.dataAtualizacaoGlobal ?? item.dataAtualizacao ?? null,
     status: item.situacaoCompraNome ? String(item.situacaoCompraNome) : null,
     url_origem: buildEditalPortalUrl(orgaoCnpj, ano, sequencial),
   };
@@ -326,9 +367,12 @@ export function normalizeAta(item: Record<string, unknown>) {
       ? String(item.objeto)
       : null,
     valor_total: item.valorTotal != null ? Number(item.valorTotal) : null,
-    data_assinatura: item.dataAssinatura ?? null,
+    data_assinatura: readOptionalDate(item.dataAssinatura),
     data_publicacao: item.dataPublicacaoPncp ?? item.dataPublicacao ?? null,
-    status: item.situacaoAta ? String(item.situacaoAta) : null,
+    vigencia_inicio: readOptionalDate(item.vigenciaInicio),
+    vigencia_fim: readOptionalDate(item.vigenciaFim),
+    processo_origem: readCompraControleRef(item),
+    status: readAtaStatus(item),
     url_origem: buildAtaPortalUrl(orgaoCnpj, anoCompra, sequencialCompra, sequencialAta),
   };
 }
@@ -361,8 +405,10 @@ export function normalizeContrato(item: Record<string, unknown>) {
     objeto: item.objetoContrato ? String(item.objetoContrato) : item.objeto ? String(item.objeto) : null,
     valor_inicial: item.valorInicial != null ? Number(item.valorInicial) : null,
     valor_atual: item.valorGlobal != null ? Number(item.valorGlobal) : null,
-    data_assinatura: item.dataAssinatura ?? null,
+    data_assinatura: readOptionalDate(item.dataAssinatura),
     data_publicacao: item.dataPublicacaoPncp ?? item.dataPublicacao ?? null,
+    vigencia_inicio: readOptionalDate(item.dataVigenciaInicio),
+    vigencia_fim: readOptionalDate(item.dataVigenciaFim),
     status: item.situacaoContrato ? String(item.situacaoContrato) : null,
     url_origem: buildContratoPortalUrl(orgaoCnpj, ano, sequencial),
   };

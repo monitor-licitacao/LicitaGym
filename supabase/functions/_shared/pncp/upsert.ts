@@ -3,6 +3,23 @@ import { hashPayload } from "./hash.ts";
 
 export type UpsertResult = "novo" | "alterado" | "inalterado" | "erro";
 
+export type HistoryFieldsContext = { rowId: string };
+
+export type HistoryFieldsOption =
+  | Record<string, unknown>
+  | ((ctx: HistoryFieldsContext) => Record<string, unknown>);
+
+function resolveHistoryFields(
+  historyFields: HistoryFieldsOption | undefined,
+  rowId: string,
+): Record<string, unknown> {
+  if (!historyFields) return {};
+  if (typeof historyFields === "function") {
+    return historyFields({ rowId });
+  }
+  return historyFields;
+}
+
 export async function upsertByHash<T extends Record<string, unknown>>(
   client: SupabaseClient,
   table: string,
@@ -10,7 +27,7 @@ export async function upsertByHash<T extends Record<string, unknown>>(
   row: T,
   options?: {
     historyTable?: string;
-    historyFields?: Record<string, unknown>;
+    historyFields?: HistoryFieldsOption;
     syncRunId?: string;
     lastSeenSyncId?: string;
   },
@@ -25,7 +42,8 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
   };
 
-  let query = client.from(table).select("id, payload_hash").limit(1);
+  const selectColumns = options?.historyTable ? "*" : "id, payload_hash";
+  let query = client.from(table).select(selectColumns).limit(1);
   for (const [k, v] of Object.entries(uniqueKey)) {
     query = query.eq(k, v);
   }
@@ -36,35 +54,39 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     const { data: inserted, error } = await client.from(table).insert(fullRow)
       .select("id").single();
     if (error) return "erro";
-    if (options?.historyTable) {
+    if (options?.historyTable && inserted?.id) {
       await client.from(options.historyTable).insert({
-        ...options.historyFields,
+        ...resolveHistoryFields(options.historyFields, inserted.id),
         tipo_operacao: "insert",
         dados_novos: fullRow,
         payload_hash_novo: payloadHash,
         sync_run_id: options.syncRunId,
       });
     }
-    void inserted;
     return "novo";
   }
 
-  if (existing.payload_hash === payloadHash) {
+  const existingId = existing.id as string;
+  const existingPayloadHash = existing.payload_hash as string;
+
+  if (existingPayloadHash === payloadHash) {
     await client.from(table).update({
       last_synced_at: now,
       ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
-    }).eq("id", existing.id);
+    }).eq("id", existingId);
     return "inalterado";
   }
 
-  const { error } = await client.from(table).update(fullRow).eq("id", existing.id);
+  const { error } = await client.from(table).update(fullRow).eq("id", existingId);
   if (error) return "erro";
 
   if (options?.historyTable) {
     await client.from(options.historyTable).insert({
-      ...options.historyFields,
+      ...resolveHistoryFields(options.historyFields, existingId),
       tipo_operacao: "update",
-      payload_hash_anterior: existing.payload_hash,
+      dados_anteriores: existing,
+      dados_novos: fullRow,
+      payload_hash_anterior: existingPayloadHash,
       payload_hash_novo: payloadHash,
       sync_run_id: options.syncRunId,
     });

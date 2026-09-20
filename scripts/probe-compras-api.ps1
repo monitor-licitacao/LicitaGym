@@ -49,13 +49,13 @@ function Invoke-Probe {
   $url = "$BaseUrl$Path`?" + ($pares -join '&')
 
   Write-Host ""
-  Write-Host "→ $Rotulo" -ForegroundColor Cyan
+  Write-Host "-> $Rotulo" -ForegroundColor Cyan
   Write-Verbose $url
 
   $registros = $null; $codigo = $null; $erro = $null; $bytes = $null
   try {
     $resp = Invoke-WebRequest -Uri $url -Method GET -TimeoutSec $TimeoutSec `
-              -Headers @{ Accept = 'application/json' } -ErrorAction Stop
+              -Headers @{ Accept = 'application/json' } -UseBasicParsing -ErrorAction Stop
     $codigo = [int]$resp.StatusCode
     $bytes  = $resp.RawContentLength
     if ($resp.Content -and $resp.Content.Trim()) {
@@ -88,9 +88,9 @@ Write-Host "=== A. PGC Detalhe: JSON com os params do CSV que funcionou ===" -Fo
 Invoke-Probe -Rotulo 'A1 PGC Detalhe JSON (params do CSV que deu 1298 bytes)' `
   -Path '/modulo-pgc/1_consultarPgcDetalhe' `
   -Query @{ pagina = 1; tamanhoPagina = 10; orgao = $PgcOrgao; anoPcaProjetoCompra = $PgcAno } `
-  -Esperado 'Se vier > 0, a conclusao "endpoint sem dados" era amostragem ruim'
+  -Esperado 'Se vier > 0, a conclusao endpoint sem dados era amostragem ruim'
 
-Invoke-Probe -Rotulo 'A2 PGC Detalhe CSV (controle — deve repetir os 1298 bytes)' `
+Invoke-Probe -Rotulo 'A2 PGC Detalhe CSV (controle - deve repetir os 1298 bytes)' `
   -Path '/modulo-pgc/1.1_consultarPgcDetalhe_CSV' `
   -Query @{ pagina = 1; tamanhoPagina = 10; orgao = $PgcOrgao; anoPcaProjetoCompra = $PgcAno } `
   -Esperado 'Controle: confirma que o par orgao/ano ainda tem dado'
@@ -119,7 +119,7 @@ Invoke-Probe -Rotulo "C1 Preco via par tipo+codigo (tipo=codigoItemCatalogo)" `
   -Query @{ pagina = 1; tipo = 'codigoItemCatalogo'; codigo = $CodigoItem } `
   -Esperado 'Forma que funcionou no teste registrado'
 
-Invoke-Probe -Rotulo "C2 Preco via param separado (codigoMaterial) — forma catalogada" `
+Invoke-Probe -Rotulo "C2 Preco via param separado (codigoMaterial) - forma catalogada" `
   -Path '/modulo-pesquisa-preco/1_consultarMaterial' `
   -Query @{ pagina = 1; codigoMaterial = $CodigoItem } `
   -Esperado 'Se funcionar, o catalogo tambem esta certo e ha dois contratos'
@@ -151,7 +151,7 @@ foreach ($r in $script:Resultados) {
 }
 
 Write-Host ""
-Write-Host "Atualize docs/pncp/contract-matrix.md conforme o resultado." -ForegroundColor DarkGray
+Write-Host 'Atualize docs/pncp/contract-matrix.md conforme o resultado.' -ForegroundColor DarkGray
 
 # Objetos na pipeline, para quem quiser | ConvertTo-Json ou | Export-Csv
 $script:Resultados

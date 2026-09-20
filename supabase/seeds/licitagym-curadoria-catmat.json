@@ -1,0 +1,761 @@
+{
+  "catalogo": "CATMAT grupo 78 classe 7830",
+  "exportadoEm": "2026-09-18T20:58:33.633Z",
+  "curadoriaInicialPorCodigoPdm": {
+    "2640": {
+      "codigoPdm": 2640,
+      "totalCatalogo": 106,
+      "codigosNaTabela": 105,
+      "observacao": "426780 não consta na tabela enviada; enquadrado em Pilates pela descrição CATMAT. Categorias e subcategorias são curadoria, não campos oficiais. NCM não atribuído.",
+      "itens": {
+        "112291": {
+          "grupo": "Acessórios Diversos",
+          "ordem": 14,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "225083": {
+          "grupo": "Esteiras (Mecânicas e Elétricas)",
+          "ordem": 6,
+          "categoria": "cardio",
+          "subcategoria": "esteiras",
+          "origem": "tabela do usuário"
+        },
+        "225085": {
+          "grupo": "Esteiras (Mecânicas e Elétricas)",
+          "ordem": 6,
+          "categoria": "cardio",
+          "subcategoria": "esteiras",
+          "origem": "tabela do usuário"
+        },
+        "225087": {
+          "grupo": "Esteiras (Mecânicas e Elétricas)",
+          "ordem": 6,
+          "categoria": "cardio",
+          "subcategoria": "esteiras",
+          "origem": "tabela do usuário"
+        },
+        "225088": {
+          "grupo": "Esteiras (Mecânicas e Elétricas)",
+          "ordem": 6,
+          "categoria": "cardio",
+          "subcategoria": "esteiras",
+          "origem": "tabela do usuário"
+        },
+        "250339": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": "simulador_escada",
+          "origem": "tabela do usuário"
+        },
+        "250341": {
+          "grupo": "Trampolins",
+          "ordem": 12,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "250349": {
+          "grupo": "Esteiras (Mecânicas e Elétricas)",
+          "ordem": 6,
+          "categoria": "cardio",
+          "subcategoria": "esteiras",
+          "origem": "tabela do usuário"
+        },
+        "251307": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "251309": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "251310": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "353216": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "356908": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "399598": {
+          "grupo": "Barras Fixas / de Ling",
+          "ordem": 13,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "399741": {
+          "grupo": "Steps / Degraus",
+          "ordem": 11,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "399772": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "411183": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "411184": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "411185": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "426778": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "426780": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "inferido da descrição CATMAT; ausente da tabela enviada"
+        },
+        "426781": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "442719": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "442720": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "444279": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "450160": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "450362": {
+          "grupo": "Steps / Degraus",
+          "ordem": 11,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "458829": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460206": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "460540": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "460541": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "cordas",
+          "origem": "tabela do usuário"
+        },
+        "460558": {
+          "grupo": "Traves de Equilíbrio",
+          "ordem": 10,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460559": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460560": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460561": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460567": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460568": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460569": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460605": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460606": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "460640": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "461768": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "461915": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "461978": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "461980": {
+          "grupo": "Barras Fixas / de Ling",
+          "ordem": 13,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "461990": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "462005": {
+          "grupo": "Ginástica Olímpica / Artística",
+          "ordem": 9,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "462009": {
+          "grupo": "Traves de Equilíbrio",
+          "ordem": 10,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "462018": {
+          "grupo": "Trampolins",
+          "ordem": 12,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "465043": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "puxadores",
+          "origem": "tabela do usuário"
+        },
+        "465044": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "465053": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "465065": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "465068": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "465858": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "465864": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "466281": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "466312": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "467354": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "471245": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "471747": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "cordas",
+          "origem": "tabela do usuário"
+        },
+        "472025": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "473406": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "473444": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "478756": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "479577": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480056": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480138": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480139": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "480141": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480142": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480143": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480144": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "480145": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480146": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480147": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480148": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "480149": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "480254": {
+          "grupo": "Máquinas Articuladas",
+          "ordem": 4,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "480979": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "480980": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "480981": {
+          "grupo": "Leg Press / Pressão de Pernas",
+          "ordem": 3,
+          "categoria": "musculacao",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "480982": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "480983": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": null,
+          "origem": "tabela do usuário"
+        },
+        "483755": {
+          "grupo": "Barras Fixas / de Ling",
+          "ordem": 13,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "486249": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "486564": {
+          "grupo": "Equipamentos Cardio",
+          "ordem": 5,
+          "categoria": "cardio",
+          "subcategoria": "eliptico",
+          "origem": "tabela do usuário"
+        },
+        "486808": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "600223": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "musculacao",
+          "subcategoria": "peso_livre",
+          "origem": "tabela do usuário"
+        },
+        "602160": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "603143": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "609773": {
+          "grupo": "Steps / Degraus",
+          "ordem": 11,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "613981": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "614866": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "musculacao",
+          "subcategoria": "peso_livre",
+          "origem": "tabela do usuário"
+        },
+        "615042": {
+          "grupo": "Equipamentos Funcionais / CrossFit",
+          "ordem": 8,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "620479": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "620480": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "628720": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bancos",
+          "origem": "tabela do usuário"
+        },
+        "628785": {
+          "grupo": "Cadeiras / Bancos de Musculação",
+          "ordem": 2,
+          "categoria": "musculacao",
+          "subcategoria": "bateria_peso",
+          "origem": "tabela do usuário"
+        },
+        "629966": {
+          "grupo": "Traves de Equilíbrio",
+          "ordem": 10,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "631192": {
+          "grupo": "Equipamentos de Pilates",
+          "ordem": 7,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "631193": {
+          "grupo": "Acessórios Diversos",
+          "ordem": 14,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "634818": {
+          "grupo": "Traves de Equilíbrio",
+          "ordem": 10,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        },
+        "636436": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "636444": {
+          "grupo": "Cross Over / Polias / Máquinas de Cabo",
+          "ordem": 1,
+          "categoria": "musculacao",
+          "subcategoria": "estacao",
+          "origem": "tabela do usuário"
+        },
+        "638278": {
+          "grupo": "Steps / Degraus",
+          "ordem": 11,
+          "categoria": "acessorios",
+          "subcategoria": "outros",
+          "origem": "tabela do usuário"
+        }
+      }
+    }
+  },
+  "classificacoesPorCodigoPdm": {},
+  "excecoesPorCodigoItem": {},
+  "candidatosPorCodigoPdm": {},
+  "nomesEditadosDaArvore": {},
+  "descricoesEditadasDaArvore": {}
+}

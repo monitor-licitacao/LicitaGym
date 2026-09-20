@@ -6,7 +6,7 @@ Monitor de licitações com banco canônico local (Postgres/Supabase) e sincroni
 
 | Camada | Base URL | Uso |
 |--------|----------|-----|
-| **Consulta** | `https://pncp.gov.br/api/consulta/v1` | Listagens públicas: PCA, contratações, atas, contratos |
+| **Consulta** | `https://pncp.gov.br/api/consulta/v1` | Listagens públicas: PCA, contratações, atas, contratos — DTOs em [`schemas-consultas-pncp.md`](./schemas-consultas-pncp.md) |
 | **Integração** | `https://pncp.gov.br/api/pncp/v1` | CRUD por órgão, catálogo, detalhe IRP |
 
 O app **nunca** chama o PNCP por request de usuário — apenas Edge Functions de sync.
@@ -31,7 +31,7 @@ Storage       → pncp-legislation (PDFs imutáveis por versão)
 | Função | Cron sugerido | Fonte |
 |--------|---------------|-------|
 | `sync-pncp-legislation` | `0 */6 * * *` | Scrape gov.br |
-| `sync-pncp-pca` | **1×/ano** (ex.: `0 3 15 1 *`) + verificação opcional | Search `pcaorgao` → GET `/v1/pca/` classe `7830` |
+| `sync-pncp-pca` | **1×/ano** + verificação | Probe segmentado `GET /v1/pca/?codigoClassificacaoSuperior=7830` (primário) + Search `pcaorgao` (secundário) — ver [`plano-probe-pca-incremental.md`](./plano-probe-pca-incremental.md) |
 | `import-catmat-curadoria` | manual | POST JSON exportado do catálogo HTML |
 | `sync-pncp-contratacoes-editais` | `0 */6 * * *` | GET `/v1/contratacoes/*` |
 | `sync-pncp-contratacoes-atas` | `15 */6 * * *` | GET `/v1/atas` |
