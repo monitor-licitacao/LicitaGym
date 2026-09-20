@@ -49,6 +49,8 @@ jobs:
           supabase functions deploy sync-pncp-contratacoes-atas --no-verify-jwt
           supabase functions deploy sync-pncp-contratacoes-contratos --no-verify-jwt
           supabase functions deploy sync-pncp-catalogo --no-verify-jwt
+          supabase functions deploy sync-compras-catmat --no-verify-jwt
+          supabase functions deploy link-catmat-pca --no-verify-jwt
           supabase functions deploy sync-pncp-irp --no-verify-jwt
           supabase functions deploy api-pncp-pca --no-verify-jwt
           supabase functions deploy api-pncp-legislacao --no-verify-jwt

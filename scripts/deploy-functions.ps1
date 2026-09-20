@@ -10,15 +10,17 @@ $ErrorActionPreference = "Stop"
 $functions = @(
   "sync-pncp-pca",
   "import-catmat-curadoria",
-  "api-pncp-pca",
   "sync-pncp-legislation",
-  "api-pncp-legislacao",
   "sync-pncp-contratacoes-editais",
   "sync-pncp-contratacoes-atas",
   "sync-pncp-contratacoes-contratos",
-  "api-pncp-contratacoes",
   "sync-pncp-catalogo",
+  "sync-compras-catmat",
+  "link-catmat-pca",
   "sync-pncp-irp",
+  "api-pncp-pca",
+  "api-pncp-legislacao",
+  "api-pncp-contratacoes",
   "api-pncp-irp",
   "calculate-distance-webrouter"
 )
@@ -37,15 +39,15 @@ $failed = @()
 
 foreach ($name in $functions) {
   Write-Host "`n=== Deploy $name ===" -ForegroundColor Cyan
-  $args = @(
+  $deployArgs = @(
     "functions", "deploy", $name,
     "--project-ref", $ProjectRef,
     "--no-verify-jwt"
   )
-  if ($UseApi) { $args += "--use-api" }
-  if ($Debug) { $args += "--debug" }
+  if ($UseApi) { $deployArgs += "--use-api" }
+  if ($Debug) { $deployArgs += "--debug" }
 
-  & npx supabase @args
+  & npx supabase @deployArgs
   if ($LASTEXITCODE -ne 0) {
     $failed += $name
   }

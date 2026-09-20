@@ -2,12 +2,13 @@ import { fetchWithTimeout, withRetry } from "./retry.ts";
 
 const DEFAULT_BASE = "https://pncp.gov.br/api/consulta/v1";
 
-/** Limites documentados em contract-matrix.md e statuslicitacoes.com.br/api-pncp */
+/** Limites documentados em contract-matrix.md, schemas-consultas-pncp.md (probe 2026-09-19). */
 export const CONSULTA_PAGE_SIZE = {
   contratacoes: { min: 10, max: 50, default: 50 },
   /** PCA exige mínimo 20 na prática (400 abaixo disso). */
-  pca: { min: 20, max: 500, default: 50 },
-  atasContratos: { min: 10, max: 500, default: 50 },
+  pca: { min: 20, max: 500, default: 500 },
+  atasContratos: { min: 10, max: 500, default: 500 },
+  instrumentosCobranca: { min: 10, max: 100, default: 100 },
 } as const;
 
 export type ConsultaPage<T> = {
@@ -88,7 +89,7 @@ export class PncpConsultaClient {
   extractPagination(body: unknown, pagina: number): Omit<ConsultaPage<unknown>, "data" | "raw"> {
     const obj = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
     return {
-      pagina: Number(obj.pagina ?? pagina),
+      pagina: Number(obj.numeroPagina ?? obj.pagina ?? pagina),
       paginasRestantes: Number(obj.paginasRestantes ?? 0),
       totalRegistros: Number(obj.totalRegistros ?? 0),
     };
@@ -106,6 +107,23 @@ export class PncpConsultaClient {
       codigoClassificacaoSuperior,
       tamanhoPagina: clampConsultaPageSize("pca", tamanhoPagina),
     });
+  }
+
+  /** Probe barato: totalRegistros no escopo da classe (Fase 2 do plano PCA). */
+  async probePcaClassificacao(anoPca: number, codigoClassificacaoSuperior: string) {
+    const tamanhoPagina = clampConsultaPageSize("pca", 20);
+    const result = await this.getJson("/pca/", {
+      anoPca,
+      pagina: 1,
+      codigoClassificacaoSuperior,
+      tamanhoPagina,
+    });
+    const pagination = this.extractPagination(result.body, 1);
+    return {
+      ...result,
+      total_registros: pagination.totalRegistros,
+      paginas_restantes: pagination.paginasRestantes,
+    };
   }
 
   async fetchContratacoesPublicacao(params: {
@@ -136,6 +154,32 @@ export class PncpConsultaClient {
     });
   }
 
+  async fetchContratacoesProposta(params: {
+    dataFinal: string;
+    codigoModalidadeContratacao: number;
+    pagina: number;
+    tamanhoPagina?: number;
+  }) {
+    const { tamanhoPagina, ...rest } = params;
+    return this.getJson("/contratacoes/proposta", {
+      ...rest,
+      tamanhoPagina: clampConsultaPageSize("contratacoes", tamanhoPagina),
+    });
+  }
+
+  async fetchInstrumentosCobrancaInclusao(params: {
+    dataInicial: string;
+    dataFinal: string;
+    pagina: number;
+    tamanhoPagina?: number;
+  }) {
+    const { tamanhoPagina, ...rest } = params;
+    return this.getJson("/instrumentoscobranca/inclusao", {
+      ...rest,
+      tamanhoPagina: clampConsultaPageSize("instrumentosCobranca", tamanhoPagina),
+    });
+  }
+
   async fetchAtas(params: {
     dataInicial: string;
     dataFinal: string;
@@ -157,6 +201,47 @@ export class PncpConsultaClient {
   }) {
     const { tamanhoPagina, ...rest } = params;
     return this.getJson("/contratos", {
+      ...rest,
+      tamanhoPagina: clampConsultaPageSize("atasContratos", tamanhoPagina),
+    });
+  }
+
+  async fetchPcaAtualizacao(params: {
+    dataInicio: string;
+    dataFim: string;
+    pagina: number;
+    tamanhoPagina?: number;
+    cnpj?: string;
+    codigoUnidade?: string;
+  }) {
+    const { tamanhoPagina, ...rest } = params;
+    return this.getJson("/pca/atualizacao", {
+      ...rest,
+      tamanhoPagina: clampConsultaPageSize("pca", tamanhoPagina),
+    });
+  }
+
+  async fetchAtasAtualizacao(params: {
+    dataInicial: string;
+    dataFinal: string;
+    pagina: number;
+    tamanhoPagina?: number;
+  }) {
+    const { tamanhoPagina, ...rest } = params;
+    return this.getJson("/atas/atualizacao", {
+      ...rest,
+      tamanhoPagina: clampConsultaPageSize("atasContratos", tamanhoPagina),
+    });
+  }
+
+  async fetchContratosAtualizacao(params: {
+    dataInicial: string;
+    dataFinal: string;
+    pagina: number;
+    tamanhoPagina?: number;
+  }) {
+    const { tamanhoPagina, ...rest } = params;
+    return this.getJson("/contratos/atualizacao", {
       ...rest,
       tamanhoPagina: clampConsultaPageSize("atasContratos", tamanhoPagina),
     });

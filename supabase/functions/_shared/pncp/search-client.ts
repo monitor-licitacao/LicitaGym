@@ -17,7 +17,8 @@ export type PcaSearchPeriodSummary = {
   total_indexado: number;
   amostra: number;
   max_data_atualizacao: string | null;
-  min_data_publicacao: string | null;
+  /** Mínimo dentro da amostra (não da base inteira). */
+  min_data_publicacao_amostra: string | null;
   max_data_publicacao: string | null;
   orgaos_amostra: Array<{
     orgao_cnpj: string;
@@ -27,10 +28,18 @@ export type PcaSearchPeriodSummary = {
   }>;
 };
 
-function parseTs(value: string | undefined): number | null {
+/** PNCP devolve timestamps naive; tratar como UTC. */
+export function parsePncpTimestamp(value: string | undefined): number | null {
   if (!value) return null;
-  const t = Date.parse(value);
+  const trimmed = value.trim();
+  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(trimmed);
+  const normalized = hasOffset ? trimmed : `${trimmed}Z`;
+  const t = Date.parse(normalized);
   return Number.isFinite(t) ? t : null;
+}
+
+function parseTs(value: string | undefined): number | null {
+  return parsePncpTimestamp(value);
 }
 
 export class PncpSearchClient {
@@ -103,12 +112,23 @@ export class PncpSearchClient {
       }
     }
 
+    if (
+      items.length > 0 &&
+      maxAtualizacao &&
+      items[0].data_atualizacao_pncp &&
+      items[0].data_atualizacao_pncp !== maxAtualizacao
+    ) {
+      throw new Error(
+        "ordenacao_inesperada: Search pcaorgao não ordenado por data_atualizacao",
+      );
+    }
+
     return {
       ano,
       total_indexado: total,
       amostra: items.length,
       max_data_atualizacao: maxAtualizacao,
-      min_data_publicacao: minPublicacao,
+      min_data_publicacao_amostra: minPublicacao,
       max_data_publicacao: maxPublicacao,
       orgaos_amostra: items.slice(0, 10).map((item) => ({
         orgao_cnpj: item.orgao_cnpj ?? "",

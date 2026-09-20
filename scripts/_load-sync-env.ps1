@@ -5,8 +5,8 @@ function Get-SyncCronSecret {
 
   $root = Split-Path $PSScriptRoot -Parent
   foreach ($relative in @(
-      "supabase\.env.functions.local",
-      "supabase\.env.local"
+      "supabase\.env.local",
+      "supabase\.env.functions.local"
     )) {
     $path = Join-Path $root $relative
     if (-not (Test-Path $path)) { continue }

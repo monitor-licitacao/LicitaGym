@@ -5,9 +5,12 @@ import {
   PncpConsultaClient,
 } from "../_shared/pncp/consulta-client.ts";
 import { resolvePcaClassificacoes } from "../_shared/pncp/licitagym-catmat.ts";
+import { assertPcaClassificacoesInScope } from "../_shared/pncp/licitagym-scope-gate.ts";
 import {
+  buildTotalRegistrosClasseMap,
   getPeriodAnchor,
   markPeriodLoadComplete,
+  type PcaScopedProbe,
   shouldSkipAnnualLoad,
   upsertPeriodProbe,
 } from "../_shared/pncp/period-anchor.ts";
@@ -21,6 +24,7 @@ import {
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
 import { normalizePcaItem, normalizePcaPlano } from "../_shared/pncp/normalize.ts";
+import { linkPcaItemOrigemCodes } from "../_shared/pncp/pca-origem-link.ts";
 import { inactivateNotSeen, upsertByHash } from "../_shared/pncp/upsert.ts";
 
 type SyncBody = {
@@ -71,7 +75,7 @@ async function syncClassificacao(params: {
   paginaInicial: number;
   maxPaginas: number;
   tamanhoPagina: number;
-}): Promise<{ stats: SyncStats; ultimaPagina: number }> {
+}): Promise<{ stats: SyncStats; ultimaPagina: number; paginasRestantes: number }> {
   const {
     client,
     consulta,
@@ -139,6 +143,7 @@ async function syncClassificacao(params: {
         planoRow,
         {
           historyTable: "pca_alteracoes",
+          historyFields: ({ rowId }) => ({ pca_plano_id: rowId }),
           syncRunId: runId,
           lastSeenSyncId: runId,
         },
@@ -171,7 +176,10 @@ async function syncClassificacao(params: {
           { ...itemRow, pca_plano_id: planoRecord.id },
           {
             historyTable: "pca_alteracoes",
-            historyFields: { pca_plano_id: planoRecord.id },
+            historyFields: ({ rowId }) => ({
+              pca_plano_id: planoRecord.id,
+              pca_item_id: rowId,
+            }),
             syncRunId: runId,
             lastSeenSyncId: runId,
           },
@@ -180,6 +188,20 @@ async function syncClassificacao(params: {
         else if (itemResult === "alterado") stats.alterados++;
         else if (itemResult === "inalterado") stats.inalterados++;
         else stats.erros++;
+
+        if (itemRow.pdm_codigo_origem || itemRow.codigo_item_origem) {
+          const { data: itemRecord, error: itemLookupError } = await client
+            .from("pca_itens")
+            .select("id")
+            .eq("pca_plano_id", planoRecord.id)
+            .eq("numero_item", itemRow.numero_item)
+            .maybeSingle();
+          if (itemLookupError) {
+            stats.erros++;
+          } else if (itemRecord) {
+            await linkPcaItemOrigemCodes(client, itemRecord.id, itemRow);
+          }
+        }
       }
     }
 
@@ -187,7 +209,7 @@ async function syncClassificacao(params: {
     pagina++;
   }
 
-  return { stats, ultimaPagina: pagina };
+  return { stats, ultimaPagina: pagina, paginasRestantes };
 }
 
 Deno.serve(async (req) => {
@@ -198,6 +220,10 @@ Deno.serve(async (req) => {
   const body = (await req.json().catch(() => ({}))) as SyncBody;
   const ano = body.ano ?? new Date().getUTCFullYear();
   const codigosClassificacao = resolvePcaClassificacoes(body);
+  const scopeErr = assertPcaClassificacoesInScope(codigosClassificacao);
+  if (scopeErr) {
+    return jsonResponse({ status: "blocked", reason: scopeErr }, 423);
+  }
   const paginaInicial = body.pagina_inicial ?? 1;
   const maxPaginas = body.max_paginas ?? 100;
   const tamanhoPagina = clampConsultaPageSize("pca", body.tamanho_pagina);
@@ -219,27 +245,56 @@ Deno.serve(async (req) => {
     );
   }
 
-  const search = new PncpSearchClient();
+  const consulta = new PncpConsultaClient();
+  const scopedProbes: PcaScopedProbe[] = [];
+  let scopedProbeError: string | null = null;
 
-  let periodSummary;
-  try {
-    periodSummary = await search.summarizePcaPeriod(ano);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+  for (const codigo of codigosClassificacao) {
+    try {
+      const probe = await consulta.probePcaClassificacao(ano, codigo);
+      if (probe.status >= 400) {
+        throw new Error(`HTTP ${probe.status}`);
+      }
+      scopedProbes.push({
+        codigo_classificacao: codigo,
+        total_registros: probe.total_registros,
+      });
+    } catch (error) {
+      scopedProbeError = error instanceof Error ? error.message : String(error);
+      break;
+    }
+  }
+
+  if (scopedProbeError) {
     return jsonResponse(
       {
-        error: "Falha ao consultar indice Search (pcaorgao)",
-        detalhe: msg,
-        dica: "Probe local: scripts/probe-pca-periodo.ps1 ou curl na Search API. Sync pesado exige forcar:true se pular verificacao.",
+        error: "Falha no probe segmentado (Consulta /v1/pca/)",
+        detalhe: scopedProbeError,
+        codigos_classificacao: codigosClassificacao,
       },
       503,
     );
   }
 
+  const search = new PncpSearchClient();
+  let periodSummary = null;
+  let searchProbeError: string | null = null;
+  try {
+    periodSummary = await search.summarizePcaPeriod(ano);
+  } catch (error) {
+    searchProbeError = error instanceof Error ? error.message : String(error);
+  }
+
+  const probeMetadata = {
+    origem: "sync-pncp-pca",
+    total_registros_classe: buildTotalRegistrosClasseMap(scopedProbes),
+    ...(searchProbeError ? { search_indisponivel: searchProbeError } : {}),
+  };
+
   let periodAnchor;
   try {
     periodAnchor = await getPeriodAnchor(client, ano);
-    await upsertPeriodProbe(client, periodSummary, { origem: "sync-pncp-pca" });
+    await upsertPeriodProbe(client, periodSummary, probeMetadata, ano);
   } catch (error) {
     return jsonResponse(
       {
@@ -253,11 +308,13 @@ Deno.serve(async (req) => {
   }
 
   if (body.somente_verificacao) {
-    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary);
+    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary, scopedProbes);
     return jsonResponse({
       status: "verificacao",
       ano,
       periodo: periodSummary,
+      probe_segmentado: scopedProbes,
+      search_indisponivel: searchProbeError,
       anchor: periodAnchor,
       carga_necessaria: !decisao.skip,
       motivo: decisao.reason,
@@ -265,21 +322,22 @@ Deno.serve(async (req) => {
   }
 
   if (verificarPeriodo && !body.forcar) {
-    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary);
+    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary, scopedProbes);
     if (decisao.skip) {
       return jsonResponse({
         status: "ignorado",
         ano,
         motivo: decisao.reason,
         periodo: periodSummary,
+        probe_segmentado: scopedProbes,
+        search_indisponivel: searchProbeError,
         anchor: periodAnchor,
         mensagem:
-          "Índice Search sem atualizações desde a última carga. Use forcar:true para carga anual.",
+          "Probe segmentado e Search inalterados desde a última carga. Use forcar:true para carga anual.",
       });
     }
   }
 
-  const consulta = new PncpConsultaClient();
   const { runId, alreadyRunning } = await acquireSyncLock(client, lockKey, "pca", body);
 
   if (alreadyRunning) {
@@ -287,7 +345,10 @@ Deno.serve(async (req) => {
   }
 
   const stats = emptyStats();
-  const porCodigo: Record<string, SyncStats & { ultima_pagina: number }> = {};
+  const porCodigo: Record<
+    string,
+    SyncStats & { ultima_pagina: number; paginas_restantes: number }
+  > = {};
 
   try {
     for (const codigoClassificacao of codigosClassificacao) {
@@ -304,16 +365,26 @@ Deno.serve(async (req) => {
       porCodigo[codigoClassificacao] = {
         ...result.stats,
         ultima_pagina: result.ultimaPagina,
+        paginas_restantes: result.paginasRestantes,
       };
       mergeStats(stats, result.stats);
     }
 
     if (body.modo === "completo") {
       await inactivateNotSeen(client, "pca_planos", runId, { ano_exercicio: ano });
+      const { data: planosVistos } = await client
+        .from("pca_planos")
+        .select("id")
+        .eq("last_seen_sync_id", runId);
+      if (planosVistos?.length) {
+        for (const plano of planosVistos) {
+          await inactivateNotSeen(client, "pca_itens", runId, { pca_plano_id: plano.id });
+        }
+      }
     }
 
     if (stats.erros === 0) {
-      await markPeriodLoadComplete(client, periodSummary);
+      await markPeriodLoadComplete(client, periodSummary, probeMetadata, ano);
     }
 
     await finishSyncRun(client, runId, {

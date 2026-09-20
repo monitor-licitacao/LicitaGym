@@ -1,6 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
-import { PncpConsultaClient, formatPncpDate } from "../_shared/pncp/consulta-client.ts";
+import {
+  clampConsultaPageSize,
+  formatPncpDate,
+  PncpConsultaClient,
+} from "../_shared/pncp/consulta-client.ts";
 import { acquireSyncLock } from "../_shared/pncp/lock.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
 import { normalizeEdital } from "../_shared/pncp/normalize.ts";
@@ -11,6 +15,10 @@ import {
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
 import { inactivateNotSeen, upsertByHash } from "../_shared/pncp/upsert.ts";
+import {
+  isNationalPncpSyncEnabled,
+  nationalPncpSyncGate,
+} from "../_shared/pncp/licitagym-scope-gate.ts";
 
 const MODALIDADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
@@ -26,6 +34,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
   if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+  if (!isNationalPncpSyncEnabled()) {
+    return nationalPncpSyncGate("contratacoes-editais");
+  }
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;
   const hoje = new Date();
@@ -50,6 +61,7 @@ Deno.serve(async (req) => {
   }
 
   const stats = { novos: 0, alterados: 0, inalterados: 0, erros: 0, recebidos: 0 };
+  const tamanhoPagina = clampConsultaPageSize("contratacoes");
 
   try {
     for (const modalidade of modalidades) {
@@ -63,12 +75,14 @@ Deno.serve(async (req) => {
             dataFinal,
             codigoModalidadeContratacao: modalidade,
             pagina,
+            tamanhoPagina,
           })
           : () => consulta.fetchContratacoesPublicacao({
             dataInicial,
             dataFinal,
             codigoModalidadeContratacao: modalidade,
             pagina,
+            tamanhoPagina,
           });
 
         const endpoint = body.usar_atualizacao
@@ -81,7 +95,7 @@ Deno.serve(async (req) => {
         await logSyncRequest(client, {
           syncRunId: runId,
           endpoint,
-          parametros: { dataInicial, dataFinal, modalidade, pagina },
+          parametros: { dataInicial, dataFinal, modalidade, pagina, tamanhoPagina },
           pagina,
           statusHttp: status,
           tempoRespostaMs: elapsedMs,

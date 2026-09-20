@@ -6,7 +6,7 @@ Monitor de licitações com banco canônico local (Postgres/Supabase) e sincroni
 
 | Camada | Base URL | Uso |
 |--------|----------|-----|
-| **Consulta** | `https://pncp.gov.br/api/consulta/v1` | Listagens públicas: PCA, contratações, atas, contratos |
+| **Consulta** | `https://pncp.gov.br/api/consulta/v1` | Listagens públicas: PCA, contratações, atas, contratos — DTOs em [`schemas-consultas-pncp.md`](./schemas-consultas-pncp.md) |
 | **Integração** | `https://pncp.gov.br/api/pncp/v1` | CRUD por órgão, catálogo, detalhe IRP |
 
 O app **nunca** chama o PNCP por request de usuário — apenas Edge Functions de sync.
@@ -31,12 +31,14 @@ Storage       → pncp-legislation (PDFs imutáveis por versão)
 | Função | Cron sugerido | Fonte |
 |--------|---------------|-------|
 | `sync-pncp-legislation` | `0 */6 * * *` | Scrape gov.br |
-| `sync-pncp-pca` | **1×/ano** (ex.: `0 3 15 1 *`) + verificação opcional | Search `pcaorgao` → GET `/v1/pca/` classe `7830` |
+| `sync-pncp-pca` | **1×/ano** + verificação | Probe segmentado `GET /v1/pca/?codigoClassificacaoSuperior=7830` (primário) + Search `pcaorgao` (secundário) — ver [`plano-probe-pca-incremental.md`](./plano-probe-pca-incremental.md) |
 | `import-catmat-curadoria` | manual | POST JSON exportado do catálogo HTML |
 | `sync-pncp-contratacoes-editais` | `0 */6 * * *` | GET `/v1/contratacoes/*` |
 | `sync-pncp-contratacoes-atas` | `15 */6 * * *` | GET `/v1/atas` |
 | `sync-pncp-contratacoes-contratos` | `30 */6 * * *` | GET `/v1/contratos` |
-| `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração) |
+| `sync-pncp-catalogo` | manual | GET `/v1/catalogos` (integração PNCP) |
+| `sync-compras-catmat` | manual/semanal | Compras.gov Dados Abertos `/modulo-material/*` (7830 fitness; 7220 piso curadoria) |
+| `link-catmat-pca` | manual | Ponte `catalogo_ponte` PCA item ↔ CATMAT (Jaccard; body `offset`/`limite` pagina por `pca_itens.id`) |
 | `sync-pncp-irp` | bloqueado | Gate CLA-34 |
 
 ## API da aplicação (Fase 6)
@@ -54,6 +56,7 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 - **IRP**: sem listagem na API Consulta — `sync_habilitado=false` no schema; env `IRP_SYNC_ENABLED=true` só após CLA-34
 - **Usuários PNCP**: fora do MVP ([security-mvp.md](./security-mvp.md))
 - **Matriz de contratos**: [contract-matrix.md](./contract-matrix.md) — gate para migrations de domínio
+- **Mapa de cruzamentos**: [cruzamentos.md](./cruzamentos.md) — junções PNCP × CATMAT × catálogo
 
 ## Secrets
 
@@ -69,6 +72,9 @@ Autenticação: JWT Supabase para leitura; sync manual exige `SYNC_CRON_SECRET` 
 4. Edge Functions: `npx supabase functions serve --no-verify-jwt --env-file supabase/.env.functions.local sync-pncp-pca`
 5. PCA aceita `codigos_classificacao: ["7830"]` (padrão LicitaGym) ou `codigo_classificacao_superior` (legado); use `max_paginas` para smoke tests.
 6. Curadoria CATMAT: exporte do app HTML → `scripts/import-catmat-curadoria.ps1` ou POST em `import-catmat-curadoria`.
+7. CATMAT oficial Compras.gov: `.\scripts\invoke-sync-compras-catmat.ps1` (referência + características em lotes).
+8. Ponte PCA↔CATMAT: `.\scripts\invoke-link-catmat-pca-all.ps1` (ou lote via `-Offset` em `invoke-link-catmat-pca.ps1`) após sync PCA e CATMAT.
+9. Validar anti-churn PCA: `.\scripts\invoke-validate-pca-anti-churn.ps1` (2 rodadas).
 7. **Carga anual PCA:** o índice Search (`/api/search?tipos_documento=pcaorgao`) expõe `data_publicacao_pncp` e `data_atualizacao_pncp` por órgão. Use `somente_verificacao:true` para checar se houve mudança; sync pesado só quando `data_atualizacao_pncp` avançar ou com `forcar:true`. Lastro em `private.pncp_period_anchor`.
 
 ```powershell
