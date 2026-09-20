@@ -52,6 +52,9 @@ Deno.serve(async (req) => {
       if (!versao?.storage_path) {
         return jsonResponse({ error: "Arquivo não encontrado" }, 404);
       }
+      if (versao.storage_path.includes('..')) {
+        throw new Error("Invalid path");
+      }
       const { data: signed, error } = await admin.storage
         .from("pncp-legislation")
         .createSignedUrl(versao.storage_path, 3600);
