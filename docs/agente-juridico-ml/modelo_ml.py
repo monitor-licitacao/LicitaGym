@@ -2,10 +2,12 @@
 Modelo de Machine Learning para Agente Jurídico LicitaGym
 
 Responsável por:
-- Geração de embeddings de textos jurídicos
+- Geração de embeddings de textos jurídicos (SentenceTransformers; TF removido do hot path)
 - Similaridade semântica
-- Classificação de consultas
-- Respostas fundamentadas
+- Classificação de consultas (regras/keywords — não é rede neural)
+- Respostas fundamentadas (templates)
+
+Fases ONNX/TensorRT: ver PLAN.md. Nsight DL Designer = lab, não runtime.
 """
 
 import os
@@ -13,11 +15,15 @@ import numpy as np
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
-import tensorflow as tf
-from transformers import AutoTokenizer, TFAutoModel
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from loguru import logger
+
+from embeddings_backend import (
+    EmbeddingBackend,
+    SentenceTransformerBackend,
+    create_default_backend,
+    DEFAULT_EMBEDDING_MODEL,
+)
 
 
 @dataclass
@@ -31,36 +37,45 @@ class EmbeddingResult:
 class ModeloJuridicoML:
     """Modelo de ML para processamento jurídico"""
     
-    def __init__(self, modelo_nome: str = "neuralmind/bert-base-portuguese-cased"):
+    def __init__(
+        self,
+        modelo_nome: str = DEFAULT_EMBEDDING_MODEL,
+        embedding_backend: Optional[EmbeddingBackend] = None,
+        normalize_embeddings: bool = True,
+    ):
         """
         Inicializar modelo
         
         Args:
-            modelo_nome: Nome do modelo Hugging Face
+            modelo_nome: Nome do modelo SentenceTransformers (hot path)
+            embedding_backend: Backend opcional (ST hoje; ONNX/TRT nas fases 2–3)
+            normalize_embeddings: L2-normalize (manter igual ao índice pgvector)
         """
         self.modelo_nome = modelo_nome
+        self.normalize_embeddings = normalize_embeddings
+        self.embedding_backend: Optional[EmbeddingBackend] = embedding_backend
+        # Compat: campos antigos deixam de carregar TF
         self.tokenizer = None
         self.modelo = None
         self.embedding_model = None
         
-        logger.info(f"Inicializando modelo: {modelo_nome}")
+        logger.info(f"Inicializando ModeloJuridicoML (embeddings={modelo_nome})")
     
     def carregar_modelo(self):
-        """Carregar modelo e tokenizer"""
+        """Carregar backend de embeddings (SentenceTransformers por padrão)."""
         try:
-            # Carregar tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(self.modelo_nome)
-            
-            # Carregar modelo TensorFlow
-            self.modelo = TFAutoModel.from_pretrained(self.modelo_nome)
-            
-            # Carregar modelo de embeddings especializado
-            self.embedding_model = SentenceTransformer(
-                'pierreguillou/bert-base-cased-squad-v1.1-portuguese'
+            if self.embedding_backend is None:
+                self.embedding_backend = create_default_backend(
+                    model_name=self.modelo_nome,
+                    normalize=self.normalize_embeddings,
+                )
+            self.embedding_backend.load()
+            # Expor handle ST se o backend for SentenceTransformerBackend
+            self.embedding_model = getattr(self.embedding_backend, "_model", None)
+            logger.success(
+                f"Backend de embeddings carregado "
+                f"(dim={self.embedding_backend.dimension}, normalize={self.normalize_embeddings})"
             )
-            
-            logger.success("Modelo carregado com sucesso")
-            
         except Exception as e:
             logger.error(f"Erro ao carregar modelo: {e}")
             raise
@@ -75,11 +90,9 @@ class ModeloJuridicoML:
         Returns:
             Vetor de embedding
         """
-        if not self.embedding_model:
+        if self.embedding_backend is None:
             self.carregar_modelo()
-        
-        embedding = self.embedding_model.encode(texto)
-        return embedding
+        return self.embedding_backend.encode([texto])[0]
     
     def gerar_embeddings_lote(self, textos: List[str]) -> np.ndarray:
         """
@@ -91,11 +104,9 @@ class ModeloJuridicoML:
         Returns:
             Matriz de embeddings
         """
-        if not self.embedding_model:
+        if self.embedding_backend is None:
             self.carregar_modelo()
-        
-        embeddings = self.embedding_model.encode(textos)
-        return embeddings
+        return self.embedding_backend.encode(textos)
     
     def calcular_similaridade(self, texto1: str, texto2: str) -> float:
         """
@@ -362,39 +373,52 @@ class BancoVetorialLegislacao:
         threshold: float = 0.7
     ) -> List[Dict]:
         """
-        Buscar documentos por similaridade semântica
-        
-        Args:
-            consulta: Texto da consulta
-            limite: Número máximo de resultados
-            threshold: Limiar mínimo de similaridade
-            
-        Returns:
-            Lista de documentos similares
+        Buscar documentos por similaridade semântica.
+        Preferência: RPC pgvector `match_legislacao_embeddings` no Supabase.
+        Fallback: cosine no cache local (dev / offline).
         """
-        # Gerar embedding da consulta
         embedding_consulta = self.modelo_ml.gerar_embedding(consulta)
-        
+
+        # Produção: busca no Postgres (pgvector)
+        if self.supabase:
+            try:
+                resp = self.supabase.rpc(
+                    'match_legislacao_embeddings',
+                    {
+                        'query_embedding': embedding_consulta.tolist(),
+                        'match_threshold': threshold,
+                        'match_count': limite,
+                    },
+                ).execute()
+                rows = resp.data or []
+                return [
+                    {
+                        'documento_id': r.get('documento_id'),
+                        'similaridade': float(r.get('similaridade', 0)),
+                        'texto': r.get('texto_resumo') or '',
+                        'metadados': r.get('metadados') or {},
+                    }
+                    for r in rows
+                ]
+            except Exception as e:
+                logger.warning(
+                    f"RPC match_legislacao_embeddings falhou; fallback cache local: {e}"
+                )
+
         resultados = []
-        
-        # Buscar no cache local
         for doc_id, dados in self.embeddings_cache.items():
             similaridade = cosine_similarity(
-                [embedding_consulta], 
-                [dados['embedding']]
+                [embedding_consulta],
+                [dados['embedding']],
             )[0][0]
-            
             if similaridade >= threshold:
                 resultados.append({
                     'documento_id': doc_id,
                     'similaridade': float(similaridade),
                     'texto': dados['texto'],
-                    'metadados': dados['metadados']
+                    'metadados': dados['metadados'],
                 })
-        
-        # Ordenar por similaridade
         resultados.sort(key=lambda x: x['similaridade'], reverse=True)
-        
         return resultados[:limite]
     
     def remover_documento(self, doc_id: str):

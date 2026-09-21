@@ -7,6 +7,7 @@ CREATE TABLE icatmat_unidade_fornecimento (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_unidade INTEGER NOT NULL,
   descricao_unidade VARCHAR(200),
@@ -21,11 +22,11 @@ CREATE TABLE icatmat_unidade_fornecimento (
     (codigo_grupo = 78 AND codigo_classe = 7830)
   ),
   CONSTRAINT fk_unidade_item
-    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_item)
-    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
+    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
+    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_unidade UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_unidade),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_unidade_fornecimento_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_unidade_sync ON icatmat_unidade_fornecimento(sync_timestamp);

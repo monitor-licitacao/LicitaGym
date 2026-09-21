@@ -24,7 +24,7 @@ CREATE TABLE icatmat_pdm_material (
     REFERENCES icatmat_classe_material(codigo_grupo, codigo_classe)
     ON DELETE CASCADE,
   CONSTRAINT unique_pdm UNIQUE(codigo_grupo, codigo_classe, codigo_pdm),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_pdm_material_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_pdm_sync ON icatmat_pdm_material(sync_timestamp);

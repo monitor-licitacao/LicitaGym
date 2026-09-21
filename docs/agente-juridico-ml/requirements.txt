@@ -4,8 +4,8 @@
 ## Dependências Principais
 
 ### Core ML & NLP
-tensorflow>=2.15.0
-tensorflow-text>=2.15.0
+# REMOVIDO Fase 0 (não usado no hot path) — tensorflow>=2.15.0
+# REMOVIDO Fase 0 — tensorflow-text>=2.15.0
 transformers==5.13.0
 sentence-transformers==5.6.0
 langchain==0.2.0
@@ -64,3 +64,8 @@ pillow==10.4.0+aikido.12
 websockets==16.1
 tokenizers==0.23.1
 langsmith==0.10.9
+
+### ONNX / TensorRT (Fases 2–3 — instalar quando for a fase)
+# onnx>=1.16.0
+# onnxruntime-gpu>=1.18.0
+# optimum[onnxruntime]>=1.20.0

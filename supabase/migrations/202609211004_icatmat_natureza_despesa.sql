@@ -7,6 +7,7 @@ CREATE TABLE icatmat_natureza_despesa (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_natureza INTEGER NOT NULL,
   descricao_natureza VARCHAR(500),
@@ -20,11 +21,11 @@ CREATE TABLE icatmat_natureza_despesa (
     (codigo_grupo = 78 AND codigo_classe = 7830)
   ),
   CONSTRAINT fk_natureza_item
-    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_item)
-    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
+    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
+    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_natureza UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_natureza),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_natureza_despesa_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_natureza_sync ON icatmat_natureza_despesa(sync_timestamp);

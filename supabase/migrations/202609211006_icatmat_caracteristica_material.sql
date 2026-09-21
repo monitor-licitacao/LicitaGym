@@ -7,6 +7,7 @@ CREATE TABLE icatmat_caracteristica_material (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_caracteristica INTEGER NOT NULL,
   nome_caracteristica VARCHAR(300),
@@ -22,11 +23,11 @@ CREATE TABLE icatmat_caracteristica_material (
     (codigo_grupo = 78 AND codigo_classe = 7830)
   ),
   CONSTRAINT fk_caracteristica_item
-    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_item)
-    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
+    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
+    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_caracteristica UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_caracteristica),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_caracteristica_material_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_caracteristica_sync ON icatmat_caracteristica_material(sync_timestamp);
