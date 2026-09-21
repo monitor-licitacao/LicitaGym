@@ -1,0 +1,455 @@
+{
+  "fonte_documentacao": "https://documenter.getpostman.com/view/13166820/2sA3XJjPpR",
+  "fonte_openapi": "https://dadosabertos.compras.gov.br/v3/api-docs",
+  "swagger_ui": "https://dadosabertos.compras.gov.br/swagger-ui/index.html",
+  "titulo_api": "API Compras.gov.br",
+  "descricao_api": "Compras Públicas em Dados Abertos",
+  "base_url": "https://dadosabertos.compras.gov.br",
+  "total_endpoints": 77,
+  "total_modulos": 11,
+  "modulos": [
+    {
+      "modulo": "08 - ARP",
+      "descricao": "Módulo 08: ARP",
+      "total_endpoints": 8,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/1.1_consultarARP_Id",
+          "operationId": "consultarARP_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/1.2_consultarARP_FimVigencia",
+          "operationId": "consultarARP_FimVigencia",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/1_consultarARP",
+          "operationId": "consultarARP",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/2.1_consultarARPItem_Id",
+          "operationId": "consultarARPItem_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/2_consultarARPItem",
+          "operationId": "consultarARPItem",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/3_consultarUnidadesItem",
+          "operationId": "consultarUnidadesItem",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/4_consultarEmpenhosSaldoItem",
+          "operationId": "consultarEmpenhosItem",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-arp/5_consultarAdesoesItem",
+          "operationId": "consultarAdesoesItem",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "07 - CONTRATAÇÕES",
+      "descricao": "Módulo 07: CONTRATAÇÕES",
+      "total_endpoints": 6,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/1.1_consultarContratacoes_PNCP_14133_Id",
+          "operationId": "consultarContratacoes_PNCP_14133_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/1_consultarContratacoes_PNCP_14133",
+          "operationId": "consultarContratacoes_PNCP_14133",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/2.1_consultarItensContratacoes_PNCP_14133_Id",
+          "operationId": "consultarItensContratacoes_PNCP_14133_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/2_consultarItensContratacoes_PNCP_14133",
+          "operationId": "consultarItensContratacoes_PNCP_14133",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/3.1_consultarResultadoItensContratacoes_PNCP_14133_Id",
+          "operationId": "consultarResultadoItensContratacoes_PNCP_14133_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133",
+          "operationId": "consultarResultadoItensContratacoes_PNCP_14133",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "09 - CONTRATOS",
+      "descricao": "Módulo 09: CONTRATOS",
+      "total_endpoints": 5,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratos/1.1_consultarContratos_Id",
+          "operationId": "consultarContratos_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratos/1.2_consultarContratos_FimVigencia",
+          "operationId": "consultarContratos_FimVigencia",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratos/1_consultarContratos",
+          "operationId": "consultarContratos",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratos/2.1_consultarContratosItem_Id",
+          "operationId": "consultarContratosItem_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-contratos/2_consultarContratosItem",
+          "operationId": "consultarContratosItem",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "10 - FORNECEDOR",
+      "descricao": "Módulo 10: FORNECEDOR",
+      "total_endpoints": 1,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-fornecedor/1_consultarFornecedor",
+          "operationId": "consultarFornecedor",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "97 - INDICADORES",
+      "descricao": "Módulo 97: INDICADORES",
+      "total_endpoints": 2,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-indicadores/1_consultarIndicadoresConsolidados",
+          "operationId": "consultarIndicadoresConsolidados",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-indicadores/2_consultarIndicadoresPorPeriodo",
+          "operationId": "consultarIndicadoresPorPeriodo",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "06 - LEGADO",
+      "descricao": "Módulo 06: LEGADO",
+      "total_endpoints": 13,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/1.1_consultarLicitacao_Id",
+          "operationId": "consultarLicitacao_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/1_consultarLicitacao",
+          "operationId": "consultarLicitacao",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/2.1_consultarItemLicitacao_Id",
+          "operationId": "consultarItemLicitacao_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/2_consultarItemLicitacao",
+          "operationId": "consultarItemLicitacao",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/3.1_consultarPregoes_Id",
+          "operationId": "consultarPregoes_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/3_consultarPregoes",
+          "operationId": "consultarPregoes",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/4.1_consultarItensPregoes_Id",
+          "operationId": "consultarItensPregoes_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/4_consultarItensPregoes",
+          "operationId": "consultarItensPregoes",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/5.1_consultarCompraSemLicitacao_Id",
+          "operationId": "consultarCompraSemLicitacao_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/5_consultarComprasSemLicitacao",
+          "operationId": "consultarComprasSemLicitacao",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/6.1_consultarItensComprasSemLicitacao_Id",
+          "operationId": "consultarItensComprasSemLicitacao_Id",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/6_consultarCompraItensSemLicitacao",
+          "operationId": "consultarCompraItensSemLicitacao",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-legado/7_consultarRdc",
+          "operationId": "consultarRdc",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "01 - CATÁLOGO - MATERIAL",
+      "descricao": "Módulo 01: CATÁLOGO - MATERIAL",
+      "total_endpoints": 7,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/1_consultarGrupoMaterial",
+          "operationId": "consultarGrupoMaterial",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/2_consultarClasseMaterial",
+          "operationId": "consultarClasseMaterial",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/3_consultarPdmMaterial",
+          "operationId": "consultarPdmMaterial",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/4_consultarItemMaterial",
+          "operationId": "consultarItemMaterial",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/5_consultarMaterialNaturezaDespesa",
+          "operationId": "consultarMaterialNaturezaDespesa",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/6_consultarMaterialUnidadeFornecimento",
+          "operationId": "consultarMaterialUnidadeFornecimento",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-material/7_consultarMaterialCaracteristicas",
+          "operationId": "consultarMaterialCaracteristicas",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "11 - OCDS",
+      "descricao": "Módulo 11: OCDS",
+      "total_endpoints": 1,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-ocds/1_releases",
+          "operationId": "releases",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "03 - PESQUISA DE PREÇO",
+      "descricao": "Módulo 03: PESQUISA DE PREÇO",
+      "total_endpoints": 8,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/1.1_consultarMaterial_CSV",
+          "operationId": "consultarMaterialCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/1_consultarMaterial",
+          "operationId": "consultarMaterial",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/2.1_consultarMaterialDetalhe_CSV",
+          "operationId": "consultarMaterialDetalheCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/2_consultarMaterialDetalhe",
+          "operationId": "consultarMaterialDetalhe",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/3.1_consultarServico_CSV",
+          "operationId": "consultarServicoCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/3_consultarServico",
+          "operationId": "consultarServico",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/4.1_consultarServicoDetalhe_CSV",
+          "operationId": "consultarServicoDetalheCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pesquisa-preco/4_consultarServicoDetalhe",
+          "operationId": "consultarServicoDetalhe",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "04 - PGC",
+      "descricao": "Módulo 04: PGC",
+      "total_endpoints": 6,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/1.1_consultarPgcDetalhe_CSV",
+          "operationId": "consultarPgcDetalhe_CSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/1_consultarPgcDetalhe",
+          "operationId": "consultarPgcDetalhe",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/2.1_consultarPgcDetalheCatalogo_CSV",
+          "operationId": "consultarPgcDetalheCatalogo_CSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/2_consultarPgcDetalheCatalogo",
+          "operationId": "consultarPgcDetalheCatalogo",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/3.1_consultarPgcAgregacao_CSV",
+          "operationId": "consultarPgcAgregacao_CSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-pgc/3_consultarPgcAgregacao",
+          "operationId": "consultarPgcAgregacao",
+          "summary": ""
+        }
+      ]
+    },
+    {
+      "modulo": "05 - UASG",
+      "descricao": "Módulo 05: UASG",
+      "total_endpoints": 4,
+      "endpoints": [
+        {
+          "metodo": "GET",
+          "path": "/modulo-uasg/1.1_consultarUasg_CSV",
+          "operationId": "consultarUasgCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-uasg/1_consultarUasg",
+          "operationId": "consultarUasg",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-uasg/2.1_consultarOrgao_CSV",
+          "operationId": "consultarOrgaoCSV",
+          "summary": ""
+        },
+        {
+          "metodo": "GET",
+          "path": "/modulo-uasg/2_consultarOrgao",
+          "operationId": "consultarOrgao",
+          "summary": ""
+        }
+      ]
+    }
+  ]
+}
