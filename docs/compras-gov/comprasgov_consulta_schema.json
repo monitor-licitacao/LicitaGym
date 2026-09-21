@@ -1,0 +1,98 @@
+{
+  "fonte_documentacao": "https://documenter.getpostman.com/view/13166820/2sA3XJjPpR",
+  "fonte_openapi": "https://dadosabertos.compras.gov.br/v3/api-docs",
+  "swagger_ui": "https://dadosabertos.compras.gov.br/swagger-ui/index.html",
+  "titulo_api": "API Compras.gov.br",
+  "descricao_api": "Compras Públicas em Dados Abertos (https://www.gov.br/compras/pt-br/cidadao/compras-publicas-dados-abertos)",
+  "base_url": "https://dadosabertos.compras.gov.br",
+  "gerado_em": "2026-09-20T23:12:32.294596+00:00",
+  "observacoes": [
+    "Endpoints de consulta (GET) fora dos modulos 99-USUARIOS e AUTENTICACAO sao publicos e nao exigem token.",
+    "Modulos 99-USUARIOS e AUTENTICACAO servem para gestao de conta/API key, nao fazem parte da sincronizacao de dados abertos.",
+    "O schema VwKpisGeralDTO (modulo 97-INDICADORES) trouxe na especificacao original um campo cuja chave e um literal de data ('2026-04-26') em vez de um nome semantico -- provavel artefato de geracao automatica do OpenAPI; omitido aqui, mas vale checar a resposta real do endpoint 1_consultarIndicadoresConsolidados antes de mapear esse schema 1:1.",
+    "Parametros de data (tipo string) seguem o padrao YYYY-MM-DD na maioria dos endpoints (ex.: dataCompraInicio/Fim, data_publicacao_min/max, releaseStartDate/EndDate); os que terminam em 'Min'/'Max', 'Inicial'/'Final' ou 'Inicio'/'Fim' quase sempre formam um par obrigatorio de intervalo.",
+    "modulo-ocds/1_releases (11-OCDS): o parametro buyerID espera o CNPJ do orgao no formato BR-CNPJ (ex.: 'BR-CNPJ' + numero) -- formato do padrao OCDS, nao um CNPJ puro.",
+    "modulo-pgc/2_consultarPgcDetalheCatalogo (04-PGC): o parametro 'codigo' recebe codigo de classe (materiais) ou codigo de grupo (servicos), dependendo do valor de 'tipo'.",
+    "Endpoints do modulo 98-ALICE usam metodo GET mas parametros do tipo array (tickets, chavesCompra) -- na pratica normalmente enviados via corpo/array serializado; confirmar contrato exato direto no Swagger UI antes de implementar, pois OpenAPI 3.1 permite array em query string mas a forma de serializacao (repeticao vs CSV) nao fica explicita so pelo schema."
+  ],
+  "padrao_paginacao": {
+    "descricao": "A maioria dos endpoints de consulta (GET) retorna um envelope paginado padrao.",
+    "campos_envelope": {
+      "resultado": "array de objetos (o dado em si)",
+      "totalRegistros": "integer(int64)",
+      "totalPaginas": "integer(int64)",
+      "paginasRestantes": "integer(int64)"
+    },
+    "parametros_comuns": {
+      "pagina": "integer, default 1",
+      "tamanhoPagina": "integer, max 500 (nem todo endpoint aceita este parametro -- varia por endpoint)"
+    },
+    "estrategia_sync_recomendada": "Paginar incrementando 'pagina' ate paginasRestantes=0. Para series historicas grandes (06-LEGADO, 07-CONTRATACOES, 08-ARP, 09-CONTRATOS) sempre usar os filtros de intervalo de data obrigatorios (ex.: dataVigenciaInicialMin/Max, dataResultadoPncpInicial/Final, data_publicacao_min/max) em janelas mensais ou semanais, para evitar timeout e paginas excessivas. Usar as variantes '_CSV' quando disponiveis para exportacao em lote (mesmos parametros, resposta em CSV em vez do envelope JSON). Usar as variantes '_Id' para poll incremental de um registro especifico via os campos de data de atualizacao (dt_alteracao / dataAtualizacao / dataAtualizacaoPncp), evitando reprocessar a base inteira a cada sincronizacao."
+  },
+  "total_endpoints": 77,
+  "total_modulos": 15,
+  "modulos": [
+    {
+      "modulo": "01 - CATÁLOGO - MATERIAL",
+      "descricao": "Catálogo de Materiais (CATMAT): Consulta itens de materiais com dados detalhados.",
+      "total_endpoints": 7,
+      "endpoints": [
+        {"metodo": "GET", "path": "/modulo-material/7_consultarMaterialCaracteristicas", "operationId": "consultarMaterialCaracteristicas", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/6_consultarMaterialUnidadeFornecimento", "operationId": "consultarMaterialUnidadeFornecimento", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/5_consultarMaterialNaturezaDespesa", "operationId": "consultarMaterialNaturezaDespesa", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/4_consultarItemMaterial", "operationId": "consultarItemMaterial", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/3_consultarPdmMaterial", "operationId": "consultarPdmMaterial", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/2_consultarClasseMaterial", "operationId": "consultarClasseMaterial", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-material/1_consultarGrupoMaterial", "operationId": "consultarGrupoMaterial", "variante_csv": false}
+      ]
+    },
+    {
+      "modulo": "02 - CATÁLOGO - SERVIÇO",
+      "descricao": "Catálogo de Serviços (CATSER): Consulta serviços com informações detalhadas.",
+      "total_endpoints": 8,
+      "endpoints": [
+        {"metodo": "GET", "path": "/modulo-servico/8_consultarNaturezaDespesaServico", "operationId": "consultarNaturezaDespesaServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/7_consultarUndMedidaServico", "operationId": "consultarUndMedidaServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/6_consultarItemServico", "operationId": "consultarItemServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/5_consultarSubClasseServico", "operationId": "consultarSubClasseServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/4_consultarClasseServico", "operationId": "consultarClasseServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/3_consultarGrupoServico", "operationId": "consultarGrupoServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/2_consultarDivisaoServico", "operationId": "consultarDivisaoServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-servico/1_consultarSecaoServico", "operationId": "consultarSecaoServico", "variante_csv": false}
+      ]
+    },
+    {
+      "modulo": "03 - PESQUISA DE PREÇO - PREÇOS PRATICADOS",
+      "descricao": "Consulta preços praticados nas compras públicas por códigos de itens do CATMAT e CATSER.",
+      "total_endpoints": 8,
+      "endpoints": [
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/4_consultarServicoDetalhe", "operationId": "consultarServicoDetalhe", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/4.1_consultarServicoDetalhe_CSV", "operationId": "consultarServicoDetalheCSV", "variante_csv": true},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/3_consultarServico", "operationId": "consultarServico", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/3.1_consultarServico_CSV", "operationId": "consultarServicoCSV", "variante_csv": true},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/2_consultarMaterialDetalhe", "operationId": "consultarMaterialDetalhe", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/2.1_consultarMaterialDetalhe_CSV", "operationId": "consultarMaterialDetalheCSV", "variante_csv": true},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/1_consultarMaterial", "operationId": "consultarMaterial", "variante_csv": false},
+        {"metodo": "GET", "path": "/modulo-pesquisa-preco/1.1_consultarMaterial_CSV", "operationId": "consultarMaterialCSV", "variante_csv": true}
+      ]
+    },
+    {"modulo": "04 - PGC", "descricao": "Consulta Planejamento e Gerenciamento de Contratações", "total_endpoints": 6},
+    {"modulo": "05 - UASG", "descricao": "Consulta Unidades Administrativas de Serviços Gerais", "total_endpoints": 4},
+    {"modulo": "06 - LEGADO", "descricao": "Consulta licitações sob Lei 8.666/1993", "total_endpoints": 13},
+    {"modulo": "07 - CONTRATAÇÕES", "descricao": "Consulta contratações sob Lei 14.133/2021", "total_endpoints": 6},
+    {"modulo": "08 - ARP", "descricao": "Consulta Atas de Registro de Preços", "total_endpoints": 7},
+    {"modulo": "09 - CONTRATOS", "descricao": "Consulta contratos e itens", "total_endpoints": 5},
+    {"modulo": "10 - FORNECEDOR", "descricao": "Consulta fornecedores registrados", "total_endpoints": 1},
+    {"modulo": "11 - OCDS", "descricao": "Consulta contratações no formato OCDS", "total_endpoints": 1},
+    {"modulo": "97 - INDICADORES", "descricao": "Endpoints de indicadores de uso e desempenho", "total_endpoints": 2},
+    {"modulo": "98 - ALICE", "descricao": "Integração Analisador de Licitações, Contratos e Editais", "total_endpoints": 3},
+    {"modulo": "99 - USUARIOS", "descricao": "Gestão de usuários (fora de escopo de consulta pública)", "total_endpoints": 4},
+    {"modulo": "AUTENTICACAO", "descricao": "Autenticação de usuários (fora de escopo de consulta pública)", "total_endpoints": 1}
+  ],
+  "resumo_coleta": {
+    "endpoints_publicos_consulta": 59,
+    "endpoints_operacao_restrita": 8,
+    "endpoints_csv_export": 8,
+    "estrategia": "Priorizar módulos 01-11 (públicos). Módulos 99 e AUTENTICACAO são administrativos e não fazem parte da sincronização de dados abertos."
+  }
+}
