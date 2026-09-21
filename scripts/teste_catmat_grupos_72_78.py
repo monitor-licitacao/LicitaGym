@@ -68,7 +68,7 @@ def test_catmat():
     # 2. Fetch classes por grupo (filtrando apenas classes específicas)
     logger.info("Carregando classes...")
     classes_dict = {}
-    classe_filter = {72: 7210, 78: 7810}  # Grupo -> Classe específica
+    classe_filter = {72: 7210, 78: 7830}  # Grupo -> Classe específica
     for grupo_id in GRUPOS:
         classes = fetch("/modulo-material/2_consultarClasseMaterial",
                         {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
@@ -78,26 +78,25 @@ def test_catmat():
                 classes_dict[key] = c
     logger.info(f"  {len(classes_dict)} classes encontradas")
 
-    # 3. Fetch PDMs por grupo (filtrando pela classe específica)
+    # 3. Fetch PDMs por grupo e classe específica
     logger.info("Carregando PDMs...")
     pdms_dict = {}
     for grupo_id in GRUPOS:
         pdms = fetch("/modulo-material/3_consultarPdmMaterial",
-                     {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
+                     {"codigoGrupo": grupo_id, "codigoClasse": classe_filter[grupo_id],
+                      "pagina": 1, "tamanhoPagina": 500})
         for p in pdms:
-            if p["codigoClasse"] == classe_filter[grupo_id]:
-                pdms_dict[p["codigoPdm"]] = p
+            pdms_dict[p["codigoPdm"]] = p
     logger.info(f"  {len(pdms_dict)} PDMs encontrados")
 
-    # 4. Fetch items por grupo (filtrando pela classe específica)
+    # 4. Fetch items por grupo e classe específica
     logger.info("Carregando itens...")
     items = []
     for grupo_id in GRUPOS:
         grupo_items = fetch("/modulo-material/4_consultarItemMaterial",
-                            {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
-        for item in grupo_items:
-            if item.get("codigoClasse") == classe_filter[grupo_id]:
-                items.append(item)
+                            {"codigoGrupo": grupo_id, "codigoClasse": classe_filter[grupo_id],
+                             "pagina": 1, "tamanhoPagina": 500})
+        items.extend(grupo_items)
     logger.info(f"  {len(items)} itens encontrados")
 
     if not items:
@@ -138,7 +137,7 @@ def test_catmat():
     logger.info("\nConsolidando registros unificados...")
     consolidated = []
 
-    for item in items[:10]:  # Teste com primeiros 10 itens
+    for item in items[:1001]:  # Consolidar ambos grupos (G72: 500, G78: 500+)
         grupo_id = item["codigoGrupo"]
         classe_id = item["codigoClasse"]
         pdm_id = item["codigoPdm"]
