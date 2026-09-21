@@ -28,6 +28,20 @@ Isso é especialmente importante para:
 - UASG;
 - número da compra;
 - datas;
+
+## Regra de Ouro: Consultar Schemas Antes de Requisições
+
+**Antes de fazer qualquer requisição HTTP a APIs (PNCP, Compras.gov)**:
+
+1. Ler `/docs/pncp/schemas-consultas-pncp.md` (PNCP)
+2. Ler `/docs/compras-gov/schemas-consultas.md` (Compras.gov)
+3. Validar:
+   - Parâmetros obrigatórios vs opcionais
+   - Limites de `tamanhoPagina` (variam: 50 máx pra contratações, 500 pra outros)
+   - Nomes de parâmetros (`dataInical` vs `dataInicio`, etc.)
+   - Valores enumerados (ex: `codigoModalidadeContratacao`)
+
+**Razão:** Evita 400/404 errors e trial-and-error desnecessário.
 - BDI;
 - impostos;
 - cálculos de propostas;
