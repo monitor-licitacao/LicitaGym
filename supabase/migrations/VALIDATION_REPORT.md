@@ -51,6 +51,11 @@ Each migration was validated against:
 - RLS is enabled but no policies are set yet (default: deny all for non-admin roles)
 - Indices are minimal (only sync_timestamp) due to golden rule cardinality limits
 
+## Fixes Applied During Testing
+
+1. **REVOKEs de função inexistente** — Comentados REVOKEs de `rls_auto_enable()` em migration 20260919233512 (função nunca foi criada)
+2. **Constraint names duplicados** — Renomeados `unique_payload_hash` para `icatmat_[table]_payload_hash_key` em E1-E7 (cada constraint deve ter nome único no schema)
+
 ---
 
-*Validation performed by static analysis on 2026-09-21. Full migrations ready for local testing.*
+*Validation performed by static analysis on 2026-09-21. Local database testing in progress.*
