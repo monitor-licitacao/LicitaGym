@@ -25,7 +25,7 @@ CREATE TABLE icatmat_unidade_fornecimento (
     REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_unidade UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_unidade),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_unidade_fornecimento_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_unidade_sync ON icatmat_unidade_fornecimento(sync_timestamp);

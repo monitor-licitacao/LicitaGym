@@ -13,7 +13,7 @@ CREATE TABLE icatmat_grupo_material (
 
   CONSTRAINT check_grupos CHECK (codigo_grupo IN (72, 78)),
   CONSTRAINT unique_grupo UNIQUE(codigo_grupo),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_grupo_material_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_grupo_sync ON icatmat_grupo_material(sync_timestamp);

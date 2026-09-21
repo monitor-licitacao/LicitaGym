@@ -24,7 +24,7 @@ CREATE TABLE icatmat_natureza_despesa (
     REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_natureza UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_natureza),
-  CONSTRAINT unique_payload_hash UNIQUE(payload_hash)
+  CONSTRAINT icatmat_natureza_despesa_payload_hash_key UNIQUE(payload_hash)
 );
 
 CREATE INDEX idx_icatmat_natureza_sync ON icatmat_natureza_despesa(sync_timestamp);
