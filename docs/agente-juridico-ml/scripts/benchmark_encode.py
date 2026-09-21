@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""
-Baseline de latência de embeddings (Fase 0).
-
-Uso:
-  cd docs/agente-juridico-ml
-  python scripts/benchmark_encode.py
-  LICITAGYM_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 \\
-    python scripts/benchmark_encode.py --runs 20 --batch 8
-
-A 1ª execução baixa pesos do Hugging Face (pode demorar).
-Não exige GPU; reporta device se torch estiver disponível.
-"""
-
+"""Baseline de latencia de embeddings (Fase 0/2)."""
 from __future__ import annotations
 
 import argparse
@@ -26,18 +14,19 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from modelo_ml import ModeloJuridicoML  # noqa: E402
+from embeddings_backend import create_default_backend  # noqa: E402
 
 
 SAMPLES = [
-    "Quais os requisitos para dispensa de licitação?",
+    "Quais os requisitos para dispensa de licitacao?",
     "Lei 14.133 de 2021 artigo 75 compra direta",
-    "Normas técnicas ABNT para equipamentos de academia",
-    "Impugnação ao edital de pregão eletrônico",
-    "Habilitação jurídica e técnica do licitante",
+    "Normas tecnicas ABNT para equipamentos de academia",
+    "Impugnacao ao edital de pregao eletronico",
+    "Habilitacao juridica e tecnica do licitante",
 ]
 
 
-def percentile(sorted_vals: list[float], p: float) -> float:
+def percentile(sorted_vals, p: float) -> float:
     if not sorted_vals:
         return float("nan")
     k = (len(sorted_vals) - 1) * (p / 100.0)
@@ -49,33 +38,41 @@ def percentile(sorted_vals: list[float], p: float) -> float:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Benchmark encode embeddings LicitaGym")
-    parser.add_argument("--runs", type=int, default=10, help="Medições após warmup")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--runs", type=int, default=10)
     parser.add_argument("--warmup", type=int, default=2)
-    parser.add_argument("--batch", type=int, default=1, help="Tamanho do lote")
-    parser.add_argument(
-        "--model",
-        default=os.getenv("LICITAGYM_EMBEDDING_MODEL"),
-        help="Override do modelo ST",
-    )
+    parser.add_argument("--batch", type=int, default=1)
+    parser.add_argument("--model", default=os.getenv("LICITAGYM_EMBEDDING_MODEL"))
+    parser.add_argument("--backend", default=os.getenv("LICITAGYM_EMBEDDING_BACKEND", "torch"), choices=["torch", "onnx", "trt"])
+    parser.add_argument("--onnx-dir", default=os.getenv("LICITAGYM_ONNX_DIR"))
     args = parser.parse_args()
 
     model_name = args.model or "pierreguillou/bert-base-cased-squad-v1.1-portuguese"
     texts = (SAMPLES * ((args.batch // len(SAMPLES)) + 1))[: args.batch]
 
+    if args.onnx_dir:
+        os.environ["LICITAGYM_ONNX_DIR"] = args.onnx_dir
+
     print(f"model={model_name}")
+    print(f"backend={args.backend}")
     print(f"batch={args.batch} warmup={args.warmup} runs={args.runs}")
 
     try:
         import torch
-
         print(f"torch={torch.__version__} cuda={torch.cuda.is_available()}")
         if torch.cuda.is_available():
             print(f"gpu={torch.cuda.get_device_name(0)}")
     except Exception as e:
-        print(f"torch: indisponível ({e})")
+        print(f"torch: indisponivel ({e})")
 
-    modelo = ModeloJuridicoML(modelo_nome=model_name)
+    try:
+        import onnxruntime as ort
+        print(f"ort_providers={ort.get_available_providers()}")
+    except Exception:
+        pass
+
+    backend = create_default_backend(model_name=model_name, backend=args.backend)
+    modelo = ModeloJuridicoML(modelo_nome=model_name, embedding_backend=backend)
     t0 = time.perf_counter()
     modelo.carregar_modelo()
     print(f"load_s={(time.perf_counter() - t0):.3f}")
@@ -85,7 +82,7 @@ def main() -> int:
     for _ in range(args.warmup):
         modelo.gerar_embeddings_lote(texts)
 
-    times_ms: list[float] = []
+    times_ms = []
     for _ in range(args.runs):
         t1 = time.perf_counter()
         modelo.gerar_embeddings_lote(texts)
@@ -101,3 +98,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

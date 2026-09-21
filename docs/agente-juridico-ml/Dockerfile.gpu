@@ -1,0 +1,29 @@
+# Agente Juridico ML ? GPU (CUDA 12 + ORT TensorRT)
+# Alinhado ao venv Windows: ST 5.6 + transformers 4.57 + ORT-GPU 1.22 + optimum
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    LICITAGYM_EMBEDDING_BACKEND=trt \
+    LICITAGYM_ONNX_DIR=/app/models/onnx \
+    LICITAGYM_TRT_CACHE=/app/models/trt_cache
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.docker.txt /app/requirements.docker.txt
+RUN python3 -m pip install --no-cache-dir -U pip \
+ && python3 -m pip install --no-cache-dir \
+    onnxruntime-gpu==1.22.0 \
+    tensorrt-cu12==10.9.0.34 \
+    nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-nvrtc-cu12 \
+ && python3 -m pip install --no-cache-dir -r requirements.docker.txt \
+ && python3 -m pip uninstall -y onnxruntime || true \
+ && python3 -m pip install --no-cache-dir --force-reinstall onnxruntime-gpu==1.22.0
+
+COPY . /app
+EXPOSE 8000
+CMD ["python3", "-m", "uvicorn", "agente:app", "--host", "0.0.0.0", "--port", "8000"]

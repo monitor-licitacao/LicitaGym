@@ -1,0 +1,12 @@
+{
+  "endpoint": "6_consultarMaterialUnidadeFornecimento",
+  "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+  "data": {
+    "grupo_72": [],
+    "grupo_78": []
+  },
+  "resumo": {
+    "total_grupo_72": 0,
+    "total_grupo_78": 0
+  }
+}

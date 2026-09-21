@@ -1,0 +1,744 @@
+{
+  "endpoint": "3_consultarPdmMaterial",
+  "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+  "data": {
+    "grupo_72": [
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 755,
+        "nomePdm": "TAPETE BANHEIRO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-10-18T03:00:00.241524"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 746,
+        "nomePdm": "CARPETE",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2022-12-14T03:00:00.543224"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 10782,
+        "nomePdm": "PISO EM RESINA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 12550,
+        "nomePdm": "TAPETE DE BORRACHA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 17205,
+        "nomePdm": "REVESTIMENTOS PARA PISOS",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 18253,
+        "nomePdm": "PROLONGADOR ESTRADO MODULAR",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 18481,
+        "nomePdm": "GRAMA SINTÉTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 1487,
+        "nomePdm": "TAPETE PELE",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 4458,
+        "nomePdm": "CAPACHO METALICO",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 8869,
+        "nomePdm": "LINOLEO",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 11734,
+        "nomePdm": "REVESTIMENTO / PISO - EPOXI",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 11735,
+        "nomePdm": "REVESTIMENTO / PISO - VINIL",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 11736,
+        "nomePdm": "REVESTIMENTO ALUMINIO",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 14647,
+        "nomePdm": "ESTRADO MODULAR",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 16135,
+        "nomePdm": "FITA PARA ACABAMENTO EM PISOS/CARPETES",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 757,
+        "nomePdm": "REVESTIMENTO PISO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-12-19T03:00:00.529503"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 789,
+        "nomePdm": "PASSADEIRA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-03-13T03:00:00.336862"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 745,
+        "nomePdm": "CAPACHO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-09-11T03:00:00.386267"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 758,
+        "nomePdm": "TAPETE",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-08-28T03:00:00.405829"
+      },
+      {
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "codigoClasse": 7220,
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "codigoPdm": 10779,
+        "nomePdm": "PISO SINTÉTICO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-08-20T03:00:00.587006"
+      }
+    ],
+    "grupo_78": [
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 2649,
+        "nomePdm": "APARELHO APOLO DE GINÁSTICA / COMPONENTES",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 2638,
+        "nomePdm": "APARELHO / ACESSÓRIO - ACONDICIONAMENTO FÍSICO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2022-11-10T03:00:00.316018"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 2746,
+        "nomePdm": "APARELHO DE TREINAMENTO FISICO",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 2976,
+        "nomePdm": "ARCO DE GINÁSTICA RÍTMICA ( BAMBOLÊ )",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2022-10-12T03:00:00.511012"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 3431,
+        "nomePdm": "BASTÃO GINÁSTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-10-28T03:00:00.376645"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 3869,
+        "nomePdm": "BRINQUEDO INFLAVEL",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 4308,
+        "nomePdm": "CAMA ELÁSTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6812,
+        "nomePdm": "EQUIPAMENTO PARA CAMPO DE RECREACAO",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6827,
+        "nomePdm": "EQUIPAMENTO PARA GINASIO DE EDUCACAO FISICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6886,
+        "nomePdm": "ESCADA HORIZONTAL DE GINASTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6929,
+        "nomePdm": "ESCORREGADEIRA - BRINQUEDO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6930,
+        "nomePdm": "ESCORREGADOR - FIBRA DE VIDRO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 5341,
+        "nomePdm": "COLCHONETE GINÁSTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-10-21T03:00:00.376926"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 5349,
+        "nomePdm": "COLETE PISCINA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2022-09-30T03:00:00.837661"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7921,
+        "nomePdm": "GANGORRA - BRINQUEDO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 8167,
+        "nomePdm": "HALTERE - USO PISCINA",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 10462,
+        "nomePdm": "PARQUE INFANTIL",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 10897,
+        "nomePdm": "PLATAFORMA PARA GINÁSTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 11131,
+        "nomePdm": "PRANCHA PARA ABDOMINAL",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15172,
+        "nomePdm": "FITA GINÁSTICA RÍTMICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 17574,
+        "nomePdm": "APARELHO GINÁSTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 17733,
+        "nomePdm": "ROLO ESPUMA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 18453,
+        "nomePdm": "SACO PANCADA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 9634,
+        "nomePdm": "MESA TÊNIS DE MESA / FUTMESA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2022-07-08T03:00:00.348016"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 1199,
+        "nomePdm": "APITO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 5028,
+        "nomePdm": "CINTO ESCALADA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7100,
+        "nomePdm": "ESTANTE MATERIAL ESPORTIVO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7111,
+        "nomePdm": "ESTEIRA DE PRAIA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7113,
+        "nomePdm": "ESTEIRA ERGONOMICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7115,
+        "nomePdm": "ESTEIRA ELÉTRICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7116,
+        "nomePdm": "ESTEIRA ROLANTE NAO ELETRICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 7253,
+        "nomePdm": "EXTENSOR DE BRACO PARA GINASTICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 9629,
+        "nomePdm": "MESA DE PEBOLIM",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 9632,
+        "nomePdm": "MESA DE SINUCA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 9653,
+        "nomePdm": "MESA PARA SINUCA",
+        "statusPdm": false,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15243,
+        "nomePdm": "ESTILETE GRD",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15285,
+        "nomePdm": "MAÇA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15677,
+        "nomePdm": "RAIA ANTIMAROLA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15679,
+        "nomePdm": "CATRACA RAIA ANTIMAROLA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15681,
+        "nomePdm": "GANCHO RAIA ANTIMAROLA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 15625,
+        "nomePdm": "FITA MARCAÇÃO ESPORTIVA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-05-31T02:59:59.897015"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 16229,
+        "nomePdm": "BANCO SUECO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2021-10-16T09:21:41.961529"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 11132,
+        "nomePdm": "PRANCHA NATAÇÃO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-11-01T03:00:00.418997"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 5026,
+        "nomePdm": "CINTO ELÁSTICO - USO NATAÇÃO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-11-03T03:00:00.263104"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 6820,
+        "nomePdm": "EQUIPAMENTO PARA DIVERSÃO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2023-12-22T03:00:00.236253"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 3522,
+        "nomePdm": "BICICLETA ERGOMÉTRICA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-01-27T03:00:00.260012"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 1386,
+        "nomePdm": "PLATAFORMA FUNDO PISCINA",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-02-20T03:00:00.370254"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 3233,
+        "nomePdm": "BALANÇO INFANTIL",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-03-13T03:00:00.341854"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 8166,
+        "nomePdm": "HALTERE",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-03-19T03:00:00.448948"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 1400,
+        "nomePdm": "CORDA DE PULAR",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-06-19T02:59:59.363287"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 11503,
+        "nomePdm": "REDE ESPORTE",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-06-19T02:59:59.412478"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 2640,
+        "nomePdm": "APARELHO / EQUIPAMENTO PARA CONDICIONAMENTO FÍSICO",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-08-02T03:00:00.212726"
+      },
+      {
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "codigoClasse": 7830,
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "codigoPdm": 18452,
+        "nomePdm": "TATAME",
+        "statusPdm": true,
+        "dataHoraAtualizacao": "2024-09-25T02:59:59.9226"
+      }
+    ]
+  },
+  "resumo": {
+    "total_grupo_72": 20,
+    "total_grupo_78": 53
+  }
+}

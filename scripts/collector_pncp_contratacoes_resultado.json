@@ -1,0 +1,10 @@
+{
+  "endpoint": "/contratacoes/publicacao",
+  "golden_rule": "items G72/G78 fitness",
+  "resumo": {
+    "total_contratacoes_processadas": 0,
+    "precos_encontrados": 0,
+    "fornecedores_unicos": 0
+  },
+  "dados": []
+}

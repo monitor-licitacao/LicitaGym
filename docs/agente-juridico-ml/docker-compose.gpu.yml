@@ -1,0 +1,19 @@
+services:
+  agente-juridico-ml:
+    image: agente-juridico-ml:gpu
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    ports:
+      - "8000:8000"
+    environment:
+      LICITAGYM_EMBEDDING_BACKEND: trt
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+    volumes:
+      - ./models/onnx:/app/models/onnx:ro
+      - trt_cache:/app/models/trt_cache
+    gpus: all
+
+volumes:
+  trt_cache:

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agente Jurídico LicitaGym</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --panel2: #232d3a;
+      --border: #2f3b4a;
+      --text: #e8eef4;
+      --muted: #9aabbc;
+      --accent: #3d9cf0;
+      --accent2: #2a7fd4;
+      --user: #1e3a5f;
+      --bot: #243041;
+      --ok: #3ecf8e;
+      --warn: #f0b429;
+      --danger: #f07178;
+      --radius: 14px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a3350 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #163028 0%, transparent 50%),
+        var(--bg);
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px 16px;
+      gap: 12px;
+    }
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 650;
+      letter-spacing: 0.01em;
+    }
+    .sub {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 3px rgba(240,180,41,.15);
+    }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(62,207,142,.15); }
+    .dot.bad { background: var(--danger); box-shadow: 0 0 0 3px rgba(240,113,120,.15); }
+    .chat {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 420px;
+      max-height: calc(100vh - 210px);
+    }
+    .msg {
+      max-width: 85%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.45;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--user);
+      border: 1px solid #2a4d7a;
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: var(--bot);
+      border: 1px solid var(--border);
+    }
+    .msg.meta {
+      align-self: center;
+      max-width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 4px 0;
+    }
+    .msg h3 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .msg ul { margin: 6px 0 0; padding-left: 1.1rem; }
+    .msg li { margin: 4px 0; }
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+    textarea {
+      resize: none;
+      border: none;
+      outline: none;
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font: inherit;
+      min-height: 52px;
+      max-height: 140px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      padding: 0 18px;
+      cursor: pointer;
+      min-width: 96px;
+    }
+    button:hover { background: var(--accent2); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hint {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .hint:hover { color: var(--text); border-color: var(--accent); }
+    .footer {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Agente Jurídico LicitaGym</h1>
+        <p class="sub">Consulta sobre legislação de licitações (Lei 14.133 e normas PNCP)</p>
+      </div>
+      <div class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">verificando…</span></div>
+    </header>
+
+    <div class="hints" id="hints">
+      <button type="button" class="hint" data-q="Quais os requisitos para dispensa de licitação?">Dispensa de licitação</button>
+      <button type="button" class="hint" data-q="O que é pregão eletrônico na Lei 14.133?">Pregão eletrônico</button>
+      <button type="button" class="hint" data-q="Quais documentos de habilitação jurídica?">Habilitação jurídica</button>
+    </div>
+
+    <div class="chat" id="chat" aria-live="polite">
+      <div class="msg bot">Olá. Pergunte em linguagem natural sobre licitações e contratos administrativos. As respostas usam a legislação cadastrada nesta base.</div>
+    </div>
+
+    <form class="composer" id="form">
+      <textarea id="input" rows="2" placeholder="Digite sua pergunta jurídica…" required></textarea>
+      <button type="submit" id="send">Enviar</button>
+    </form>
+    <div class="footer">
+      API: <a href="/docs" target="_blank">/docs</a> ·
+      <a href="/health" target="_blank">/health</a> ·
+      <a href="/legislacao" target="_blank">/legislacao</a>
+    </div>
+  </div>
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+    const statusText = document.getElementById("statusText");
+    const dot = document.getElementById("dot");
+
+    function addMsg(role, htmlOrText, isHtml = false) {
+      const el = document.createElement("div");
+      el.className = "msg " + role;
+      if (isHtml) el.innerHTML = htmlOrText;
+      else el.textContent = htmlOrText;
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+      return el;
+    }
+
+    function formatResposta(dados) {
+      if (!dados || typeof dados !== "object") {
+        return escapeHtml(String(dados ?? "Sem resposta."));
+      }
+      const parts = [];
+      if (dados.classificacao && dados.classificacao.tipo) {
+        parts.push("<h3>Tipo</h3><div>" + escapeHtml(dados.classificacao.tipo) + "</div>");
+      }
+      if (dados.resposta) {
+        parts.push("<h3>Resposta</h3><div>" + escapeHtml(String(dados.resposta)) + "</div>");
+      } else if (dados.texto) {
+        parts.push("<h3>Resposta</h3><div>" + escapeHtml(String(dados.texto)) + "</div>");
+      }
+      const fund = dados.fundamentacao || dados.fontes || dados.referencias;
+      if (Array.isArray(fund) && fund.length) {
+        parts.push("<h3>Fundamentação</h3><ul>" + fund.map(f => "<li>" + escapeHtml(typeof f === "string" ? f : JSON.stringify(f)) + "</li>").join("") + "</ul>");
+      }
+      const recs = dados.recomendacoes;
+      if (Array.isArray(recs) && recs.length) {
+        parts.push("<h3>Recomendações</h3><ul>" + recs.map(r => "<li>" + escapeHtml(String(r)) + "</li>").join("") + "</ul>");
+      }
+      const docs = dados.documentos_citados || dados.documentos || dados.resultados || dados.legislacao;
+      if (Array.isArray(docs) && docs.length) {
+        parts.push("<h3>Documentos</h3><ul>" + docs.slice(0, 8).map(d => {
+          const titulo = d.titulo || d.metadados?.titulo || "";
+          const tipo = d.tipo || d.metadados?.tipo || "";
+          const numero = d.numero || d.metadados?.numero || "";
+          const ano = d.ano != null ? d.ano : (d.metadados?.ano ?? "");
+          const art = d.artigo || d.metadados?.artigo || "";
+          let label = titulo || (tipo && numero ? (tipo + " nº " + numero + (ano !== "" ? "/" + ano : "")) : "") || d.texto || JSON.stringify(d);
+          if (art) label = String(label).replace(/\s*—\s*$/, "") + " — " + art;
+          const s = d.similaridade != null ? " (" + Number(d.similaridade).toFixed(2) + ")" : "";
+          return "<li>" + escapeHtml(String(label).slice(0, 240)) + escapeHtml(s) + "</li>";
+        }).join("") + "</ul>");
+      }
+      if (!parts.length) {
+        parts.push("<pre style='margin:0;white-space:pre-wrap;font-size:0.82rem'>" + escapeHtml(JSON.stringify(dados, null, 2)) + "</pre>");
+      }
+      return parts.join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    async function checkReady() {
+      try {
+        const r = await fetch("/ready");
+        if (!r.ok) throw new Error("not ready");
+        const j = await r.json();
+        dot.className = "dot ok";
+        statusText.textContent = (j.provider || "ready") + (j.dim ? " · dim " + j.dim : "");
+      } catch {
+        try {
+          const h = await fetch("/health");
+          const j = await h.json();
+          if (j.ready) {
+            dot.className = "dot ok";
+            statusText.textContent = j.provider || "ok";
+          } else {
+            dot.className = "dot";
+            statusText.textContent = "aquecendo modelo…";
+          }
+        } catch {
+          dot.className = "dot bad";
+          statusText.textContent = "API offline";
+        }
+      }
+    }
+
+    async function consultar(pergunta) {
+      addMsg("user", pergunta);
+      const thinking = addMsg("meta", "Consultando…");
+      send.disabled = true;
+      try {
+        const r = await fetch("/consultar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pergunta, usar_embeddings: true }),
+        });
+        const j = await r.json().catch(() => ({}));
+        thinking.remove();
+        if (!r.ok) {
+          addMsg("bot", "Erro " + r.status + ": " + (j.detail || JSON.stringify(j)));
+          return;
+        }
+        const dados = j.dados != null ? j.dados : j;
+        addMsg("bot", formatResposta(dados), true);
+      } catch (e) {
+        thinking.remove();
+        addMsg("bot", "Falha de rede: " + e.message);
+      } finally {
+        send.disabled = false;
+        input.focus();
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      input.value = "";
+      consultar(q);
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    document.getElementById("hints").addEventListener("click", (e) => {
+      const btn = e.target.closest(".hint");
+      if (!btn) return;
+      consultar(btn.dataset.q);
+    });
+
+    checkReady();
+    setInterval(checkReady, 15000);
+  </script>
+</body>
+</html>
+

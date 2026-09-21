@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS legislacao_embeddings (
 );
 
 -- Índice para busca por similaridade
-CREATE INDEX IF NOT EXISTS idx_legislacao_embedding ON legislacao_embeddings USING ivfflat (embedding vector_cosine_ops);
+-- HNSW (preferível a IVFFlat para corpus pequeno/médio e recall estável)
+CREATE INDEX IF NOT EXISTS idx_legislacao_embedding_hnsw
+    ON legislacao_embeddings USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
 
 -- Tabela de histórico de consultas
 CREATE TABLE IF NOT EXISTS consultas_log (
@@ -126,3 +129,4 @@ $$;
 
 GRANT EXECUTE ON FUNCTION match_legislacao_embeddings(vector, float, int) TO service_role;
 GRANT EXECUTE ON FUNCTION match_legislacao_embeddings(vector, float, int) TO authenticated;
+

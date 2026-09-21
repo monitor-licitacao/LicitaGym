@@ -18,7 +18,7 @@ from enum import Enum
 
 import requests
 from bs4 import BeautifulSoup
-from pypdf2 import PdfReader
+from PyPDF2 import PdfReader
 from docx import Document
 from loguru import logger
 from supabase import create_client, Client
@@ -92,14 +92,75 @@ class ParserDocumento:
             return ""
     
     @staticmethod
+    def _drop_chrome_lines(texto: str) -> str:
+        """Remove linhas de chrome Planalto/PNCP que poluem embeddings."""
+        drop_exact = {
+            "Presidência da República",
+            "Mensagem de veto",
+            "Regulamento",
+            "Vigência",
+            "L14133",
+            "D10764",
+            "Secretaria-Geral",
+            "Subchefia para Assuntos Jurídicos",
+            "Assuntos Jurídicos",
+            "Promulgação partes vetadas",
+            'Acessibilidade',
+            'Acesso rápido',
+            'Acesso à Informação',
+            'Acesso à informação',
+            'Botão Menu',
+            'Compartilhe :',
+            'Ir para a busca',
+            'Ir para a navegação',
+            'Ir para o conteúdo',
+            'Ir para o rodapé',
+            'Legislação',
+            'Links de compartilhamento em redes sociais',
+            'Mudar para o modo de alto contraste',
+            'Portal Gov.br',
+            'Portarias',
+            'Sobre o PNCP',
+            'Você precisa habilitar o JavaScript para o funcionamento correto.',
+            'Órgãos do Governo'
+        }
+        drop_re = re.compile(
+            r"^(Presidência da República|Mensagem de\s*veto|Regulamento|Vigência|"
+            r"L\d+|D\d+|Secretaria-Geral|Subchefia.*|Promulgação partes vetadas)\s*$",
+            re.IGNORECASE,
+        )
+        out = []
+        for ln in texto.splitlines():
+            s = ln.strip()
+            if not s:
+                out.append("")
+                continue
+            if s in drop_exact or drop_re.match(s):
+                continue
+            out.append(ln)
+        return "\n".join(out)
+
+    @staticmethod
+    def read_text_file(caminho: str) -> str:
+        """Ler arquivo texto com fallback latin-1/cp1252 (HTML Planalto/PNCP)."""
+        raw = Path(caminho).read_bytes()
+        for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
+            try:
+                return raw.decode(enc)
+            except UnicodeDecodeError:
+                continue
+        return raw.decode("utf-8", errors="replace")
+
+    @staticmethod
     def parse_html(conteudo: str) -> str:
         """Extrair texto de HTML"""
         try:
             soup = BeautifulSoup(conteudo, 'lxml')
             # Remover scripts e styles
-            for tag in soup(['script', 'style']):
+            for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
-            return soup.get_text(separator='\n', strip=True)
+            texto = soup.get_text(separator='\n', strip=True)
+            return ParserDocumento._drop_chrome_lines(texto)
         except Exception as e:
             logger.error(f"Erro ao parsear HTML: {e}")
             return ""
@@ -108,13 +169,25 @@ class ParserDocumento:
     def parse_url(url: str) -> Tuple[str, str]:
         """Baixar e parsear conteúdo de URL"""
         try:
-            response = requests.get(url, timeout=30)
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml,application/pdf,*/*",
+            }
+            # Prefer HTTPS for planalto (HTTP often stalls)
+            fetch_url = url
+            if fetch_url.startswith("http://www.planalto.gov.br"):
+                fetch_url = "https://" + fetch_url[len("http://"):]
+            response = requests.get(fetch_url, headers=headers, timeout=90, allow_redirects=True)
             response.raise_for_status()
             
             # Detectar tipo de conteúdo
             content_type = response.headers.get('Content-Type', '')
             
-            if 'pdf' in content_type:
+            if 'pdf' in content_type or fetch_url.lower().endswith('.pdf'):
                 # Salvar temporariamente
                 caminho_temp = f"/tmp/doc_{datetime.now().timestamp()}.pdf"
                 with open(caminho_temp, 'wb') as f:
@@ -122,9 +195,12 @@ class ParserDocumento:
                 texto = ParserDocumento.parse_pdf(caminho_temp)
                 os.remove(caminho_temp)
                 return texto, 'pdf'
-            elif 'html' in content_type:
+            elif 'html' in content_type or fetch_url.lower().endswith(('.htm', '.html')):
                 return ParserDocumento.parse_html(response.text), 'html'
             else:
+                # Many gov pages omit charset/html clearly
+                if b'<' in response.content[:200] or '<' in response.text[:200]:
+                    return ParserDocumento.parse_html(response.text), 'html'
                 return response.text, 'text'
                 
         except Exception as e:
@@ -137,9 +213,11 @@ class ExtratorMetadados:
     
     # Padrões regex para extração
     PATTERNS = {
-        'lei': r'(?:LEI|Lei)\s*[ºn]?\.?\s*(\d{1,6})[\s,]+de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})',
-        'decreto': r'(?:DECRETO|Decreto)\s*[ºn]?\.?\s*(\d{1,6})[\s,]+de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})',
-        'portaria': r'(?:PORTARIA|Portaria)\s*[ºn]?\.?\s*(\d{1,6})[\s,]+de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})',
+        # Aceita Nº/N./n.º, número com ponto (14.133) e dia ordinal (1º)
+        'lei': r'(?:LEI|Lei)\s*(?:N[º°oO\.]?|n[º°oO\.]?)?\s*(\d{1,3}(?:\.\d{3})*|\d{1,6})\s*,?\s*DE\s+(\d{1,2})[ºª°]?\s+DE\s+(\w+)\s+DE\s+(\d{4})',
+        'decreto': r'(?:DECRETO|Decreto)\s*(?:N[º°oO\.]?|n[º°oO\.]?)?\s*(\d{1,3}(?:\.\d{3})*|\d{1,6})\s*,?\s*DE\s+(\d{1,2})[ºª°]?\s+DE\s+(\w+)\s+DE\s+(\d{4})',
+        'portaria': r'(?:PORTARIA|Portaria)(?:\s+[A-ZÀ-Üa-zà-ü0-9/\.\-]+){0,8}?\s*(?:N[º°oO\.]?|n[º°oO\.]?)?\s*(\d{1,3}(?:\.\d{3})*|\d{1,6})\s*,?\s*DE\s+(\d{1,2})[ºª°]?\s+DE\s+(\w+)\s+DE\s+(\d{4})',
+        'resolucao': r'(?:RESOLU[CÇ][AÃ]O|Resolu[cç][aã]o)(?:\s+[A-ZÀ-Üa-zà-ü0-9/\.\-]+){0,8}?\s*(?:N[º°oO\.]?|n[º°oO\.]?)?\s*(\d{1,3}(?:\.\d{3})*|\d{1,6})\s*,?\s*DE\s+(\d{1,2})[ºª°]?\s+DE\s+(\w+)\s+DE\s+(\d{4})',
     }
     
     MESES = {
@@ -192,37 +270,43 @@ class ExtratorMetadados:
     
     @classmethod
     def _detectar_tipo(cls, texto: str) -> TipoNormativo:
-        """Detectar tipo do normativo"""
-        texto_upper = texto[:500].upper()
-        
-        if 'LEI' in texto_upper:
-            return TipoNormativo.LEI
-        elif 'DECRETO' in texto_upper:
-            return TipoNormativo.DECRETO
-        elif 'PORTARIA' in texto_upper:
-            return TipoNormativo.PORTARIA
-        elif 'INSTRUÇÃO NORMATIVA' in texto_upper or 'INSTRUCAO NORMATIVA' in texto_upper:
-            return TipoNormativo.INSTRUCAO_NORMATIVA
-        elif 'RESOLUÇÃO' in texto_upper or 'RESOLUCAO' in texto_upper:
-            return TipoNormativo.RESOLUCAO
-        elif 'MEDIDA PROVISÓRIA' in texto_upper or 'MEDIDA PROVISORIA' in texto_upper:
-            return TipoNormativo.MEDIDA_PROVISORIA
-        elif 'EMENDA CONSTITUCIONAL' in texto_upper:
-            return TipoNormativo.EMENDA_CONSTITUCIONAL
-        else:
-            return TipoNormativo.OUTRO
+        """Detectar tipo pelo primeiro cabeçalho normativo no início do texto."""
+        head = texto[:3000]
+        checks = [
+            (TipoNormativo.EMENDA_CONSTITUCIONAL, r'EMENDA\s+CONSTITUCIONAL'),
+            (TipoNormativo.MEDIDA_PROVISORIA, r'MEDIDA\s+PROVIS[OÓ]RIA'),
+            (TipoNormativo.INSTRUCAO_NORMATIVA, r'INSTRU[CÇ][AÃ]O\s+NORMATIVA'),
+            (TipoNormativo.RESOLUCAO, r'RESOLU[CÇ][AÃ]O'),
+            (TipoNormativo.PORTARIA, r'PORTARIA'),
+            (TipoNormativo.DECRETO, r'DECRETO'),
+            (TipoNormativo.LEI, r'LEI'),
+        ]
+        best = None  # (pos, tipo)
+        for tipo, pat in checks:
+            m = re.search(pat, head, re.IGNORECASE)
+            if not m:
+                continue
+            pos = m.start()
+            if best is None or pos < best[0]:
+                best = (pos, tipo)
+        return best[1] if best else TipoNormativo.OUTRO
     
     @classmethod
     def _extrair_numero_data(cls, texto: str, tipo: TipoNormativo) -> Tuple[Optional[str], Optional[datetime]]:
         """Extrair número e data do documento"""
-        pattern_key = tipo.value.split('_')[0]
+        pattern_key = {
+            TipoNormativo.LEI: 'lei',
+            TipoNormativo.DECRETO: 'decreto',
+            TipoNormativo.PORTARIA: 'portaria',
+            TipoNormativo.RESOLUCAO: 'resolucao',
+        }.get(tipo, tipo.value.split('_')[0])
         pattern = cls.PATTERNS.get(pattern_key)
         
         if not pattern:
-            # Tentar padrão genérico
-            pattern = r'(\d{1,6})[\s,]+de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})'
+            # Tentar padrão genérico (número com ponto + dia ordinal)
+            pattern = r'(\d{1,3}(?:\.\d{3})*|\d{1,6})\s*,?\s*DE\s+(\d{1,2})[ºª°]?\s+DE\s+(\w+)\s+DE\s+(\d{4})'
         
-        match = re.search(pattern, texto[:1000], re.IGNORECASE)
+        match = re.search(pattern, texto[:2500], re.IGNORECASE)
         
         if match:
             grupos = match.groups()
@@ -381,8 +465,7 @@ class IngestorLegislacao:
         elif extensao == '.docx':
             texto = self.parser.parse_docx(caminho_arquivo)
         elif extensao in ['.html', '.htm']:
-            with open(caminho_arquivo, 'r', encoding='utf-8') as f:
-                texto = self.parser.parse_html(f.read())
+            texto = self.parser.parse_html(ParserDocumento.read_text_file(caminho_arquivo))
         else:
             logger.error(f"Extensão não suportada: {extensao}")
             return None
@@ -432,6 +515,8 @@ class IngestorLegislacao:
         """Armazenar metadados no Supabase"""
         
         dados = metadados.to_dict()
+        # Colunas reais da tabela (não persistir id_supabase local)
+        dados.pop('id_supabase', None)
         
         # Inserir na tabela legislacao
         resposta = self.supabase.table('legislacao').insert(dados).execute()
