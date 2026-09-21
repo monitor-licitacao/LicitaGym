@@ -147,6 +147,34 @@ Ao normalizar dados, preserve informações suficientes para:
 
 Alterações de schema devem utilizar migrations.
 
+## Schema & Migrations — Padrão CATMAT (E1-E7)
+
+**Staging tables** (`icatmat_*`) ingerem dados brutos de Compras.gov antes de reconciliação com `catmat_*`.
+
+### Estrutura obrigatória
+
+- **Identidade:** `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (moderno, não BIGSERIAL)
+- **Integridade:** FKs cascata conectam hierarquicamente (E1 ← E2 ← E3 ← E4 ← E5/E6/E7)
+- **Rastreabilidade:** `payload_hash TEXT NOT NULL UNIQUE` (MD5 para dedup)
+- **Timestamp:** `data_hora_atualizacao` + `sync_timestamp` ambos `NOT NULL DEFAULT NOW()`
+- **Validação:** CHECKs replicam golden rule (apenas G72/7220, G78/7830)
+- **Índices:** apenas `sync_timestamp` (golden rule limita a 2 grupos = outros índices inúteis)
+- **Segurança:** `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` obrigatório
+
+### Tabelas (E1-E7)
+
+| E | Tabela | Registro | FK Pai | Relação |
+|---|--------|----------|--------|---------|
+| 1 | `icatmat_grupo_material` | 2 grupos | — | root |
+| 2 | `icatmat_classe_material` | 2 classes | E1 | 1:N |
+| 3 | `icatmat_pdm_material` | N PDMs | E2 | 1:N |
+| 4 | `icatmat_item_material` | N items | E3 | 1:N |
+| 5 | `icatmat_natureza_despesa` | N naturezas | E4 | 1:N |
+| 6 | `icatmat_unidade_fornecimento` | ~76k unidades | E4 | 1:N |
+| 7 | `icatmat_caracteristica_material` | N características | E4 | 1:N |
+
+Ver `supabase/migrations/SCHEMA_STANDARDS.md` para template e checklist.
+
 ## Cálculos financeiros
 
 Cálculos financeiros, fiscais, BDI, margem e exequibilidade devem ser determinísticos.
