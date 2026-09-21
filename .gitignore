@@ -62,4 +62,12 @@ htmlcov/
 
 # Package lock files
 package-lock.json
+
+# Lab collector dumps and local test artifacts
+*_resultado.json
+scripts/*_resultado.json
+scripts/collector_*_resultado.json
+scripts/*_teste.json
+teste_catmat_consolidado.json
+comprasgov_resultado.json
 ```
