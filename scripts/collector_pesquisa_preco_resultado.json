@@ -1,0 +1,11 @@
+{
+  "endpoint": "pesquisa-preco (consultarMaterial + consultarMaterialDetalhe)",
+  "golden_rule": "apenas G72/G78 items",
+  "resumo": {
+    "items_pesquisados": 100,
+    "materiais_encontrados": 0,
+    "detalhes_preco_encontrados": 0
+  },
+  "materiais": [],
+  "detalhes": []
+}

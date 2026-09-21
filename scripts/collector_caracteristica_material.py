@@ -102,26 +102,40 @@ def collect_caracteristicas_por_item(
 
 def main():
     logger.info("=== COLLECTOR: Endpoint 7 — Característica Material ===")
-    logger.info("Golden rule: E7 filtra por Item (não grupo/classe)\n")
+    logger.info("Golden rule: E7 filtra por Item (codigoItem obrigatório)\n")
 
-    # IMPORTANTE: Items vêm de E4 (collector_item_material.py)
-    # Smoke test: apenas 2 items de teste
-    ITEMS_TESTE = [1, 2]
+    # Carrega items reais de E4
+    items_reais = []
+    try:
+        with open("collector_item_material_resultado.json", encoding="utf-8") as f:
+            items_data = json.load(f)
+
+        for grupo_key in ["grupo_72", "grupo_78"]:
+            items_reais.extend([item["codigoItem"] for item in items_data["data"].get(grupo_key, [])])
+
+        logger.info(f"Total items carregados: {len(items_reais)}")
+
+    except FileNotFoundError:
+        logger.warning("E4 não encontrado. Usando sample (item 374066).")
+        items_reais = [374066]
 
     resultado = {}
+    resumo_por_grupo = {"grupo_72": [], "grupo_78": []}
 
-    for codigo_item in ITEMS_TESTE:
-        key = f"item_{codigo_item}"
-        caracteristicas = collect_caracteristicas_por_item(codigo_item, max_pages=1)
-        resultado[key] = caracteristicas
+    for i, codigo_item in enumerate(items_reais, 1):
+        if i % 100 == 0:
+            logger.info(f"  [{i}/{len(items_reais)}] processado...")
+
+        caracteristicas = collect_caracteristicas_por_item(codigo_item, max_pages=None)
+        resultado[f"item_{codigo_item}"] = caracteristicas
 
     output = {
         "endpoint": "7_consultarMaterialCaracteristicas",
-        "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+        "golden_rule": "E7 filtra por codigoItem (não grupo/classe)",
         "data": resultado,
         "resumo": {
-            "total_grupo_72": len(resultado.get("grupo_72", [])),
-            "total_grupo_78": len(resultado.get("grupo_78", [])),
+            "total_items": len(items_reais),
+            "total_caracteristicas_coletadas": sum(len(v) for v in resultado.values())
         }
     }
 
@@ -129,8 +143,8 @@ def main():
         json.dump(output, f, indent=2, ensure_ascii=False)
 
     logger.info(f"\n✓ Salvo: collector_caracteristica_material_resultado.json")
-    logger.info(f"  G72: {output['resumo']['total_grupo_72']} características")
-    logger.info(f"  G78: {output['resumo']['total_grupo_78']} características")
+    logger.info(f"  Items: {output['resumo']['total_items']}")
+    logger.info(f"  Características: {output['resumo']['total_caracteristicas_coletadas']}")
 
 if __name__ == "__main__":
     main()
