@@ -69,10 +69,11 @@ def test_fetch_caracteristicas_429_exhausted_raises():
         fp=io.BytesIO(b"rate limited"),
     )
     with patch("urllib.request.urlopen", side_effect=http_429) as mock_urlopen:
-        with patch("time.sleep"):
+        with patch("time.sleep") as mock_sleep:
             with pytest.raises(HttpFetchError) as exc_info:
                 fetch_caracteristicas(codigo_item=374066, max_retries=3)
             assert mock_urlopen.call_count == 3
+            assert mock_sleep.call_count == 2
             assert exc_info.value.status_code == 429
 
 
