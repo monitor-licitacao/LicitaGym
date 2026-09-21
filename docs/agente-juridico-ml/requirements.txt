@@ -9,7 +9,7 @@ tensorflow-text>=2.15.0
 transformers==5.13.0
 sentence-transformers==5.6.0
 langchain==0.2.0
-langchain-community>=0.0.20
+langchain-community==0.3.27
 langchain-tensorflow>=0.1.0
 
 ### Processamento de Documentos
