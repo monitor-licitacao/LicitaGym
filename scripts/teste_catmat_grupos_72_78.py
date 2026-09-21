@@ -15,12 +15,13 @@ Endpoints:
 Join: Item (base) <- Grupo/Classe/PDM (1:1) + Características/Unidades/Naturezas (1:N)
 """
 
-import httpx
 import json
 import hashlib
 import logging
 from typing import Any, Dict, List
 from datetime import datetime
+import urllib.request
+import urllib.error
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,31 +30,34 @@ BASE_URL = "https://dadosabertos.compras.gov.br"
 GRUPOS = [72, 78]
 TIMEOUT = 30
 
-async def fetch(path: str, params: Dict[str, Any] | None = None) -> List[Dict]:
+def fetch(path: str, params: Dict[str, Any] | None = None) -> List[Dict]:
     """Fetch e retorna array resultado"""
     url = f"{BASE_URL}{path}"
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        try:
-            resp = await client.get(url, params=params, headers={"User-Agent": "LicitaGym/Test"})
-            resp.raise_for_status()
-            data = resp.json()
+    if params:
+        query_str = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"{url}?{query_str}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Test"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            data = json.loads(resp.read().decode())
             if isinstance(data, dict) and "resultado" in data:
                 return data.get("resultado", [])
             elif isinstance(data, list):
                 return data
             return []
-        except Exception as e:
-            logger.error(f"Erro {path}: {e}")
-            return []
+    except Exception as e:
+        logger.error(f"Erro {path}: {e}")
+        return []
 
-async def test_catmat():
+def test_catmat():
     """Consolida 7 endpoints em records unificados"""
 
     logger.info(f"=== TESTE CATMAT GRUPOS {GRUPOS} ===")
 
     # 1. Fetch grupos
     logger.info("Carregando grupos...")
-    grupos = await fetch("/modulo-material/1_consultarGrupoMaterial", {"pagina": 1, "tamanhoPagina": 500})
+    grupos = fetch("/modulo-material/1_consultarGrupoMaterial", {"pagina": 1, "tamanhoPagina": 500})
     grupos_dict = {g["codigoGrupo"]: g for g in grupos if g["codigoGrupo"] in GRUPOS}
     logger.info(f"  {len(grupos_dict)} grupos encontrados")
 
@@ -61,34 +65,39 @@ async def test_catmat():
         logger.error("Nenhum grupo 72 ou 78 encontrado!")
         return
 
-    # 2. Fetch classes por grupo
+    # 2. Fetch classes por grupo (filtrando apenas classes específicas)
     logger.info("Carregando classes...")
     classes_dict = {}
+    classe_filter = {72: 7210, 78: 7810}  # Grupo -> Classe específica
     for grupo_id in GRUPOS:
-        classes = await fetch("/modulo-material/2_consultarClasseMaterial",
-                             {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
+        classes = fetch("/modulo-material/2_consultarClasseMaterial",
+                        {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
         for c in classes:
-            key = (c["codigoGrupo"], c["codigoClasse"])
-            classes_dict[key] = c
+            if c["codigoClasse"] == classe_filter[grupo_id]:
+                key = (c["codigoGrupo"], c["codigoClasse"])
+                classes_dict[key] = c
     logger.info(f"  {len(classes_dict)} classes encontradas")
 
-    # 3. Fetch PDMs por grupo
+    # 3. Fetch PDMs por grupo (filtrando pela classe específica)
     logger.info("Carregando PDMs...")
     pdms_dict = {}
     for grupo_id in GRUPOS:
-        pdms = await fetch("/modulo-material/3_consultarPdmMaterial",
-                          {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
+        pdms = fetch("/modulo-material/3_consultarPdmMaterial",
+                     {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
         for p in pdms:
-            pdms_dict[p["codigoPdm"]] = p
+            if p["codigoClasse"] == classe_filter[grupo_id]:
+                pdms_dict[p["codigoPdm"]] = p
     logger.info(f"  {len(pdms_dict)} PDMs encontrados")
 
-    # 4. Fetch items por grupo (base chave)
+    # 4. Fetch items por grupo (filtrando pela classe específica)
     logger.info("Carregando itens...")
     items = []
     for grupo_id in GRUPOS:
-        grupo_items = await fetch("/modulo-material/4_consultarItemMaterial",
-                                 {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
-        items.extend(grupo_items)
+        grupo_items = fetch("/modulo-material/4_consultarItemMaterial",
+                            {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
+        for item in grupo_items:
+            if item.get("codigoClasse") == classe_filter[grupo_id]:
+                items.append(item)
     logger.info(f"  {len(items)} itens encontrados")
 
     if not items:
@@ -97,30 +106,30 @@ async def test_catmat():
 
     # 5. Fetch características por item
     logger.info("Carregando características...")
-    caracteristicas_dict = {}  # codigo_item -> [...]
-    for item in items[:10]:  # Teste com primeiros 10
-        caract = await fetch("/modulo-material/7_consultarMaterialCaracteristicas",
-                            {"codigoItem": item["codigoItem"], "pagina": 1, "tamanhoPagina": 500})
+    caracteristicas_dict = {}
+    for item in items[:10]:
+        caract = fetch("/modulo-material/7_consultarMaterialCaracteristicas",
+                       {"codigoItem": item["codigoItem"], "pagina": 1, "tamanhoPagina": 500})
         if caract:
             caracteristicas_dict[item["codigoItem"]] = caract
     logger.info(f"  {len(caracteristicas_dict)} itens com características")
 
     # 6. Fetch unidades por PDM
     logger.info("Carregando unidades de fornecimento...")
-    unidades_dict = {}  # codigo_pdm -> [...]
-    for pdm_id in list(pdms_dict.keys())[:5]:  # Teste com primeiros 5 PDMs
-        unidades = await fetch("/modulo-material/6_consultarMaterialUnidadeFornecimento",
-                              {"codigoPdm": pdm_id, "pagina": 1, "tamanhoPagina": 500})
+    unidades_dict = {}
+    for pdm_id in list(pdms_dict.keys())[:5]:
+        unidades = fetch("/modulo-material/6_consultarMaterialUnidadeFornecimento",
+                         {"codigoPdm": pdm_id, "pagina": 1, "tamanhoPagina": 500})
         if unidades:
             unidades_dict[pdm_id] = unidades
     logger.info(f"  {len(unidades_dict)} PDMs com unidades")
 
     # 7. Fetch naturezas por PDM
     logger.info("Carregando naturezas de despesa...")
-    naturezas_dict = {}  # codigo_pdm -> [...]
-    for pdm_id in list(pdms_dict.keys())[:5]:  # Teste com primeiros 5 PDMs
-        naturezas = await fetch("/modulo-material/5_consultarMaterialNaturezaDespesa",
-                               {"codigoPdm": pdm_id, "pagina": 1, "tamanhoPagina": 500})
+    naturezas_dict = {}
+    for pdm_id in list(pdms_dict.keys())[:5]:
+        naturezas = fetch("/modulo-material/5_consultarMaterialNaturezaDespesa",
+                          {"codigoPdm": pdm_id, "pagina": 1, "tamanhoPagina": 500})
         if naturezas:
             naturezas_dict[pdm_id] = naturezas
     logger.info(f"  {len(naturezas_dict)} PDMs com naturezas")
@@ -189,5 +198,4 @@ async def test_catmat():
     print("="*60)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_catmat())
+    test_catmat()
