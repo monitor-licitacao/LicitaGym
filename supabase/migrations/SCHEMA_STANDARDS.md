@@ -73,9 +73,11 @@ CONSTRAINT fk_XXXX_item
 - [ ] data_hora_atualizacao + sync_timestamp ambos NOT NULL
 - [ ] status_* colunas com NOT NULL DEFAULT
 - [ ] FK referencia tabela pai com ON DELETE CASCADE
+  - **IMPORTANTE:** FK deve referenciar as mesmas colunas que compõem UNIQUE em tabela pai
+  - Exemplos: E2 FK(codigo_grupo) → E1 UNIQUE(codigo_grupo); E5 FK(grupo,classe,pdm,item) → E4 UNIQUE(grupo,classe,pdm,item)
 - [ ] CHECK constraints replicam golden rule (G72/7220 + G78/7830)
 - [ ] UNIQUE em natural key composta
-- [ ] UNIQUE em payload_hash (dedup)
+- [ ] UNIQUE em payload_hash com nome table-specific (ex: icatmat_classe_material_payload_hash_key)
 - [ ] Índice apenas em sync_timestamp (não em código_*)
 - [ ] RLS habilitado (ALTER TABLE ... ENABLE ROW LEVEL SECURITY)
 - [ ] Comentário no início explicando FK referência
