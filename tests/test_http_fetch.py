@@ -319,7 +319,7 @@ def test_http_client_instance_usage():
 
 
 def test_ssrf_allowed_host_succeeds_by_default():
-    """Default allowlist allows dadosabertos.compras.gov.br and pncp.gov.br."""
+    """Default allowlist allows dadosabertos.compras.gov.br, pncp.gov.br, and supabase.co."""
     payload = {"status": "ok"}
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
         res1 = fetch_json("https://dadosabertos.compras.gov.br/modulo-material/1")
@@ -331,6 +331,25 @@ def test_ssrf_allowed_host_succeeds_by_default():
         # Subdomains of allowed hosts should also succeed
         res3 = fetch_json("https://www.pncp.gov.br/api/test")
         assert res3 == payload
+
+        # Supabase project URLs (e.g. xyz.supabase.co) should succeed by default
+        res4 = fetch_json("https://xyzcompany.supabase.co/rest/v1/icatmat_item_material")
+        assert res4 == payload
+
+
+def test_ssrf_supabase_url_env_derived_host(monkeypatch):
+    """When SUPABASE_URL is set in environment, its hostname is automatically added to allowed hosts."""
+    monkeypatch.setenv("SUPABASE_URL", "https://custom-project-id.supabase.co/rest/v1")
+    payload = {"data": "supabase_rest"}
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
+        res = fetch_json("https://custom-project-id.supabase.co/rest/v1/icatmat_pdm_material")
+        assert res == payload
+
+    # Also supports non-supabase.co custom self-hosted Supabase instances via SUPABASE_URL
+    monkeypatch.setenv("SUPABASE_URL", "https://my-supabase.internal.licitagym.com.br")
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
+        res2 = fetch_json("https://my-supabase.internal.licitagym.com.br/rest/v1/rpc/upsert")
+        assert res2 == payload
 
 
 def test_ssrf_disallowed_host_raises_http_fetch_error():

@@ -38,6 +38,7 @@ ALLOWED_HOSTS_ENV = "LICITAGYM_HTTP_ALLOWED_HOSTS"
 DEFAULT_ALLOWED_HOSTS: Set[str] = {
     "dadosabertos.compras.gov.br",
     "pncp.gov.br",
+    "supabase.co",
 }
 
 # Aligned with Edge clampComprasGovPageSize (10 to 500, default 500)
@@ -97,13 +98,32 @@ def is_legacy_empty_on_error_enabled() -> bool:
 
 
 def get_default_allowed_hosts() -> Set[str]:
-    """Retrieve allowed hosts configured via environment or fallback to defaults."""
+    """Retrieve allowed hosts configured via environment or fallback to defaults.
+
+    Includes:
+    - DEFAULT_ALLOWED_HOSTS (dadosabertos.compras.gov.br, pncp.gov.br, supabase.co)
+    - Hostname parsed from SUPABASE_URL environment variable if set
+    - Overridden/augmented by LICITAGYM_HTTP_ALLOWED_HOSTS if set
+    """
+    hosts = set()
     env_val = os.getenv(ALLOWED_HOSTS_ENV, "").strip()
     if env_val:
-        hosts = {h.strip().lower() for h in env_val.split(",") if h.strip()}
-        if hosts:
-            return hosts
-    return set(DEFAULT_ALLOWED_HOSTS)
+        hosts.update(h.strip().lower() for h in env_val.split(",") if h.strip())
+    else:
+        hosts.update(DEFAULT_ALLOWED_HOSTS)
+
+    # Auto-add hostname from SUPABASE_URL if set and valid
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    if supabase_url:
+        try:
+            parsed = urllib.parse.urlsplit(supabase_url)
+            sb_host = parsed.hostname
+            if sb_host:
+                hosts.add(sb_host.lower())
+        except Exception as e:
+            logger.debug(f"Falha ao interpretar SUPABASE_URL '{supabase_url}': {e}")
+
+    return hosts
 
 
 def is_host_allowed(host: str, allowed_hosts: Iterable[str]) -> bool:
