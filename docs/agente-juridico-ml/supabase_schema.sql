@@ -93,3 +93,36 @@ GRANT ALL ON legislacao TO service_role;
 GRANT ALL ON legislacao_embeddings TO service_role;
 GRANT ALL ON consultas_log TO service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+
+-- RPC de busca semântica (Fase 1). Embedding deve ser L2-normalized se o índice
+-- foi gravado com normalize=True (default do EmbeddingBackend).
+-- Dimensão alinhada ao BERT base: 768.
+CREATE OR REPLACE FUNCTION match_legislacao_embeddings(
+    query_embedding vector(768),
+    match_threshold float DEFAULT 0.7,
+    match_count int DEFAULT 10
+)
+RETURNS TABLE (
+    documento_id bigint,
+    similaridade float,
+    texto_resumo text,
+    metadados jsonb
+)
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        le.documento_id,
+        (1 - (le.embedding <=> query_embedding))::float AS similaridade,
+        le.texto_resumo,
+        le.metadados
+    FROM legislacao_embeddings le
+    WHERE le.embedding IS NOT NULL
+      AND (1 - (le.embedding <=> query_embedding)) >= match_threshold
+    ORDER BY le.embedding <=> query_embedding
+    LIMIT match_count;
+$$;
+
+GRANT EXECUTE ON FUNCTION match_legislacao_embeddings(vector, float, int) TO service_role;
+GRANT EXECUTE ON FUNCTION match_legislacao_embeddings(vector, float, int) TO authenticated;

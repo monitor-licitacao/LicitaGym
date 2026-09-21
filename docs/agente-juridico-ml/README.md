@@ -1,12 +1,14 @@
 # Agente Jurídico LicitaGym - ML para Legislação
 
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-orange)](https://www.tensorflow.org/)
+[![SentenceTransformers](https://img.shields.io/badge/Embeddings-SentenceTransformers-blue)](https://www.sbert.net/)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://python.org/)
 [![Licença](https://img.shields.io/badge/Licença-MIT-green)](LICENSE)
 
 ## Visão Geral
 
 Sistema completo de **Machine Learning** para processamento, ingestão e análise de legislação (leis, decretos, portarias, regulamentos) focado em **licitações públicas de equipamentos fitness**.
+
+**Hot path de embeddings:** SentenceTransformers (PyTorch). TensorFlow foi removido do caminho quente (Fase 0). Plano ONNX/TensorRT (Nsight só como lab): ver [PLAN.md](PLAN.md).
 
 ## 🚀 Funcionalidades
 
@@ -84,8 +86,8 @@ print(f"Entidades: {analise['entidades']}")
 │                    AGENTE JURÍDICO ML                       │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Ingestão   │→ │ Processamento│→ │   Modelo     │      │
-│  │  Documentos  │  │    NLP       │  │  TensorFlow  │      │
+│  │   Ingestão   │→ │ Processamento│→ │  Embeddings  │      │
+│  │  Documentos  │  │    NLP       │  │ SentenceTr.  │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │         ↓                  ↓                  ↓             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
@@ -105,6 +107,9 @@ agente-juridico-ml/
 ├── requirements.txt       # Dependências Python
 ├── ingestor.py           # Módulo de ingestão e parsing
 ├── modelo_ml.py          # Modelos de ML e embeddings
+├── embeddings_backend.py # Contrato EmbeddingBackend (ST hoje; ONNX depois)
+├── PLAN.md              # Fases 0–4 ONNX/TensorRT
+├── scripts/benchmark_encode.py  # Baseline p50/p95
 ├── agente.py             # Interface principal do agente
 ├── supabase_schema.sql   # Schema do banco de dados
 ├── .env.example          # Modelo de configuração
@@ -130,12 +135,11 @@ agente-juridico-ml/
 
 | Tecnologia | Versão | Finalidade |
 |------------|--------|-----------|
-| TensorFlow | 2.15+ | Modelos de deep learning |
+| SentenceTransformers | 2.3+ / 5.x | Embeddings (hot path; ONNX/TRT nas próximas fases) |
 | Transformers | 4.38+ | BERT jurídico |
 | LangChain | 0.1+ | Orquestração de agente |
 | Supabase | 2.4+ | Banco de dados + vetores |
 | FastAPI | 0.110+ | API REST |
-| SentenceTransformers | 2.3+ | Embeddings |
 
 ## 📖 Exemplos Prontos
 
