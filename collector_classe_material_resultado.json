@@ -1,0 +1,77 @@
+{
+  "endpoint": "2_consultarClasseMaterial",
+  "data": {
+    "grupo_72": [
+      {
+        "codigoClasse": 7210,
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "nomeClasse": "UTENSÍLIOS DOMÉSTICOS",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7220,
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "nomeClasse": "REVESTIMENTOS PARA PISOS",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7230,
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "nomeClasse": "TAPEÇARIAS, CORTINAS E PERSIANAS",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7240,
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "nomeClasse": "RECEPIENTES PARA USO DOMÉSTICO E COMERCIAL",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7290,
+        "codigoGrupo": 72,
+        "nomeGrupo": "UTENSILIOS E UTILIDADES DE USO DOMESTICO E COMERCIAL",
+        "nomeClasse": "UTENSÍLIOS COMERCIAIS E DOMÉSTICOS DIVERSOS",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      }
+    ],
+    "grupo_78": [
+      {
+        "codigoClasse": 7810,
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "nomeClasse": "EQUIPAMENTO PARA ATLETISMO E DESPORTO",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7820,
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "nomeClasse": "JOGOS, BRINQUEDOS E ARTIGOS CORRELATOS COM RODAS",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      },
+      {
+        "codigoClasse": 7830,
+        "codigoGrupo": 78,
+        "nomeGrupo": "EQUIPAMENTOS PARA RECREAÇÃO E DESPORTOS",
+        "nomeClasse": "EQUIPAMENTO PARA GINÁSTICA E RECREAÇÃO",
+        "statusClasse": true,
+        "dataHoraAtualizacao": "2021-10-16T09:17:13.045775"
+      }
+    ]
+  },
+  "resumo": {
+    "total_grupo_72": 5,
+    "total_grupo_78": 3
+  }
+}
