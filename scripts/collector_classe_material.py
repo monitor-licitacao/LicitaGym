@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Collector: Endpoint 2 — consultarClasseMaterial
-Consulta classes de material por grupo, classe e/ou status.
+Golden rule: apenas classes 7220 (G72) e 7830 (G78)
 """
 
 import json
@@ -16,6 +16,9 @@ BASE_URL = "https://dadosabertos.compras.gov.br"
 ENDPOINT = "/modulo-material/2_consultarClasseMaterial"
 TIMEOUT = 30
 
+# Golden rule: apenas estas classes
+CLASSES_PERMITIDAS = {72: 7220, 78: 7830}
+
 def fetch_classes(
     codigo_grupo: Optional[int] = None,
     codigo_classe: Optional[int] = None,
@@ -23,11 +26,7 @@ def fetch_classes(
     pagina: int = 1,
     tamanho_pagina: int = 500
 ) -> Dict[str, Any]:
-    """
-    Consulta classes de material.
-
-    Retorna: {resultado: [...], totalRegistros, totalPaginas, paginasRestantes}
-    """
+    """Consulta classes de material"""
     url = f"{BASE_URL}{ENDPOINT}"
 
     params = {
@@ -45,70 +44,39 @@ def fetch_classes(
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
-    logger.debug(f"Request: {url}")
-
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             data = json.loads(resp.read().decode())
             return data
     except Exception as e:
-        logger.error(f"Erro fetch: {e}")
-        return {"resultado": [], "totalRegistros": 0, "totalPaginas": 0}
-
-def collect_classes_por_grupo(codigo_grupo: int, max_pages: Optional[int] = None) -> List[Dict]:
-    """Coleta todas classes de um grupo específico"""
-    logger.info(f"\nColetando classes para Grupo {codigo_grupo}...")
-
-    todas_classes = []
-    pagina = 1
-
-    while True:
-        resp = fetch_classes(codigo_grupo=codigo_grupo, pagina=pagina, tamanho_pagina=500)
-        classes = resp.get("resultado", [])
-
-        logger.info(f"  Página {pagina}: {len(classes)} classes")
-        todas_classes.extend(classes)
-
-        if max_pages and pagina >= max_pages:
-            break
-
-        if resp.get("paginasRestantes", 0) == 0:
-            break
-
-        pagina += 1
-
-    logger.info(f"  Total: {len(todas_classes)} classes")
-    return todas_classes
+        logger.error(f"Erro: {e}")
+        return {"resultado": []}
 
 def main():
-    logger.info("=== COLLECTOR: Endpoint 2 — Consultar Classe Material ===\n")
+    logger.info("=== COLLECTOR: Endpoint 2 — Classe Material ===")
+    logger.info("Golden rule: apenas 7220 (G72) e 7830 (G78)\n")
 
-    # Testa com grupo 72 (Utensílios)
-    classes_72 = collect_classes_por_grupo(72, max_pages=3)
+    resultado = {}
 
-    # Testa com grupo 78 (Equipamentos Desportos)
-    classes_78 = collect_classes_por_grupo(78, max_pages=3)
+    for grupo, classe in CLASSES_PERMITIDAS.items():
+        logger.info(f"G{grupo} classe {classe}...")
+        resp = fetch_classes(codigo_grupo=grupo, codigo_classe=classe)
+        classes = resp.get("resultado", [])
+        resultado[f"grupo_{grupo}"] = classes
+        logger.info(f"  {len(classes)} record(s)")
 
-    # Salva resultado
-    resultado = {
+    # Salva
+    output = {
         "endpoint": "2_consultarClasseMaterial",
-        "data": {
-            "grupo_72": classes_72,
-            "grupo_78": classes_78,
-        },
-        "resumo": {
-            "total_grupo_72": len(classes_72),
-            "total_grupo_78": len(classes_78),
-        }
+        "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+        "data": resultado
     }
 
     with open("collector_classe_material_resultado.json", "w", encoding="utf-8") as f:
-        json.dump(resultado, f, indent=2, ensure_ascii=False)
+        json.dump(output, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"\n✓ Resultado salvo em collector_classe_material_resultado.json")
-    logger.info(f"  G72: {len(classes_72)} classes")
-    logger.info(f"  G78: {len(classes_78)} classes")
+    logger.info(f"\n✓ Salvo: collector_classe_material_resultado.json")
 
 if __name__ == "__main__":
     main()
