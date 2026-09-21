@@ -7,6 +7,7 @@ CREATE TABLE icatmat_unidade_fornecimento (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_unidade INTEGER NOT NULL,
   descricao_unidade VARCHAR(200),

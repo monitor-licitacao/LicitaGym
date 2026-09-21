@@ -7,6 +7,7 @@ CREATE TABLE icatmat_natureza_despesa (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_natureza INTEGER NOT NULL,
   descricao_natureza VARCHAR(500),

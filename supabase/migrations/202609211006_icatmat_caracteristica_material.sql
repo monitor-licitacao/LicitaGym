@@ -7,6 +7,7 @@ CREATE TABLE icatmat_caracteristica_material (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo_grupo INTEGER NOT NULL,
   codigo_classe INTEGER NOT NULL,
+  codigo_pdm INTEGER NOT NULL,
   codigo_item INTEGER NOT NULL,
   codigo_caracteristica INTEGER NOT NULL,
   nome_caracteristica VARCHAR(300),
