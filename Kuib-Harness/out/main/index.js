@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ipcMain, BrowserWindow, app, shell } from "electron";
-import { createClient } from "@supabase/supabase-js";
+import { ipcMain, app, BrowserWindow, shell } from "electron";
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -39,9 +39,7 @@ function apply(vars, { override = false } = {}) {
 function loadMainEnv() {
   const root = projectRoot();
   apply(parseEnvFile(join(root, ".env")), { override: false });
-  apply(parseEnvFile(join(root, "..", "supabase", ".env.local")), {
-    override: false
-  });
+  apply(parseEnvFile(join(root, "..", "supabase", ".env.local")), { override: false });
   apply(parseEnvFile(join(root, ".env.local")), { override: true });
   if (!process.env.ADMIN_LOGIN?.trim() && process.env.login?.trim()) {
     process.env.ADMIN_LOGIN = process.env.login.trim();
@@ -66,6 +64,99 @@ function loadMainEnv() {
   }
 }
 loadMainEnv();
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
+const sessions = /* @__PURE__ */ new Map();
+function expectedLogin() {
+  return (process.env.ADMIN_LOGIN ?? "").trim();
+}
+function expectedSenha() {
+  return (process.env.ADMIN_SENHA ?? "").trim();
+}
+function safeEqual(a, b) {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+function purgeExpired() {
+  const now = Date.now();
+  for (const [token, s] of sessions) {
+    if (s.expiresAt <= now) sessions.delete(token);
+  }
+}
+function registerAuthIpc() {
+  const loginConfigured = Boolean(expectedLogin() && expectedSenha());
+  if (!loginConfigured) {
+    console.warn("[auth-ipc] ADMIN_LOGIN/ADMIN_SENHA ausentes — login local desabilitado");
+  } else {
+    console.info("[auth-ipc] login local admin habilitado");
+  }
+  ipcMain.handle("auth:status", () => ({
+    localAdminConfigured: loginConfigured,
+    configuredLogin: loginConfigured ? expectedLogin() : null,
+    configuredLoginLen: loginConfigured ? expectedLogin().length : 0,
+    configuredSenhaLen: loginConfigured ? expectedSenha().length : 0
+  }));
+  ipcMain.handle("auth:login", (_event, login, senha) => {
+    if (!loginConfigured) {
+      throw new Error("Admin local não configurado (.env.local)");
+    }
+    if (typeof login !== "string" || typeof senha !== "string") {
+      throw new Error("Credenciais inválidas");
+    }
+    const gotLogin = login.trim();
+    const gotSenha = senha.trim();
+    const wantLogin = expectedLogin();
+    const wantSenha = expectedSenha();
+    const okLogin = safeEqual(gotLogin, wantLogin) || safeEqual(gotLogin.toLowerCase(), wantLogin.toLowerCase());
+    const okSenha = safeEqual(gotSenha, wantSenha);
+    if (!okLogin || !okSenha) {
+      console.warn(
+        `[auth-ipc] login falhou okLogin=${okLogin} okSenha=${okSenha} gotLoginLen=${gotLogin.length} wantLoginLen=${wantLogin.length} gotSenhaLen=${gotSenha.length} wantSenhaLen=${wantSenha.length}`
+      );
+      throw new Error(
+        `Login ou senha incorretos (login ${gotLogin.length}/${wantLogin.length} chars, senha ${gotSenha.length}/${wantSenha.length} chars). Use ADMIN_LOGIN/ADMIN_SENHA de Kuib-Harness/.env.local`
+      );
+    }
+    purgeExpired();
+    const token = randomUUID();
+    const session = {
+      token,
+      login: login.trim(),
+      role: "admin",
+      expiresAt: Date.now() + SESSION_TTL_MS
+    };
+    sessions.set(token, session);
+    return {
+      token: session.token,
+      login: session.login,
+      role: session.role,
+      expiresAt: session.expiresAt
+    };
+  });
+  ipcMain.handle("auth:validate", (_event, token) => {
+    if (typeof token !== "string" || !token) return null;
+    purgeExpired();
+    const session = sessions.get(token);
+    if (!session) return null;
+    return {
+      token: session.token,
+      login: session.login,
+      role: session.role,
+      expiresAt: session.expiresAt
+    };
+  });
+  ipcMain.handle("auth:logout", (_event, token) => {
+    if (typeof token === "string") sessions.delete(token);
+    return true;
+  });
+}
+class ForbiddenError extends Error {
+  constructor(message = "Acesso restrito a administradores") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -76,12 +167,6 @@ const verifier = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 const admin = configured ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 }) : null;
-class ForbiddenError extends Error {
-  constructor(message = "Acesso restrito a administradores") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
 async function assertAdmin(accessToken) {
   if (!verifier || !admin) {
     throw new ForbiddenError("Supabase não configurado no main (.env)");
@@ -128,335 +213,6 @@ function registerAdminIpc() {
       return data ?? [];
     })
   );
-}
-const defaultConfig = () => ({
-  resend: {
-    enabled: false,
-    apiKeyConfigured: false,
-    from: "Kuib Harness <alerts@licitagym.local>",
-    toAdmin: ""
-  },
-  whatsapp: {
-    enabled: false,
-    provider: null,
-    evolutionBaseUrl: "http://127.0.0.1:8080",
-    evolutionInstance: "kuib",
-    wppconnectBaseUrl: "http://127.0.0.1:21465"
-  },
-  realtime: {
-    enabled: true
-  }
-});
-function storePath$1() {
-  const dir = join(app.getPath("userData"), "kuib-harness");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return join(dir, "alerts.json");
-}
-function readStore$1() {
-  const path = storePath$1();
-  if (!existsSync(path)) {
-    return { config: defaultConfig(), items: [], secrets: {} };
-  }
-  try {
-    const raw = JSON.parse(readFileSync(path, "utf8"));
-    return {
-      config: { ...defaultConfig(), ...raw.config },
-      items: raw.items ?? [],
-      secrets: raw.secrets ?? {}
-    };
-  } catch {
-    return { config: defaultConfig(), items: [], secrets: {} };
-  }
-}
-function writeStore$1(store) {
-  writeFileSync(storePath$1(), JSON.stringify(store, null, 2), "utf8");
-}
-function publicConfig(store) {
-  return {
-    ...store.config,
-    resend: {
-      ...store.config.resend,
-      apiKeyConfigured: Boolean(store.secrets.resendApiKey)
-    }
-  };
-}
-function broadcast$1(channel, payload) {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send(channel, payload);
-  }
-}
-async function sendResendEmail(store, title, body) {
-  const key = store.secrets.resendApiKey || process.env.RESEND_API_KEY;
-  if (!store.config.resend.enabled) {
-    return { ok: false, detail: "Resend desabilitado" };
-  }
-  if (!key) return { ok: false, detail: "RESEND_API_KEY ausente" };
-  if (!store.config.resend.toAdmin) {
-    return { ok: false, detail: "E-mail admin não configurado" };
-  }
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: store.config.resend.from,
-        to: [store.config.resend.toAdmin],
-        subject: title,
-        text: body
-      })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, detail: `Resend ${res.status}: ${text}` };
-    }
-    return { ok: true, detail: "enviado" };
-  } catch (e) {
-    return { ok: false, detail: e instanceof Error ? e.message : "falha Resend" };
-  }
-}
-async function sendEvolution(store, body) {
-  if (!store.config.whatsapp.enabled || store.config.whatsapp.provider !== "evolution") {
-    return { ok: false, detail: "Evolution desabilitado" };
-  }
-  const key = store.secrets.evolutionApiKey;
-  if (!key) return { ok: false, detail: "Evolution API key ausente" };
-  const url = `${store.config.whatsapp.evolutionBaseUrl.replace(/\/$/, "")}/message/sendText/${store.config.whatsapp.evolutionInstance}`;
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key
-      },
-      body: JSON.stringify({
-        number: process.env.WHATSAPP_ADMIN_NUMBER ?? "",
-        text: body
-      })
-    });
-    if (!res.ok) return { ok: false, detail: `Evolution ${res.status}` };
-    return { ok: true, detail: "enviado" };
-  } catch (e) {
-    return { ok: false, detail: e instanceof Error ? e.message : "falha Evolution" };
-  }
-}
-async function sendWppConnect(store, body) {
-  if (!store.config.whatsapp.enabled || store.config.whatsapp.provider !== "wppconnect") {
-    return { ok: false, detail: "WPPConnect desabilitado" };
-  }
-  const token = store.secrets.wppconnectToken;
-  if (!token) return { ok: false, detail: "WPPConnect token ausente" };
-  const url = `${store.config.whatsapp.wppconnectBaseUrl.replace(/\/$/, "")}/api/send-message`;
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        phone: process.env.WHATSAPP_ADMIN_NUMBER ?? "",
-        message: body
-      })
-    });
-    if (!res.ok) return { ok: false, detail: `WPPConnect ${res.status}` };
-    return { ok: true, detail: "enviado" };
-  } catch (e) {
-    return { ok: false, detail: e instanceof Error ? e.message : "falha WPPConnect" };
-  }
-}
-async function notifyTaskComplete(payload) {
-  const store = readStore$1();
-  const item = {
-    id: randomUUID(),
-    title: payload.title,
-    body: payload.body,
-    channel: "bell",
-    cardId: payload.cardId,
-    specName: payload.specName,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-    read: false
-  };
-  store.items.unshift(item);
-  store.items = store.items.slice(0, 100);
-  writeStore$1(store);
-  broadcast$1("alerts:push", item);
-  const email = await sendResendEmail(store, payload.title, payload.body);
-  if (email.ok) {
-    const emailItem = { ...item, id: randomUUID(), channel: "email" };
-    store.items.unshift(emailItem);
-    writeStore$1(store);
-    broadcast$1("alerts:push", emailItem);
-  }
-  const wa = store.config.whatsapp.provider === "wppconnect" ? await sendWppConnect(store, `${payload.title}
-${payload.body}`) : await sendEvolution(store, `${payload.title}
-${payload.body}`);
-  if (wa.ok) {
-    const waItem = { ...item, id: randomUUID(), channel: "whatsapp" };
-    store.items.unshift(waItem);
-    writeStore$1(store);
-    broadcast$1("alerts:push", waItem);
-  }
-  return item;
-}
-function registerAlertsIpc() {
-  ipcMain.handle("alerts:list", () => {
-    return readStore$1().items;
-  });
-  ipcMain.handle("alerts:config:get", () => publicConfig(readStore$1()));
-  ipcMain.handle(
-    "alerts:config:set",
-    (_event, patch) => {
-      const store = readStore$1();
-      if (patch.resend) store.config.resend = { ...store.config.resend, ...patch.resend };
-      if (patch.whatsapp) {
-        store.config.whatsapp = { ...store.config.whatsapp, ...patch.whatsapp };
-      }
-      if (patch.realtime) {
-        store.config.realtime = { ...store.config.realtime, ...patch.realtime };
-      }
-      if (patch.resendApiKey?.trim()) store.secrets.resendApiKey = patch.resendApiKey.trim();
-      if (patch.evolutionApiKey?.trim()) {
-        store.secrets.evolutionApiKey = patch.evolutionApiKey.trim();
-      }
-      if (patch.wppconnectToken?.trim()) {
-        store.secrets.wppconnectToken = patch.wppconnectToken.trim();
-      }
-      writeStore$1(store);
-      return publicConfig(store);
-    }
-  );
-  ipcMain.handle("alerts:mark-read", (_event, id) => {
-    const store = readStore$1();
-    const item = store.items.find((i) => i.id === id);
-    if (item) item.read = true;
-    writeStore$1(store);
-    return item;
-  });
-  ipcMain.handle("alerts:notify-complete", async (_event, payload) => {
-    return notifyTaskComplete(payload);
-  });
-  ipcMain.handle(
-    "alerts:card-moved",
-    async (_event, payload) => {
-      const store = readStore$1();
-      const event = {
-        type: "card_moved",
-        ...payload,
-        at: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      if (store.config.realtime.enabled) {
-        broadcast$1("realtime:card-moved", event);
-      }
-      if (payload.to === "done") {
-        await notifyTaskComplete({
-          title: `Spec concluída: ${payload.specName ?? payload.title}`,
-          body: `Card "${payload.title}" movido para Concluído${payload.agentName ? ` · agente ${payload.agentName}` : ""}.`,
-          cardId: payload.cardId,
-          specName: payload.specName
-        });
-      }
-      return event;
-    }
-  );
-}
-const alerts = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  notifyTaskComplete,
-  registerAlertsIpc
-}, Symbol.toStringTag, { value: "Module" }));
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
-const sessions = /* @__PURE__ */ new Map();
-function expectedLogin() {
-  return (process.env.ADMIN_LOGIN ?? "").trim();
-}
-function expectedSenha() {
-  return (process.env.ADMIN_SENHA ?? "").trim();
-}
-function safeEqual(a, b) {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
-}
-function purgeExpired() {
-  const now = Date.now();
-  for (const [token, s] of sessions) {
-    if (s.expiresAt <= now) sessions.delete(token);
-  }
-}
-function registerAuthIpc() {
-  const loginConfigured = Boolean(expectedLogin() && expectedSenha());
-  if (!loginConfigured) {
-    console.warn("[auth-ipc] ADMIN_LOGIN/ADMIN_SENHA ausentes — login local desabilitado");
-  } else {
-    console.info("[auth-ipc] login local admin habilitado");
-  }
-  ipcMain.handle("auth:status", () => ({
-    localAdminConfigured: loginConfigured,
-    /** Login esperado (desktop local) — evita tipar email/usuário errado. */
-    configuredLogin: loginConfigured ? expectedLogin() : null,
-    configuredLoginLen: loginConfigured ? expectedLogin().length : 0,
-    configuredSenhaLen: loginConfigured ? expectedSenha().length : 0
-  }));
-  ipcMain.handle(
-    "auth:login",
-    (_event, login, senha) => {
-      if (!loginConfigured) {
-        throw new Error("Admin local não configurado (.env.local)");
-      }
-      if (typeof login !== "string" || typeof senha !== "string") {
-        throw new Error("Credenciais inválidas");
-      }
-      const gotLogin = login.trim();
-      const gotSenha = senha.trim();
-      const wantLogin = expectedLogin();
-      const wantSenha = expectedSenha();
-      const okLogin = safeEqual(gotLogin, wantLogin) || safeEqual(gotLogin.toLowerCase(), wantLogin.toLowerCase());
-      const okSenha = safeEqual(gotSenha, wantSenha);
-      if (!okLogin || !okSenha) {
-        console.warn(
-          `[auth-ipc] login falhou okLogin=${okLogin} okSenha=${okSenha} gotLoginLen=${gotLogin.length} wantLoginLen=${wantLogin.length} gotSenhaLen=${gotSenha.length} wantSenhaLen=${wantSenha.length}`
-        );
-        throw new Error(
-          `Login ou senha incorretos (login ${gotLogin.length}/${wantLogin.length} chars, senha ${gotSenha.length}/${wantSenha.length} chars). Use ADMIN_LOGIN/ADMIN_SENHA de Kuib-Harness/.env.local`
-        );
-      }
-      purgeExpired();
-      const token = randomUUID();
-      const session = {
-        token,
-        login: login.trim(),
-        role: "admin",
-        expiresAt: Date.now() + SESSION_TTL_MS
-      };
-      sessions.set(token, session);
-      return {
-        token: session.token,
-        login: session.login,
-        role: session.role,
-        expiresAt: session.expiresAt
-      };
-    }
-  );
-  ipcMain.handle("auth:validate", (_event, token) => {
-    if (typeof token !== "string" || !token) return null;
-    purgeExpired();
-    const session = sessions.get(token);
-    if (!session) return null;
-    return {
-      token: session.token,
-      login: session.login,
-      role: session.role,
-      expiresAt: session.expiresAt
-    };
-  });
-  ipcMain.handle("auth:logout", (_event, token) => {
-    if (typeof token === "string") sessions.delete(token);
-    return true;
-  });
 }
 const PROVIDER_CATALOG = {
   anthropic: {
@@ -537,13 +293,13 @@ function maskSecret(value) {
   if (value.length <= 8) return "••••••••";
   return `${value.slice(0, 3)}••••${value.slice(-4)}`;
 }
-function storePath() {
+function storePath$1() {
   const dir = join(app.getPath("userData"), "kuib-harness");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return join(dir, "providers.json");
 }
-function readStore() {
-  const path = storePath();
+function readStore$1() {
+  const path = storePath$1();
   if (!existsSync(path)) return { connectors: [] };
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -551,8 +307,8 @@ function readStore() {
     return { connectors: [] };
   }
 }
-function writeStore(store) {
-  writeFileSync(storePath(), JSON.stringify(store, null, 2), "utf8");
+function writeStore$1(store) {
+  writeFileSync(storePath$1(), JSON.stringify(store, null, 2), "utf8");
 }
 function toPublic(c) {
   return {
@@ -570,73 +326,277 @@ function toPublic(c) {
 }
 function registerProviderIpc() {
   ipcMain.handle("providers:catalog", () => listProviderDefinitions());
-  ipcMain.handle("providers:list", () => {
-    return readStore().connectors.map(toPublic);
-  });
-  ipcMain.handle(
-    "providers:upsert",
-    (_event, input) => {
-      assertModelAllowed(input.slug, input.modelId);
-      const store = readStore();
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      const existingIdx = input.id ? store.connectors.findIndex((c) => c.id === input.id) : -1;
-      if (existingIdx >= 0) {
-        const prev = store.connectors[existingIdx];
-        const next = {
-          ...prev,
-          slug: input.slug,
-          label: input.label,
-          authMode: input.authMode,
-          baseUrl: input.baseUrl,
-          modelId: input.modelId,
-          enabled: input.enabled,
-          updatedAt: now,
-          apiKey: input.apiKey?.trim() ? input.apiKey.trim() : prev.apiKey
-        };
-        store.connectors[existingIdx] = next;
-        writeStore(store);
-        return toPublic(next);
-      }
-      const created = {
-        id: randomUUID(),
+  ipcMain.handle("providers:list", () => readStore$1().connectors.map(toPublic));
+  ipcMain.handle("providers:upsert", (_event, input) => {
+    assertModelAllowed(input.slug, input.modelId);
+    const store = readStore$1();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const existingIdx = input.id ? store.connectors.findIndex((c) => c.id === input.id) : -1;
+    if (existingIdx >= 0) {
+      const prev = store.connectors[existingIdx];
+      const next = {
+        ...prev,
         slug: input.slug,
         label: input.label,
         authMode: input.authMode,
         baseUrl: input.baseUrl,
-        apiKey: input.apiKey?.trim() || void 0,
         modelId: input.modelId,
         enabled: input.enabled,
-        updatedAt: now
+        updatedAt: now,
+        apiKey: input.apiKey?.trim() ? input.apiKey.trim() : prev.apiKey
       };
-      store.connectors.push(created);
-      writeStore(store);
-      return toPublic(created);
+      store.connectors[existingIdx] = next;
+      writeStore$1(store);
+      return toPublic(next);
     }
-  );
+    const created = {
+      id: randomUUID(),
+      slug: input.slug,
+      label: input.label,
+      authMode: input.authMode,
+      baseUrl: input.baseUrl,
+      apiKey: input.apiKey?.trim() || void 0,
+      modelId: input.modelId,
+      enabled: input.enabled,
+      updatedAt: now
+    };
+    store.connectors.push(created);
+    writeStore$1(store);
+    return toPublic(created);
+  });
   ipcMain.handle("providers:delete", (_event, id) => {
-    const store = readStore();
+    const store = readStore$1();
     store.connectors = store.connectors.filter((c) => c.id !== id);
+    writeStore$1(store);
+  });
+  ipcMain.handle("providers:resolve", (_event, slug, modelId) => {
+    const store = readStore$1();
+    const connector = store.connectors.find((c) => c.slug === slug && c.enabled);
+    if (!connector) throw new Error(`Nenhum conector ativo para "${slug}"`);
+    const resolvedModel = modelId ?? connector.modelId;
+    assertModelAllowed(slug, resolvedModel);
+    return {
+      id: connector.id,
+      slug: connector.slug,
+      modelId: resolvedModel,
+      baseUrl: connector.baseUrl,
+      hasApiKey: Boolean(connector.apiKey)
+    };
+  });
+}
+const defaultConfig = () => ({
+  resend: {
+    enabled: false,
+    apiKeyConfigured: false,
+    from: "Kuib Harness <alerts@licitagym.local>",
+    toAdmin: ""
+  },
+  whatsapp: {
+    enabled: false,
+    provider: null,
+    evolutionBaseUrl: "http://127.0.0.1:8080",
+    evolutionInstance: "kuib",
+    wppconnectBaseUrl: "http://127.0.0.1:21465"
+  },
+  realtime: {
+    enabled: true
+  }
+});
+function storePath() {
+  const dir = join(app.getPath("userData"), "kuib-harness");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, "alerts.json");
+}
+function readStore() {
+  const path = storePath();
+  if (!existsSync(path)) {
+    return { config: defaultConfig(), items: [], secrets: {} };
+  }
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf8"));
+    return {
+      config: { ...defaultConfig(), ...raw.config },
+      items: raw.items ?? [],
+      secrets: raw.secrets ?? {}
+    };
+  } catch {
+    return { config: defaultConfig(), items: [], secrets: {} };
+  }
+}
+function writeStore(store) {
+  writeFileSync(storePath(), JSON.stringify(store, null, 2), "utf8");
+}
+function publicConfig(store) {
+  return {
+    ...store.config,
+    resend: {
+      ...store.config.resend,
+      apiKeyConfigured: Boolean(store.secrets.resendApiKey)
+    }
+  };
+}
+function broadcast$1(channel, payload) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(channel, payload);
+  }
+}
+async function sendResendEmail(store, title, body) {
+  const key = store.secrets.resendApiKey || process.env.RESEND_API_KEY;
+  if (!store.config.resend.enabled) return { ok: false, detail: "Resend desabilitado" };
+  if (!key) return { ok: false, detail: "RESEND_API_KEY ausente" };
+  if (!store.config.resend.toAdmin) return { ok: false, detail: "E-mail admin não configurado" };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: store.config.resend.from,
+        to: [store.config.resend.toAdmin],
+        subject: title,
+        text: body
+      })
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, detail: `Resend ${res.status}: ${text}` };
+    }
+    return { ok: true, detail: "enviado" };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : "falha Resend" };
+  }
+}
+async function sendEvolution(store, body) {
+  if (!store.config.whatsapp.enabled || store.config.whatsapp.provider !== "evolution") {
+    return { ok: false, detail: "Evolution desabilitado" };
+  }
+  const key = store.secrets.evolutionApiKey;
+  if (!key) return { ok: false, detail: "Evolution API key ausente" };
+  const url = `${store.config.whatsapp.evolutionBaseUrl.replace(/\/$/, "")}/message/sendText/${store.config.whatsapp.evolutionInstance}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key
+      },
+      body: JSON.stringify({
+        number: process.env.WHATSAPP_ADMIN_NUMBER ?? "",
+        text: body
+      })
+    });
+    if (!res.ok) return { ok: false, detail: `Evolution ${res.status}` };
+    return { ok: true, detail: "enviado" };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : "falha Evolution" };
+  }
+}
+async function sendWppConnect(store, body) {
+  if (!store.config.whatsapp.enabled || store.config.whatsapp.provider !== "wppconnect") {
+    return { ok: false, detail: "WPPConnect desabilitado" };
+  }
+  const token = store.secrets.wppconnectToken;
+  if (!token) return { ok: false, detail: "WPPConnect token ausente" };
+  const url = `${store.config.whatsapp.wppconnectBaseUrl.replace(/\/$/, "")}/api/send-message`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        phone: process.env.WHATSAPP_ADMIN_NUMBER ?? "",
+        message: body
+      })
+    });
+    if (!res.ok) return { ok: false, detail: `WPPConnect ${res.status}` };
+    return { ok: true, detail: "enviado" };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : "falha WPPConnect" };
+  }
+}
+async function notifyTaskComplete(payload) {
+  const store = readStore();
+  const item = {
+    id: randomUUID(),
+    title: payload.title,
+    body: payload.body,
+    channel: "bell",
+    cardId: payload.cardId,
+    specName: payload.specName,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    read: false
+  };
+  store.items.unshift(item);
+  store.items = store.items.slice(0, 100);
+  writeStore(store);
+  broadcast$1("alerts:push", item);
+  const email = await sendResendEmail(store, payload.title, payload.body);
+  if (email.ok) {
+    const emailItem = { ...item, id: randomUUID(), channel: "email" };
+    store.items.unshift(emailItem);
     writeStore(store);
+    broadcast$1("alerts:push", emailItem);
+  }
+  const wa = store.config.whatsapp.provider === "wppconnect" ? await sendWppConnect(store, `${payload.title}
+${payload.body}`) : await sendEvolution(store, `${payload.title}
+${payload.body}`);
+  if (wa.ok) {
+    const waItem = { ...item, id: randomUUID(), channel: "whatsapp" };
+    store.items.unshift(waItem);
+    writeStore(store);
+    broadcast$1("alerts:push", waItem);
+  }
+  return item;
+}
+function registerAlertsIpc() {
+  ipcMain.handle("alerts:list", () => readStore().items);
+  ipcMain.handle("alerts:config:get", () => publicConfig(readStore()));
+  ipcMain.handle("alerts:config:set", (_event, patch) => {
+    const store = readStore();
+    if (patch.resend) store.config.resend = { ...store.config.resend, ...patch.resend };
+    if (patch.whatsapp) store.config.whatsapp = { ...store.config.whatsapp, ...patch.whatsapp };
+    if (patch.realtime) store.config.realtime = { ...store.config.realtime, ...patch.realtime };
+    if (patch.resendApiKey?.trim()) store.secrets.resendApiKey = patch.resendApiKey.trim();
+    if (patch.evolutionApiKey?.trim()) store.secrets.evolutionApiKey = patch.evolutionApiKey.trim();
+    if (patch.wppconnectToken?.trim()) store.secrets.wppconnectToken = patch.wppconnectToken.trim();
+    writeStore(store);
+    return publicConfig(store);
+  });
+  ipcMain.handle("alerts:mark-read", (_event, id) => {
+    const store = readStore();
+    const item = store.items.find((i) => i.id === id);
+    if (item) item.read = true;
+    writeStore(store);
+    return item;
   });
   ipcMain.handle(
-    "providers:resolve",
-    (_event, slug, modelId) => {
-      const store = readStore();
-      const connector = store.connectors.find((c) => c.slug === slug && c.enabled);
-      if (!connector) throw new Error(`Nenhum conector ativo para "${slug}"`);
-      const resolvedModel = modelId ?? connector.modelId;
-      assertModelAllowed(slug, resolvedModel);
-      return {
-        id: connector.id,
-        slug: connector.slug,
-        modelId: resolvedModel,
-        baseUrl: connector.baseUrl,
-        hasApiKey: Boolean(connector.apiKey)
-        // apiKey nunca sobe para o renderer neste canal público;
-        // canais internos de agente no main leem do store diretamente.
-      };
-    }
+    "alerts:notify-complete",
+    async (_event, payload) => notifyTaskComplete(payload)
   );
+  ipcMain.handle("alerts:card-moved", async (_event, payload) => {
+    const store = readStore();
+    const event = {
+      type: "card_moved",
+      ...payload,
+      at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    if (store.config.realtime.enabled) {
+      broadcast$1("realtime:card-moved", event);
+    }
+    if (payload.to === "done") {
+      await notifyTaskComplete({
+        title: `Spec concluída: ${payload.specName ?? payload.title}`,
+        body: `Card "${payload.title}" movido para Concluído${payload.agentName ? ` · agente ${payload.agentName}` : ""}.`,
+        cardId: payload.cardId,
+        specName: payload.specName
+      });
+    }
+    return event;
+  });
 }
 const SYNC_INVENTORY = [
   {
@@ -876,6 +836,7 @@ function toSyncRunEvent(row) {
     at: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
+const watchers = /* @__PURE__ */ new Map();
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -906,7 +867,6 @@ function broadcast(channel, payload) {
     win.webContents.send(channel, payload);
   }
 }
-const watchers = /* @__PURE__ */ new Map();
 async function fetchSyncRun(syncId) {
   const client = supabaseAdmin();
   if (!client) throw new Error("SUPABASE_SERVICE_ROLE_KEY ausente — polling indisponível");
@@ -948,8 +908,7 @@ function startWatch(syncId, slug, timeoutMs) {
         if (terminal.includes(row.status)) {
           stopWatch(syncId);
           if (row.status === "concluida" || row.status === "falhou" || row.status === "concluida_com_erros") {
-            const { notifyTaskComplete: notifyTaskComplete2 } = await Promise.resolve().then(() => alerts);
-            await notifyTaskComplete2({
+            await notifyTaskComplete({
               title: `Sync ${row.status}: ${slug}`,
               body: [
                 `resource_type=${row.resource_type}`,
@@ -996,75 +955,72 @@ function registerSyncsIpc() {
     if (typeof syncId !== "string" || !syncId) throw new Error("sync_id obrigatório");
     return fetchSyncRun(syncId);
   });
-  ipcMain.handle(
-    "syncs:invoke",
-    async (_e, payload) => {
-      const item = findInventory(payload.slug);
-      if (item.requiresApproval && process.env.ALLOW_HEAVY_SYNC !== "true") ;
-      const secret = cronSecret();
-      const url = `${functionsBaseUrl()}/${item.functionName}`;
-      const body = { ...item.defaultBody, ...payload.body ?? {} };
-      const client = supabaseAdmin();
-      if (client) {
-        const { data: running } = await client.schema("private").from("pncp_sync_run").select(
-          "id, status, resource_type, total_recebidos, total_novos, total_atualizados, total_inalterados, total_erros, erro_principal, iniciada_em, finalizada_em, lock_key"
-        ).eq("status", "executando").order("iniciada_em", { ascending: false }).limit(20);
-        const hit = running?.find((r) => {
-          const rt = (r.resource_type || "").toLowerCase();
-          const slug = item.slug.toLowerCase();
-          const fn = item.functionName.toLowerCase();
-          return rt.includes(fn.replace("sync-", "")) || slug.includes(rt) || rt.includes(slug.replace("sync-", ""));
-        });
-        if (hit) {
-          if (payload.watch !== false) startWatch(hit.id, item.slug, item.observeTimeoutMs);
-          return {
-            ok: true,
-            slug: item.slug,
-            functionName: item.functionName,
-            sync_id: hit.id,
-            status: hit.status,
-            alreadyRunning: true,
-            raw: { sync_id: hit.id, status: hit.status }
-          };
-        }
-      }
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${secret}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
+  ipcMain.handle("syncs:invoke", async (_e, payload) => {
+    const item = findInventory(payload.slug);
+    if (item.requiresApproval && process.env.ALLOW_HEAVY_SYNC !== "true") ;
+    const secret = cronSecret();
+    const url = `${functionsBaseUrl()}/${item.functionName}`;
+    const body = { ...item.defaultBody, ...payload.body ?? {} };
+    const client = supabaseAdmin();
+    if (client) {
+      const { data: running } = await client.schema("private").from("pncp_sync_run").select(
+        "id, resource_type, status, total_recebidos, total_novos, total_atualizados, total_inalterados, total_erros, erro_principal, iniciada_em, finalizada_em, lock_key"
+      ).eq("status", "executando").order("iniciada_em", { ascending: false }).limit(20);
+      const hit = running?.find((r) => {
+        const rt = (r.resource_type || "").toLowerCase();
+        const slug = item.slug.toLowerCase();
+        const fn = item.functionName.toLowerCase();
+        return rt.includes(fn.replace("sync-", "")) || slug.includes(rt) || rt.includes(slug.replace("sync-", ""));
       });
-      const text = await res.text();
-      let json = {};
-      try {
-        json = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(`Resposta não-JSON (${res.status}): ${text.slice(0, 400)}`);
+      if (hit) {
+        if (payload.watch !== false) startWatch(hit.id, item.slug, item.observeTimeoutMs);
+        return {
+          ok: true,
+          slug: item.slug,
+          functionName: item.functionName,
+          sync_id: hit.id,
+          status: hit.status,
+          alreadyRunning: true,
+          raw: { sync_id: hit.id, status: hit.status }
+        };
       }
-      if (!res.ok || json.error) {
-        const msg = typeof json.error === "string" ? json.error : typeof json.message === "string" ? json.message : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      const syncId = typeof json.sync_id === "string" ? json.sync_id : typeof json.run_id === "string" ? json.run_id : null;
-      let status = typeof json.status === "string" ? json.status : syncId ? "executando" : "desconhecido";
-      if (syncId && payload.watch !== false) {
-        startWatch(syncId, item.slug, item.observeTimeoutMs);
-        const row = await fetchSyncRun(syncId).catch(() => null);
-        if (row?.status) status = row.status;
-      }
-      return {
-        ok: true,
-        slug: item.slug,
-        functionName: item.functionName,
-        sync_id: syncId,
-        status,
-        alreadyRunning: false,
-        raw: json
-      };
     }
-  );
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`Resposta não-JSON (${res.status}): ${text.slice(0, 400)}`);
+    }
+    if (!res.ok || json.error) {
+      const msg = typeof json.error === "string" ? json.error : typeof json.message === "string" ? json.message : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const syncId = typeof json.sync_id === "string" ? json.sync_id : typeof json.run_id === "string" ? json.run_id : null;
+    let status = typeof json.status === "string" ? json.status : syncId ? "executando" : "desconhecido";
+    if (syncId && payload.watch !== false) {
+      startWatch(syncId, item.slug, item.observeTimeoutMs);
+      const row = await fetchSyncRun(syncId).catch(() => null);
+      if (row?.status) status = row.status;
+    }
+    return {
+      ok: true,
+      slug: item.slug,
+      functionName: item.functionName,
+      sync_id: syncId,
+      status,
+      alreadyRunning: false,
+      raw: json
+    };
+  });
   ipcMain.handle("syncs:watch", (_e, syncId, slug, timeoutMs) => {
     if (typeof syncId !== "string") throw new Error("sync_id inválido");
     const item = SYNC_INVENTORY.find((s) => s.slug === slug);
