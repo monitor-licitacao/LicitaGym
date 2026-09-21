@@ -6,10 +6,10 @@ Coleta preços + fornecedores para items fitness no mercado.
 """
 
 import json
-import urllib.request
 import logging
 import time
 from typing import Any, Dict, List, Optional
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,25 +45,25 @@ def fetch_material(codigo_item: Optional[int] = None, pagina: int = 1) -> Dict[s
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        logger.error(f"Erro fetch_material: {e}")
-        return {"resultado": []}
+    return fetch_json(
+        url,
+        timeout=TIMEOUT,
+        user_agent="LicitaGym/Collector",
+        raise_for_status=True,
+        legacy_empty_envelope_key="resultado",
+    )
 
 def fetch_detalhe(codigo_material: int) -> Dict[str, Any]:
     """Consulta Detalhe (preços + fornecedores)"""
     url = f"{BASE_URL}{ENDPOINT_DETALHE}?codigoMaterial={codigo_material}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        logger.warning(f"Detalhe {codigo_material}: {e}")
-        return {"resultado": []}
+    return fetch_json(
+        url,
+        timeout=TIMEOUT,
+        user_agent="LicitaGym/Collector",
+        raise_for_status=True,
+        legacy_empty_envelope_key="resultado",
+    )
 
 def main():
     logger.info("=== COLLECTOR: Pesquisa de Preço — Material + Detalhe ===")

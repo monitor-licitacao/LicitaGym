@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 import json
+from pathlib import Path
 
-with open('C:\\Users\\marce\\licitagym\\collector_item_material_resultado.json', encoding='utf-8') as f:
+# SEC-P1-02: Use relative path instead of hardcoded Windows absolute path
+json_file = Path(__file__).parent / "collector_item_material_resultado.json"
+if not json_file.exists():
+    json_file = Path("collector_item_material_resultado.json")
+
+with open(json_file, encoding='utf-8') as f:
     data = json.load(f)
 
 items_g72 = data['data'].get('grupo_72', [])

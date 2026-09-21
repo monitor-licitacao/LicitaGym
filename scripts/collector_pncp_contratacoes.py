@@ -10,11 +10,11 @@ PARÂMETROS (via schemas-consultas-pncp.md):
 """
 
 import json
-import urllib.request
 import logging
 import hashlib
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -51,13 +51,13 @@ def fetch_contratacoes(pagina: int, data_inicial: str, data_final: str) -> Dict[
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        logger.error(f"✗ Erro fetch: {e}")
-        return {"data": []}
+    return fetch_json(
+        url,
+        timeout=TIMEOUT,
+        user_agent="LicitaGym/Collector",
+        raise_for_status=True,
+        legacy_empty_envelope_key="data",
+    )
 
 def compute_hash(obj: Dict[str, Any]) -> str:
     json_str = json.dumps(obj, sort_keys=True, separators=(',', ':'))

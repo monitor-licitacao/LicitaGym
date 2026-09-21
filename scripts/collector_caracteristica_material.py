@@ -6,10 +6,10 @@ Coleta Características com retry exponencial para rate-limiting.
 """
 
 import json
-import urllib.request
 import logging
 import time
 from typing import Any, Dict, List, Optional
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -42,23 +42,14 @@ def fetch_caracteristicas(
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
-    for attempt in range(max_retries):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-                data = json.loads(resp.read().decode())
-                return data
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < max_retries - 1:
-                wait_time = 2 ** (attempt + 1)
-                logger.warning(f"Rate-limit (429). Aguardando {wait_time}s...")
-                time.sleep(wait_time)
-            else:
-                logger.error(f"Erro HTTP {e.code}: {e}")
-                return {"resultado": []}
-        except Exception as e:
-            logger.error(f"Erro: {e}")
-            return {"resultado": []}
+    return fetch_json(
+        url,
+        timeout=TIMEOUT,
+        max_retries=max_retries,
+        user_agent="LicitaGym/Collector",
+        raise_for_status=True,
+        legacy_empty_envelope_key="resultado",
+    )
 
 def collect_caracteristicas_por_item(
     codigo_item: int,
@@ -69,33 +60,28 @@ def collect_caracteristicas_por_item(
     pagina = 1
 
     while True:
-        try:
-            resp = fetch_caracteristicas(
-                codigo_item=codigo_item,
-                pagina=pagina,
-                tamanho_pagina=500
-            )
-            caracteristicas = resp.get("resultado", [])
+        resp = fetch_caracteristicas(
+            codigo_item=codigo_item,
+            pagina=pagina,
+            tamanho_pagina=500
+        )
+        caracteristicas = resp.get("resultado", [])
 
-            if not caracteristicas:
-                logger.info(f"  Página {pagina}: vazio ou erro")
-                break
-
-            logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
-            todas_caracteristicas.extend(caracteristicas)
-
-            if max_pages and pagina >= max_pages:
-                break
-
-            if resp.get("paginasRestantes", 0) == 0:
-                break
-
-            pagina += 1
-            time.sleep(0.5)
-
-        except Exception as e:
-            logger.error(f"Erro na página {pagina}: {e}")
+        if not caracteristicas:
+            logger.info(f"  Página {pagina}: vazio")
             break
+
+        logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
+        todas_caracteristicas.extend(caracteristicas)
+
+        if max_pages and pagina >= max_pages:
+            break
+
+        if resp.get("paginasRestantes", 0) == 0:
+            break
+
+        pagina += 1
+        time.sleep(0.5)
 
     logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item})")
     return todas_caracteristicas
