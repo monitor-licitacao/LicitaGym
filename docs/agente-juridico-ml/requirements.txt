@@ -69,3 +69,8 @@ langsmith==0.10.9
 # onnx>=1.16.0
 # onnxruntime-gpu>=1.18.0
 # optimum[onnxruntime]>=1.20.0
+
+# Fase 3 GPU (Windows RTX):
+# onnxruntime-gpu==1.22.0
+# tensorrt-cu12==10.9.0.34
+# nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-nvrtc-cu12

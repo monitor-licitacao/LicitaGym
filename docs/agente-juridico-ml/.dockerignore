@@ -1,0 +1,13 @@
+# Build context hygiene for Dockerfile.gpu
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+_sync_list/
+models/trt_cache/
+*.md
+exemplos/
+artifacts/
+.env
+.env.*

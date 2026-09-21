@@ -41,8 +41,9 @@ class AgenteJuridico:
             self.supabase = None
             self.ingestor = None
         else:
-            self.supabase = None  # Será inicializado no ingestor
             self.ingestor = IngestorLegislacao(supabase_url, supabase_key)
+            # Real client for BancoVetorialLegislacao RPC / indexação
+            self.supabase = self.ingestor.supabase
         
         # Inicializar modelo ML
         self.modelo_ml = ModeloJuridicoML()
@@ -158,8 +159,7 @@ class AgenteJuridico:
         elif extensao == '.docx':
             texto = ParserDocumento.parse_docx(caminho)
         elif extensao in ['.html', '.htm']:
-            with open(caminho, 'r', encoding='utf-8') as f:
-                texto = ParserDocumento.parse_html(f.read())
+            texto = ParserDocumento.parse_html(ParserDocumento.read_text_file(caminho))
         else:
             return {'erro': f'Extensão não suportada: {extensao}'}
         
@@ -254,48 +254,128 @@ class AgenteJuridico:
         )
 
 
-# API FastAPI (opcional)
+
+
+# API FastAPI (producao Fase 4)
 def criar_api():
-    """Criar API FastAPI para o agente"""
+    """Criar API FastAPI para o agente (warmup + health + metrics)."""
     try:
+        import time
+        from collections import deque
+        from contextlib import asynccontextmanager
+
         from fastapi import FastAPI, HTTPException
         from pydantic import BaseModel
         from typing import Optional
-        
-        app = FastAPI(
-            title="Agente Jurídico LicitaGym",
-            description="API para consultas jurídicas sobre legislação de licitações",
-            version="1.0.0"
-        )
-        
+
+        encode_latencies_ms: deque = deque(maxlen=200)
+        ready_state = {"ready": False, "backend": None, "provider": None, "dim": None, "warmup_ms": None}
+
         agente = AgenteJuridico()
-        
+
         class ConsultaRequest(BaseModel):
             pergunta: str
             usar_embeddings: bool = True
-        
+
         class DocumentoRequest(BaseModel):
             caminho: str
-        
+
         class ComparacaoRequest(BaseModel):
             texto1: str
             texto2: str
-        
-        @app.on_event("startup")
-        async def startup():
+
+        def _warmup():
+            textos = [
+                "warmup licitacao lei 14133",
+                "dispensa de licitacao artigo 75",
+                "pregao eletronico equipamentos academia",
+            ]
+            t0 = time.perf_counter()
             agente.carregar_modelo()
-        
+            backend = agente.modelo_ml.embedding_backend
+            for t in textos:
+                t1 = time.perf_counter()
+                agente.modelo_ml.gerar_embeddings_lote([t])
+                encode_latencies_ms.append((time.perf_counter() - t1) * 1000.0)
+            ready_state["ready"] = True
+            ready_state["backend"] = type(backend).__name__ if backend else None
+            ready_state["provider"] = getattr(backend, "provider", "torch")
+            ready_state["dim"] = getattr(backend, "dimension", None)
+            ready_state["warmup_ms"] = round((time.perf_counter() - t0) * 1000.0, 1)
+            logger.success(
+                f"API warmup ok backend={ready_state['backend']} "
+                f"provider={ready_state['provider']} dim={ready_state['dim']} "
+                f"warmup_ms={ready_state['warmup_ms']}"
+            )
+
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            _warmup()
+            yield
+
+        app = FastAPI(
+            title="Agente Juridico LicitaGym",
+            description="API para consultas juridicas sobre legislacao de licitacoes",
+            version="1.1.0",
+            lifespan=lifespan,
+        )
+
+        from pathlib import Path as _Path
+        from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
+
+        _static = _Path(__file__).resolve().parent / "static"
+        if _static.is_dir():
+            app.mount("/static", StaticFiles(directory=str(_static)), name="static")
+
+            @app.get("/")
+            async def ui_home():
+                index = _static / "index.html"
+                if index.exists():
+                    return FileResponse(index)
+                raise HTTPException(status_code=404, detail="UI nao encontrada")
+
+        @app.get("/health")
+        async def health():
+            return {
+                "status": "ok",
+                "ready": ready_state["ready"],
+                "backend": ready_state["backend"],
+                "provider": ready_state["provider"],
+                "dim": ready_state["dim"],
+            }
+
+        @app.get("/ready")
+        async def ready():
+            if not ready_state["ready"]:
+                raise HTTPException(status_code=503, detail="model not ready")
+            return ready_state
+
+        @app.get("/metrics")
+        async def metrics():
+            vals = list(encode_latencies_ms)
+            if not vals:
+                return {"encode_count": 0}
+            s = sorted(vals)
+            return {
+                "encode_count": len(vals),
+                "encode_p50_ms": round(s[len(s) // 2], 2),
+                "encode_p95_ms": round(s[int(len(s) * 0.95)], 2) if len(s) > 1 else round(s[0], 2),
+                "encode_mean_ms": round(sum(vals) / len(vals), 2),
+                "provider": ready_state["provider"],
+                "warmup_ms": ready_state["warmup_ms"],
+            }
+
         @app.post("/consultar")
         async def consultar(request: ConsultaRequest):
             try:
-                resposta = agente.consultar(
-                    request.pergunta,
-                    request.usar_embeddings
-                )
+                t1 = time.perf_counter()
+                resposta = agente.consultar(request.pergunta, request.usar_embeddings)
+                encode_latencies_ms.append((time.perf_counter() - t1) * 1000.0)
                 return {"sucesso": True, "dados": resposta}
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @app.post("/analisar-documento")
         async def analisar_documento(request: DocumentoRequest):
             try:
@@ -303,7 +383,7 @@ def criar_api():
                 return {"sucesso": True, "dados": resultado}
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @app.post("/comparar")
         async def comparar(request: ComparacaoRequest):
             try:
@@ -311,7 +391,7 @@ def criar_api():
                 return {"sucesso": True, "dados": resultado}
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @app.get("/legislacao")
         async def listar_legislacao(tipo: Optional[str] = None, limite: int = 50):
             try:
@@ -320,39 +400,19 @@ def criar_api():
                 return {"sucesso": True, "dados": resultados}
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         return app
-        
+
     except ImportError:
-        logger.warning("FastAPI não disponível. API REST não será criada.")
+        logger.warning("FastAPI nao disponivel. API REST nao sera criada.")
         return None
 
 
-# Exemplo de uso
+# Export para uvicorn agente:app
+app = criar_api()
+
+
 if __name__ == "__main__":
-    # Criar agente
-    agente = AgenteJuridico()
-    
-    # Carregar modelo (pode demorar na primeira vez)
-    print("Carregando modelos...")
-    agente.carregar_modelo()
-    
-    # Exemplo de consulta
-    print("\n=== EXEMPLO DE CONSULTA ===")
-    pergunta = "Quais são os requisitos para dispensa de licitação?"
-    print(f"Pergunta: {pergunta}")
-    
-    resposta = agente.consultar(pergunta)
-    
-    print(f"\nClassificação: {resposta['classificacao']['tipo']}")
-    print(f"Documentos encontrados: {resposta['total_documentos']}")
-    print(f"\nFundamentação:")
-    for fund in resposta['fundamentacao'][:3]:
-        print(f"  • {fund}")
-    
-    print(f"\nRecomendações:")
-    for rec in resposta['recomendacoes']:
-        print(f"  • {rec}")
-    
-    # Se quiser rodar a API:
-    # uvicorn agente:app --reload --host 0.0.0.0 --port 8000
+    print("Carregando via CLI legado; para API use:")
+    print("  set LICITAGYM_EMBEDDING_BACKEND=trt")
+    print("  uvicorn agente:app --host 0.0.0.0 --port 8000")

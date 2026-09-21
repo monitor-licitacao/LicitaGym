@@ -1,0 +1,23 @@
+# Runtime Docker GPU ? pins alinhados ao venv VectraCargo (Fase 3/4)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+python-dotenv>=1.0.0
+loguru>=0.7.0
+numpy>=1.26.0,<2.3
+httpx>=0.27.0
+requests>=2.31.0
+supabase>=2.4.0
+pgvector>=0.2.0
+psycopg2-binary>=2.9.9
+pypdf2>=3.0.0
+python-docx>=1.1.0
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+pdfplumber>=0.10.0
+tqdm>=4.66.0
+torch
+transformers==4.57.6
+sentence-transformers==5.6.0
+optimum==2.1.0
+optimum-onnx
