@@ -22,8 +22,8 @@ CREATE TABLE icatmat_caracteristica_material (
     (codigo_grupo = 78 AND codigo_classe = 7830)
   ),
   CONSTRAINT fk_caracteristica_item
-    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_item)
-    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
+    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
+    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_caracteristica UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_caracteristica),
   CONSTRAINT icatmat_caracteristica_material_payload_hash_key UNIQUE(payload_hash)

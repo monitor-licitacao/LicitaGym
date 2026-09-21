@@ -21,8 +21,8 @@ CREATE TABLE icatmat_unidade_fornecimento (
     (codigo_grupo = 78 AND codigo_classe = 7830)
   ),
   CONSTRAINT fk_unidade_item
-    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_item)
-    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_item)
+    FOREIGN KEY (codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
+    REFERENCES icatmat_item_material(codigo_grupo, codigo_classe, codigo_pdm, codigo_item)
     ON DELETE CASCADE,
   CONSTRAINT unique_unidade UNIQUE(codigo_grupo, codigo_classe, codigo_item, codigo_unidade),
   CONSTRAINT icatmat_unidade_fornecimento_payload_hash_key UNIQUE(payload_hash)
