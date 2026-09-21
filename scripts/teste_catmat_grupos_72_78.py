@@ -68,7 +68,7 @@ def test_catmat():
     # 2. Fetch classes por grupo (filtrando apenas classes específicas)
     logger.info("Carregando classes...")
     classes_dict = {}
-    classe_filter = {72: 7210, 78: 7830}  # Grupo -> Classe específica
+    classe_filter = {72: 7220, 78: 7830}  # Grupo -> Classe específica
     for grupo_id in GRUPOS:
         classes = fetch("/modulo-material/2_consultarClasseMaterial",
                         {"codigoGrupo": grupo_id, "pagina": 1, "tamanhoPagina": 500})
