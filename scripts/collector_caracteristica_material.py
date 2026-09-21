@@ -21,28 +21,21 @@ TIMEOUT = 30
 CLASSES_PERMITIDAS = {72: 7220, 78: 7830}
 
 def fetch_caracteristicas(
-    codigo_grupo: Optional[int] = None,
-    codigo_classe: Optional[int] = None,
-    codigo_item: Optional[int] = None,
+    codigo_item: int,
     codigo_caracteristica: Optional[int] = None,
     pagina: int = 1,
     tamanho_pagina: int = 500,
     max_retries: int = 3
 ) -> Dict[str, Any]:
-    """Consulta Características de Material com retry exponencial"""
+    """Consulta Características por Item (golden rule: E7 ignora grupo/classe)."""
     url = f"{BASE_URL}{ENDPOINT}"
 
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
+        "codigoItem": codigo_item,  # OBRIGATÓRIO: endpoint 7 não filtra por grupo/classe
     }
 
-    if codigo_grupo is not None:
-        params["codigoGrupo"] = codigo_grupo
-    if codigo_classe is not None:
-        params["codigoClasse"] = codigo_classe
-    if codigo_item is not None:
-        params["codigoItem"] = codigo_item
     if codigo_caracteristica is not None:
         params["codigoCaracteristica"] = codigo_caracteristica
 
@@ -67,54 +60,59 @@ def fetch_caracteristicas(
             logger.error(f"Erro: {e}")
             return {"resultado": []}
 
-def collect_caracteristicas_por_grupo_classe(
-    codigo_grupo: int,
-    codigo_classe: int,
+def collect_caracteristicas_por_item(
+    codigo_item: int,
     max_pages: Optional[int] = None
 ) -> List[Dict]:
-    """Coleta todas características de um grupo/classe específico"""
-    logger.info(f"\nColetando Características: G{codigo_grupo} classe {codigo_classe}...")
-
+    """Coleta todas características de um item específico (E7 filtra por item, não grupo/classe)."""
     todas_caracteristicas = []
     pagina = 1
 
     while True:
-        resp = fetch_caracteristicas(
-            codigo_grupo=codigo_grupo,
-            codigo_classe=codigo_classe,
-            pagina=pagina,
-            tamanho_pagina=500
-        )
-        caracteristicas = resp.get("resultado", [])
+        try:
+            resp = fetch_caracteristicas(
+                codigo_item=codigo_item,
+                pagina=pagina,
+                tamanho_pagina=500
+            )
+            caracteristicas = resp.get("resultado", [])
 
-        if not caracteristicas:
-            logger.info(f"  Página {pagina}: vazio ou erro")
+            if not caracteristicas:
+                logger.info(f"  Página {pagina}: vazio ou erro")
+                break
+
+            logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
+            todas_caracteristicas.extend(caracteristicas)
+
+            if max_pages and pagina >= max_pages:
+                break
+
+            if resp.get("paginasRestantes", 0) == 0:
+                break
+
+            pagina += 1
+            time.sleep(0.5)
+
+        except Exception as e:
+            logger.error(f"Erro na página {pagina}: {e}")
             break
 
-        logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
-        todas_caracteristicas.extend(caracteristicas)
-
-        if max_pages and pagina >= max_pages:
-            break
-
-        if resp.get("paginasRestantes", 0) == 0:
-            break
-
-        pagina += 1
-        time.sleep(0.5)
-
-    logger.info(f"  Total: {len(todas_caracteristicas)} características")
+    logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item})")
     return todas_caracteristicas
 
 def main():
     logger.info("=== COLLECTOR: Endpoint 7 — Característica Material ===")
-    logger.info("Golden rule: apenas 7220 (G72) e 7830 (G78)\n")
+    logger.info("Golden rule: E7 filtra por Item (não grupo/classe)\n")
+
+    # IMPORTANTE: Items vêm de E4 (collector_item_material.py)
+    # Smoke test: apenas 2 items de teste
+    ITEMS_TESTE = [1, 2]
 
     resultado = {}
 
-    for grupo, classe in CLASSES_PERMITIDAS.items():
-        key = f"grupo_{grupo}"
-        caracteristicas = collect_caracteristicas_por_grupo_classe(grupo, classe)
+    for codigo_item in ITEMS_TESTE:
+        key = f"item_{codigo_item}"
+        caracteristicas = collect_caracteristicas_por_item(codigo_item, max_pages=1)
         resultado[key] = caracteristicas
 
     output = {
