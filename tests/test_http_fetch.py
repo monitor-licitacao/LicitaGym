@@ -32,10 +32,15 @@ from scripts.lib.http_client import (
     HttpClient,
     HttpFetchError,
     LEGACY_EMPTY_ON_ERROR_ENV,
+    ALLOWED_HOSTS_ENV,
+    DEFAULT_ALLOWED_HOSTS,
     COMPRAS_GOV_PAGE_SIZE,
     clamp_compras_gov_page_size,
     parse_retry_after,
     classify_exception,
+    is_host_allowed,
+    validate_url,
+    SafeRedirectHandler,
 )
 from scripts.lib.http_fetch import fetch_json
 
@@ -296,8 +301,158 @@ def test_parse_retry_after_edge_cases():
 
 
 def test_http_client_instance_usage():
-    client = HttpClient(timeout=15, max_retries=2, backoff_factor=1.5)
+    client = HttpClient(
+        timeout=15,
+        max_retries=2,
+        backoff_factor=1.5,
+        allowed_hosts=["example.com"],
+    )
     payload = {"data": [1, 2, 3]}
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
         res = client.fetch_json("https://example.com/api")
         assert res == payload
+
+
+# ============================================================================
+# SSRF Protection & Host Allowlist Tests
+# ============================================================================
+
+
+def test_ssrf_allowed_host_succeeds_by_default():
+    """Default allowlist allows dadosabertos.compras.gov.br and pncp.gov.br."""
+    payload = {"status": "ok"}
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
+        res1 = fetch_json("https://dadosabertos.compras.gov.br/modulo-material/1")
+        assert res1 == payload
+
+        res2 = fetch_json("https://pncp.gov.br/api/consulta/v1/contratacoes")
+        assert res2 == payload
+
+        # Subdomains of allowed hosts should also succeed
+        res3 = fetch_json("https://www.pncp.gov.br/api/test")
+        assert res3 == payload
+
+
+def test_ssrf_disallowed_host_raises_http_fetch_error():
+    """Disallowed hosts must raise HttpFetchError with error_type='ssrf_protection'."""
+    with pytest.raises(HttpFetchError) as exc_info:
+        fetch_json("https://evil.com/data")
+
+    err = exc_info.value
+    assert err.error_type == "ssrf_protection"
+    assert "não está na lista de hosts permitidos" in str(err)
+    assert err.url == "https://evil.com/data"
+
+
+def test_ssrf_disallowed_host_returns_dict_when_no_raise():
+    """When raise_for_status=False, returns structured error dict without network call."""
+    res = fetch_json("https://evil.com/data", raise_for_status=False)
+    assert res["sucesso"] is False
+    assert res["error_type"] == "ssrf_protection"
+    assert "não está na lista de hosts permitidos" in res["erro"]
+
+
+def test_ssrf_override_allowed_hosts_via_param():
+    """Constructor param and fetch_json param allowed_hosts can override the default list."""
+    payload = {"data": "custom"}
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
+        # Via fetch_json param
+        res = fetch_json("https://custom-api.org/test", allowed_hosts=["custom-api.org"])
+        assert res == payload
+
+        # Via HttpClient constructor
+        client = HttpClient(allowed_hosts=["custom-api.org"])
+        res_client = client.fetch_json("https://custom-api.org/test")
+        assert res_client == payload
+
+
+def test_ssrf_override_allowed_hosts_via_env(monkeypatch):
+    """Env var LICITAGYM_HTTP_ALLOWED_HOSTS can add or override allowed hosts."""
+    monkeypatch.setenv(ALLOWED_HOSTS_ENV, "myhost.local, trusted.internal.gov.br")
+    payload = {"env": "override"}
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)):
+        res = fetch_json("https://myhost.local/path")
+        assert res == payload
+
+        res2 = fetch_json("https://trusted.internal.gov.br/path")
+        assert res2 == payload
+
+        # Original default shouldn't be allowed if completely overridden by env var
+        with pytest.raises(HttpFetchError) as exc_info:
+            fetch_json("https://dadosabertos.compras.gov.br/test")
+        assert exc_info.value.error_type == "ssrf_protection"
+
+
+def test_ssrf_rejects_non_http_schemes():
+    """file://, ftp://, gopher://, javascript: schemes must be rejected."""
+    for bad_url in [
+        "file:///etc/passwd",
+        "ftp://dadosabertos.compras.gov.br/test",
+        "gopher://dadosabertos.compras.gov.br/",
+        "data:text/plain;base64,SGVsbG8=",
+    ]:
+        with pytest.raises(HttpFetchError) as exc_info:
+            fetch_json(bad_url)
+        assert exc_info.value.error_type == "ssrf_protection"
+        assert "Esquema de URL não permitido" in str(exc_info.value) or "Host ausente" in str(exc_info.value)
+
+
+def test_ssrf_rejects_literal_private_and_loopback_ips():
+    """Direct access to private or loopback IPs (127.0.0.1, 169.254.169.254, 10.0.0.1) is blocked."""
+    # Even if someone accidentally adds an IP to allowed_hosts, private IPs should be refused
+    for ip_url in [
+        "http://127.0.0.1:8080/admin",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/internal",
+        "http://192.168.1.1/router",
+        "http://[::1]/secret",
+    ]:
+        with pytest.raises(HttpFetchError) as exc_info:
+            fetch_json(ip_url, allowed_hosts=["*"])
+        assert exc_info.value.error_type == "ssrf_protection"
+        assert "Acesso a endereço IP local/privado bloqueado" in str(exc_info.value)
+
+
+class DummyRedirectResponse(DummyHttpResponse):
+    """Dummy response simulating a redirect that ended up at a different final URL."""
+
+    def __init__(self, data: dict, final_url: str, status: int = 200):
+        super().__init__(data, status=status)
+        self._final_url = final_url
+
+    def geturl(self):
+        return self._final_url
+
+
+def test_ssrf_redirect_to_disallowed_host_fails():
+    """If urlopen followed a redirect to an off-allowlist host, it must be detected and blocked."""
+    payload = {"secret": "leak"}
+    # Simulates request to allowed host that redirects to evil.com
+    with patch(
+        "urllib.request.urlopen",
+        return_value=DummyRedirectResponse(payload, final_url="https://evil.com/hijacked"),
+    ):
+        with pytest.raises(HttpFetchError) as exc_info:
+            fetch_json("https://dadosabertos.compras.gov.br/modulo-material/redirect")
+
+        err = exc_info.value
+        assert err.error_type == "ssrf_protection"
+        assert "não está na lista de hosts permitidos" in str(err)
+
+
+def test_ssrf_safe_redirect_handler_validates():
+    """Test SafeRedirectHandler directly to ensure redirect_request validates target URL."""
+    handler = SafeRedirectHandler(lambda u: validate_url(u, ["dadosabertos.compras.gov.br"]))
+
+    # Redirect to allowed host succeeds
+    req = urllib.request.Request("https://dadosabertos.compras.gov.br/start")
+    res_req = handler.redirect_request(
+        req, None, 302, "Found", {}, "https://dadosabertos.compras.gov.br/target"
+    )
+    assert res_req.get_full_url() == "https://dadosabertos.compras.gov.br/target"
+
+    # Redirect to off-allowlist host raises HttpFetchError
+    with pytest.raises(HttpFetchError) as exc_info:
+        handler.redirect_request(req, None, 302, "Found", {}, "https://attacker.org/exfil")
+    assert exc_info.value.error_type == "ssrf_protection"
+    assert "não está na lista de hosts permitidos" in str(exc_info.value)
