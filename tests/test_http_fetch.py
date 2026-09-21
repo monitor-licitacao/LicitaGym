@@ -456,3 +456,66 @@ def test_ssrf_safe_redirect_handler_validates():
         handler.redirect_request(req, None, 302, "Found", {}, "https://attacker.org/exfil")
     assert exc_info.value.error_type == "ssrf_protection"
     assert "não está na lista de hosts permitidos" in str(exc_info.value)
+
+
+def test_ssrf_safe_redirect_handler_used_on_live_fetch_path():
+    """Prove that SafeRedirectHandler is actually wired and invoked on the live opener fetch path.
+
+    When urllib.request.urlopen is not mocked, fetch_json uses opener.open(...),
+    which invokes SafeRedirectHandler.redirect_request BEFORE following any redirect,
+    preventing requests to private IP addresses (e.g. AWS metadata 169.254.169.254).
+    """
+    import urllib.response
+    from email.message import Message
+
+    class Mock302HTTPHandler(urllib.request.HTTPHandler):
+        """Simulate HTTP 302 redirect directly at the HTTPHandler level."""
+
+        def __init__(self, target_redirect_url: str):
+            super().__init__()
+            self.target_redirect_url = target_redirect_url
+            self.redirect_occurred = False
+
+        def http_open(self, req):
+            headers = Message()
+            headers["Location"] = self.target_redirect_url
+            resp = urllib.response.addinfourl(io.BytesIO(b""), headers, req.get_full_url(), code=302)
+            resp.msg = "Found"
+            resp.code = 302
+            self.redirect_occurred = True
+            return resp
+
+    # 1. Test redirect to private cloud metadata IP (169.254.169.254) is blocked by handler
+    mock_302 = Mock302HTTPHandler("http://169.254.169.254/latest/meta-data/")
+    original_build_opener = urllib.request.build_opener
+
+    def custom_build_opener(*handlers):
+        # Insert mock HTTP handler so opener does not touch the network
+        return original_build_opener(mock_302, *handlers)
+
+    with patch("urllib.request.build_opener", side_effect=custom_build_opener):
+        client = HttpClient(max_retries=1)
+        with pytest.raises(HttpFetchError) as exc_info:
+            client.fetch_json("http://dadosabertos.compras.gov.br/redirect-to-metadata")
+
+        err = exc_info.value
+        assert err.error_type == "ssrf_protection"
+        assert "Acesso a endereço IP local/privado bloqueado" in str(err)
+        assert mock_302.redirect_occurred
+
+    # 2. Test redirect to disallowed domain (evil.com) is blocked by handler
+    mock_302_evil = Mock302HTTPHandler("https://evil.com/leak")
+
+    def custom_build_opener_evil(*handlers):
+        return original_build_opener(mock_302_evil, *handlers)
+
+    with patch("urllib.request.build_opener", side_effect=custom_build_opener_evil):
+        client = HttpClient(max_retries=1)
+        with pytest.raises(HttpFetchError) as exc_info:
+            client.fetch_json("http://dadosabertos.compras.gov.br/redirect-to-evil")
+
+        err = exc_info.value
+        assert err.error_type == "ssrf_protection"
+        assert "não está na lista de hosts permitidos" in str(err)
+        assert mock_302_evil.redirect_occurred
+

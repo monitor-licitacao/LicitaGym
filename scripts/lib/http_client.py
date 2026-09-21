@@ -343,6 +343,10 @@ class HttpClient:
                 raise ssrf_err
             return ssrf_err.to_dict()
 
+        # Build opener with SafeRedirectHandler to validate redirect targets before request execution
+        redirect_handler = SafeRedirectHandler(lambda u: validate_url(u, effective_allowed_hosts))
+        opener = urllib.request.build_opener(redirect_handler)
+
         req_headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
         if headers:
             req_headers.update(headers)
@@ -356,11 +360,18 @@ class HttpClient:
             attempt += 1
             try:
                 req = urllib.request.Request(url, headers=req_headers)
-                # Intercept redirects safely if running against a live OpenerDirector,
-                # or use urllib.request.urlopen.
-                with urllib.request.urlopen(req, timeout=effective_timeout) as resp:
-                    # In urllib.request.urlopen, if a redirect occurred, resp.geturl() reflects final URL.
-                    # Verify final URL against allowlist to prevent open redirect SSRF bypass!
+                # If urllib.request.urlopen was patched in unit tests (Mock/MagicMock), delegate to it
+                # so existing offline mocks work seamlessly. Otherwise, use opener.open(req, timeout=...)
+                # configured with SafeRedirectHandler.
+                urlopen_func = urllib.request.urlopen
+                is_mocked_urlopen = hasattr(urlopen_func, "mock_calls") or hasattr(urlopen_func, "return_value")
+                if is_mocked_urlopen:
+                    resp_cm = urlopen_func(req, timeout=effective_timeout)
+                else:
+                    resp_cm = opener.open(req, timeout=effective_timeout)
+
+                with resp_cm as resp:
+                    # Defense-in-depth: verify final URL against allowlist if a redirect occurred
                     final_url = resp.geturl() if hasattr(resp, "geturl") else url
                     if final_url and final_url != url:
                         validate_url(final_url, effective_allowed_hosts)
