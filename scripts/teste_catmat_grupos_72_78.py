@@ -27,11 +27,24 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://dadosabertos.compras.gov.br"
+ALLOWED_PATHS = {
+    "/modulo-material/1_consultarGrupoMaterial",
+    "/modulo-material/2_consultarClasseMaterial",
+    "/modulo-material/3_consultarPdmMaterial",
+    "/modulo-material/4_consultarItemMaterial",
+    "/modulo-material/5_consultarMaterialNaturezaDespesa",
+    "/modulo-material/6_consultarMaterialUnidadeFornecimento",
+    "/modulo-material/7_consultarMaterialCaracteristicas",
+}
 GRUPOS = [72, 78]
 TIMEOUT = 30
 
 def fetch(path: str, params: Dict[str, Any] | None = None) -> List[Dict]:
     """Fetch e retorna array resultado"""
+    if path not in ALLOWED_PATHS:
+        logger.error(f"Path não permitido: {path}")
+        return []
+
     url = f"{BASE_URL}{path}"
     if params:
         query_str = "&".join(f"{k}={v}" for k, v in params.items())
