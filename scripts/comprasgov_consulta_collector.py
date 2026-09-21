@@ -24,7 +24,13 @@ from datetime import datetime, timedelta
 from typing import Any, Optional, Dict, List
 from urllib.parse import urlencode
 from dataclasses import dataclass, asdict
-import httpx
+
+from scripts.lib.http_client import (
+    HttpClient,
+    HttpFetchError,
+    clamp_compras_gov_page_size,
+    is_legacy_empty_on_error_enabled,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,12 +38,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://compras.gov.br/api/v1"
+BASE_URL = "https://dadosabertos.compras.gov.br"
 MAX_PARALELO = 3
 DELAY_ENTRE_LOTES_MS = 500
 TIMEOUT_REQUISICAO = 30
 MAX_RETRIES = 3
-RETRY_BACKOFF_BASE = 2
 
 @dataclass
 class EndpointConsulta:
@@ -70,7 +75,12 @@ class ConsultaComprasGovCollector:
     def __init__(self, schema_path: Optional[str] = None):
         self.catalogo: Dict[str, EndpointConsulta] = {}
         self.resultados: List[ConsultaResultado] = []
-        self.session: Optional[httpx.AsyncClient] = None
+        self.session: Optional[Any] = None
+        self.client = HttpClient(
+            timeout=TIMEOUT_REQUISICAO,
+            max_retries=MAX_RETRIES,
+            user_agent="LicitaGym/1.0 (+https://licitagym.com)",
+        )
 
         if schema_path:
             self.carrega_schema(schema_path)
@@ -82,18 +92,34 @@ class ConsultaComprasGovCollector:
         logger.warning("Schema JSON não fornecido. Usando placeholder vazio.")
 
     def carrega_schema(self, caminho: str):
-        """Carrega 77 endpoints do schema JSON"""
+        """Carrega endpoints do schema JSON (suporta formato 'endpoints' e formato 'modulos')"""
         try:
             with open(caminho, 'r', encoding='utf-8') as f:
                 schema = json.load(f)
 
-            if 'endpoints' not in schema:
-                logger.error("Schema JSON inválido: falta 'endpoints'")
+            if 'endpoints' in schema:
+                for ep_dict in schema['endpoints']:
+                    ep = EndpointConsulta(**ep_dict)
+                    self.catalogo[ep.nome] = ep
+            elif 'modulos' in schema:
+                for mod in schema['modulos']:
+                    mod_nome = mod.get('modulo', 'desconhecido')
+                    for ep_dict in mod.get('endpoints', []):
+                        nome = ep_dict.get('operationId') or ep_dict.get('nome') or ep_dict.get('path')
+                        ep = EndpointConsulta(
+                            modulo=mod_nome,
+                            nome=nome,
+                            metodo=ep_dict.get('metodo', 'GET'),
+                            path=ep_dict.get('path', ''),
+                            parametros=ep_dict.get('parametros', {}),
+                            temPaginacao=ep_dict.get('temPaginacao', True),
+                            temVarianteCsv=ep_dict.get('variante_csv', False),
+                            descricao=ep_dict.get('summary') or ep_dict.get('descricao'),
+                        )
+                        self.catalogo[ep.nome] = ep
+            else:
+                logger.error("Schema JSON inválido: falta 'endpoints' ou 'modulos'")
                 return
-
-            for ep_dict in schema['endpoints']:
-                ep = EndpointConsulta(**ep_dict)
-                self.catalogo[ep.nome] = ep
 
             logger.info(f"Schema carregado: {len(self.catalogo)} endpoints")
         except Exception as e:
@@ -104,11 +130,9 @@ class ConsultaComprasGovCollector:
         nome_endpoint: str,
         opcoes: Optional[Dict[str, Any]] = None,
     ) -> ConsultaResultado:
-        """Consulta um endpoint com retry automático"""
+        """Consulta um endpoint com retry automático via HttpClient"""
 
         inicio = time.time()
-        tentativa = 0
-        ultimo_erro = None
 
         endpoint = self.catalogo.get(nome_endpoint)
         if not endpoint:
@@ -124,57 +148,59 @@ class ConsultaComprasGovCollector:
                 tentativas=0,
             )
 
-        while tentativa < MAX_RETRIES:
-            try:
-                tentativa += 1
-                resultado = await self._faz_requisicao(endpoint, opcoes or {})
-                resultado.tentativas = tentativa
-                resultado.tempoMs = int((time.time() - inicio) * 1000)
-                resultado.dataExecucao = datetime.now().isoformat()
-                return resultado
-
-            except Exception as e:
-                ultimo_erro = str(e)
-                logger.warning(
-                    f"Tentativa {tentativa}/{MAX_RETRIES} falhou para {nome_endpoint}: {e}"
-                )
-                if tentativa < MAX_RETRIES:
-                    backoff = RETRY_BACKOFF_BASE ** (tentativa - 1)
-                    await asyncio.sleep(backoff)
-
-        return ConsultaResultado(
-            endpoint=nome_endpoint,
-            modulo=endpoint.modulo,
-            sucesso=False,
-            registrosTotais=0,
-            registrosProcessados=0,
-            erros=[f"Falha após {MAX_RETRIES} tentativas: {ultimo_erro}"],
-            tempoMs=int((time.time() - inicio) * 1000),
-            dataExecucao=datetime.now().isoformat(),
-            tentativas=MAX_RETRIES,
-        )
+        try:
+            resultado = await self._faz_requisicao(endpoint, opcoes or {})
+            resultado.tempoMs = int((time.time() - inicio) * 1000)
+            resultado.dataExecucao = datetime.now().isoformat()
+            return resultado
+        except HttpFetchError as e:
+            logger.warning(f"Falha na consulta {nome_endpoint}: {e}")
+            return ConsultaResultado(
+                endpoint=nome_endpoint,
+                modulo=endpoint.modulo,
+                sucesso=False,
+                registrosTotais=0,
+                registrosProcessados=0,
+                erros=[f"Falha após {e.attempts} tentativa(s): {e}"],
+                tempoMs=int((time.time() - inicio) * 1000),
+                dataExecucao=datetime.now().isoformat(),
+                tentativas=e.attempts,
+            )
+        except Exception as e:
+            logger.error(f"Erro inesperado na consulta {nome_endpoint}: {e}")
+            return ConsultaResultado(
+                endpoint=nome_endpoint,
+                modulo=endpoint.modulo,
+                sucesso=False,
+                registrosTotais=0,
+                registrosProcessados=0,
+                erros=[f"Erro inesperado: {e}"],
+                tempoMs=int((time.time() - inicio) * 1000),
+                dataExecucao=datetime.now().isoformat(),
+                tentativas=1,
+            )
 
     async def _faz_requisicao(
         self,
         endpoint: EndpointConsulta,
         opcoes: Dict[str, Any],
     ) -> ConsultaResultado:
-        """Faz requisição HTTP para um endpoint"""
+        """Faz requisição HTTP para um endpoint usando o HttpClient compartilhado"""
 
         url = self._monta_url(endpoint, opcoes)
 
-        if not self.session:
-            self.session = httpx.AsyncClient(timeout=TIMEOUT_REQUISICAO)
+        loop = asyncio.get_running_loop()
+        dados = await loop.run_in_executor(
+            None,
+            lambda: self.client.fetch_json(
+                url=url,
+                timeout=TIMEOUT_REQUISICAO,
+                max_retries=MAX_RETRIES,
+                raise_for_status=True,
+                legacy_empty_envelope_key="resultado",
+            ),
+        )
 
-        response = await self.session.get(url, headers={
-            "Accept": "application/json",
-            "User-Agent": "LicitaGym/1.0 (+https://licitagym.com)",
-        })
-
-        if response.status_code != 200:
-            raise Exception(f"HTTP {response.status_code}: {response.text[:200]}")
-
-        dados = response.json()
         registros = self._extrai_registros(dados)
 
         return ConsultaResultado(
@@ -190,8 +216,10 @@ class ConsultaComprasGovCollector:
         )
 
     def _monta_url(self, endpoint: EndpointConsulta, opcoes: Dict[str, Any]) -> str:
-        """Monta URL com parâmetros"""
-        url = f"{BASE_URL}{endpoint.path}"
+        """Monta URL com parâmetros e clamp de page-size"""
+        base = BASE_URL.rstrip('/')
+        path = endpoint.path if endpoint.path.startswith('/') else f"/{endpoint.path}"
+        url = f"{base}{path}"
 
         params = {}
         if 'data_inicio' in opcoes:
@@ -201,7 +229,9 @@ class ConsultaComprasGovCollector:
         if 'pagina' in opcoes:
             params['pagina'] = opcoes['pagina']
         if 'pageSize' in opcoes:
-            params['pageSize'] = opcoes['pageSize']
+            params['pageSize'] = clamp_compras_gov_page_size(opcoes['pageSize'])
+        elif 'tamanhoPagina' in opcoes:
+            params['tamanhoPagina'] = clamp_compras_gov_page_size(opcoes['tamanhoPagina'])
 
         if opcoes.get('filtros'):
             params.update(opcoes['filtros'])
@@ -215,8 +245,11 @@ class ConsultaComprasGovCollector:
         """Extrai registros do response (com ou sem paginação)"""
         if isinstance(dados, list):
             return dados
-        if isinstance(dados, dict) and 'resultado' in dados:
-            return dados.get('resultado', [])
+        if isinstance(dados, dict):
+            if 'resultado' in dados and isinstance(dados['resultado'], list):
+                return dados['resultado']
+            if 'data' in dados and isinstance(dados['data'], list):
+                return dados['data']
         return []
 
     async def consultar_multiplos(
@@ -286,9 +319,8 @@ class ConsultaComprasGovCollector:
         return await self.consultar_multiplos(endpoints_com_data, opcoes)
 
     async def fechar(self):
-        """Fecha sessão HTTP"""
-        if self.session:
-            await self.session.aclose()
+        """Fecha sessão HTTP (no-op para compatibilidade)"""
+        pass
 
     def relatorio(self) -> Dict[str, Any]:
         """Gera relatório de execução"""
