@@ -20,8 +20,7 @@ import hashlib
 import logging
 from typing import Any, Dict, List
 from datetime import datetime
-import urllib.request
-import urllib.error
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -42,26 +41,24 @@ TIMEOUT = 30
 def fetch(path: str, params: Dict[str, Any] | None = None) -> List[Dict]:
     """Fetch e retorna array resultado"""
     if path not in ALLOWED_PATHS:
-        logger.error(f"Path não permitido: {path}")
-        return []
+        raise ValueError(f"Path não permitido: {path}")
 
     url = f"{BASE_URL}{path}"
     if params:
         query_str = "&".join(f"{k}={v}" for k, v in params.items())
         url = f"{url}?{query_str}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Test"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            data = json.loads(resp.read().decode())
-            if isinstance(data, dict) and "resultado" in data:
-                return data.get("resultado", [])
-            elif isinstance(data, list):
-                return data
-            return []
-    except Exception as e:
-        logger.error(f"Erro {path}: {e}")
-        return []
+    data = fetch_json(
+        url,
+        timeout=TIMEOUT,
+        user_agent="LicitaGym/Test",
+        raise_for_status=True,
+    )
+    if isinstance(data, dict) and "resultado" in data:
+        return data.get("resultado", [])
+    elif isinstance(data, list):
+        return data
+    return []
 
 def test_catmat():
     """Consolida 7 endpoints em records unificados"""

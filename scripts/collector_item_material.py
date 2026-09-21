@@ -6,9 +6,9 @@ Coleta Items de Material com dados detalhados.
 """
 
 import json
-import urllib.request
 import logging
 from typing import Any, Dict, List, Optional
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,14 +50,13 @@ def fetch_items(
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Collector"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            data = json.loads(resp.read().decode())
-            return data
-    except Exception as e:
-        logger.error(f"Erro: {e}")
-        return {"resultado": []}
+    return fetch_json(
+        url,
+        timeout=TIMEOUT,
+        user_agent="LicitaGym/Collector",
+        raise_for_status=True,
+        legacy_empty_envelope_key="resultado",
+    )
 
 def collect_items_por_grupo_classe(
     codigo_grupo: int,

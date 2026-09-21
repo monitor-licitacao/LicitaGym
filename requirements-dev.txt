@@ -1,0 +1,2 @@
+# Development dependencies for Python collectors & tests
+pytest>=7.0.0

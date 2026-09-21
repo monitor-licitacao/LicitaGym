@@ -5,9 +5,9 @@ Total: 5 endpoints JSON, estruturas pequenas
 """
 
 import json
-import urllib.request
 import logging
 from typing import Any, Dict, List
+from scripts.lib.http_fetch import fetch_json, HttpFetchError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -22,18 +22,12 @@ def fetch(path: str, params: Dict[str, Any] | None = None) -> List[Dict]:
         query_str = "&".join(f"{k}={v}" for k, v in params.items())
         url = f"{url}?{query_str}"
 
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LicitaGym/Test"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            data = json.loads(resp.read().decode())
-            if isinstance(data, dict) and "resultado" in data:
-                return data.get("resultado", [])
-            elif isinstance(data, list):
-                return data
-            return []
-    except Exception as e:
-        logger.error(f"Erro {path}: {e}")
-        return []
+    data = fetch_json(url, timeout=TIMEOUT, user_agent="LicitaGym/Test", raise_for_status=True)
+    if isinstance(data, dict) and "resultado" in data:
+        return data.get("resultado", [])
+    elif isinstance(data, list):
+        return data
+    return []
 
 def test_pgc():
     """Testa 3 endpoints PGC JSON"""
