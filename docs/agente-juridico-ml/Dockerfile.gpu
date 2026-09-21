@@ -1,5 +1,5 @@
 # Agente Juridico ML ? GPU (CUDA 12 + ORT TensorRT)
-# Alinhado ao venv Windows: ST 5.6 + transformers 4.57 + ORT-GPU 1.22 + optimum
+# Alinhado ao venv Windows: ST 5.6 + transformers 5.15 + ORT-GPU 1.22 + optimum
 FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
