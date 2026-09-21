@@ -2,14 +2,19 @@
 """
 Collector: PNCP /v1/contratacoes/publicacao
 Fase 3: Coleta contratações com items G72/G78 fitness
-Extrai: fornecedor, preço, quantidade, datas
+PARÂMETROS (via schemas-consultas-pncp.md):
+- pagina: obrigatório
+- tamanhoPagina: máximo 50 (não 500!)
+- dataInicial/dataFinal: YYYYMMDD (obrigatório)
+- codigoModalidadeContratacao: 6 (licitações)
 """
 
 import json
 import urllib.request
 import logging
 import hashlib
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,23 +26,28 @@ TIMEOUT = 30
 ITEMS_E4 = {}
 
 def load_items_e4():
-    """Carrega items (codigo_item → id) do collector E4"""
-    global ITEMS_E4
     try:
         with open("collector_item_material_resultado.json", encoding="utf-8") as f:
             data = json.load(f)
         for grupo_key in ["grupo_72", "grupo_78"]:
             for item in data["data"].get(grupo_key, []):
                 ITEMS_E4[item["codigoItem"]] = item.get("nomeItem", "")
-        logger.info(f"Carregados {len(ITEMS_E4)} items de E4")
+        logger.info(f"✓ {len(ITEMS_E4)} items carregados de E4")
     except Exception as e:
-        logger.error(f"Erro ao carregar E4: {e}")
+        logger.error(f"✗ Erro ao carregar E4: {e}")
 
-def fetch_contratacoes(pagina: int = 1, tamanho: int = 50) -> Dict[str, Any]:
-    """Consulta contratações PNCP (tamanho máx 50)"""
+def fetch_contratacoes(pagina: int, data_inicial: str, data_final: str) -> Dict[str, Any]:
+    """GET /v1/contratacoes/publicacao com parâmetros corretos"""
     url = f"{BASE_URL}{ENDPOINT}"
 
-    params = {"pagina": pagina, "tamanhoPagina": tamanho}
+    params = {
+        "pagina": pagina,
+        "tamanhoPagina": 50,  # MÁXIMO: 50 (não 500)
+        "dataInicial": data_inicial,  # YYYYMMDD
+        "dataFinal": data_final,      # YYYYMMDD
+        "codigoModalidadeContratacao": 6,  # Licitações
+    }
+
     query_str = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{url}?{query_str}"
 
@@ -46,7 +56,7 @@ def fetch_contratacoes(pagina: int = 1, tamanho: int = 50) -> Dict[str, Any]:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
-        logger.error(f"Erro fetch: {e}")
+        logger.error(f"✗ Erro fetch: {e}")
         return {"data": []}
 
 def compute_hash(obj: Dict[str, Any]) -> str:
@@ -54,22 +64,32 @@ def compute_hash(obj: Dict[str, Any]) -> str:
     return hashlib.md5(json_str.encode()).hexdigest()
 
 def main():
-    logger.info("=== COLLECTOR: PNCP Contratações (Fase 3) ===")
-    logger.info("Golden rule: items G72/G78 fitness\n")
+    logger.info("=== COLLECTOR: PNCP Contratações (Fase 3) ===\n")
 
     load_items_e4()
+
+    # Período: últimos 90 dias
+    data_fim = datetime.now()
+    data_inicio = data_fim - timedelta(days=90)
+
+    data_inicio_str = data_inicio.strftime("%Y%m%d")
+    data_fim_str = data_fim.strftime("%Y%m%d")
+
+    logger.info(f"Período: {data_inicio_str} a {data_fim_str}")
+    logger.info(f"Modalidade: 6 (licitações)")
+    logger.info(f"TamanhoPagina: 50 (máximo)\n")
 
     precos_encontrados = []
     pagina = 1
     total_processado = 0
 
-    while pagina <= 3:  # Limita primeiras 3 páginas (teste)
+    while pagina <= 5:  # Primeiras 5 páginas (teste)
         logger.info(f"[Página {pagina}]")
-        resp = fetch_contratacoes(pagina=pagina, tamanho=50)
+        resp = fetch_contratacoes(pagina, data_inicio_str, data_fim_str)
 
         contratacoes = resp.get("data", [])
         if not contratacoes:
-            logger.info("Fim da paginação (vazio)")
+            logger.info("✓ Fim da paginação (vazio)")
             break
 
         logger.info(f"  {len(contratacoes)} contratações")
@@ -111,7 +131,12 @@ def main():
         pagina += 1
 
     output = {
-        "endpoint": "/contratacoes/publicacao",
+        "endpoint": "/v1/contratacoes/publicacao",
+        "periodo": f"{data_inicio_str} a {data_fim_str}",
+        "parametros": {
+            "tamanhoPagina": 50,
+            "codigoModalidadeContratacao": 6,
+        },
         "golden_rule": "items G72/G78 fitness",
         "resumo": {
             "total_contratacoes_processadas": total_processado,
