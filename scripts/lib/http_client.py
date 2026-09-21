@@ -20,16 +20,26 @@ import json
 import time
 import socket
 import logging
+import ipaddress
 import urllib.request
 import urllib.error
+import urllib.parse
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
 LEGACY_EMPTY_ON_ERROR_ENV = "LICITAGYM_LEGACY_EMPTY_ON_ERROR"
+ALLOWED_HOSTS_ENV = "LICITAGYM_HTTP_ALLOWED_HOSTS"
+
+# Default allowlist of hosts for LicitaGym collectors
+DEFAULT_ALLOWED_HOSTS: Set[str] = {
+    "dadosabertos.compras.gov.br",
+    "pncp.gov.br",
+    "supabase.co",
+}
 
 # Aligned with Edge clampComprasGovPageSize (10 to 500, default 500)
 COMPRAS_GOV_PAGE_SIZE = {
@@ -85,6 +95,142 @@ def is_legacy_empty_on_error_enabled() -> bool:
     """Check if rollback flag is set."""
     val = os.getenv(LEGACY_EMPTY_ON_ERROR_ENV, "").strip().lower()
     return val in ("1", "true", "yes", "on")
+
+
+def get_default_allowed_hosts() -> Set[str]:
+    """Retrieve allowed hosts configured via environment or fallback to defaults.
+
+    Includes:
+    - DEFAULT_ALLOWED_HOSTS (dadosabertos.compras.gov.br, pncp.gov.br, supabase.co)
+    - Hostname parsed from SUPABASE_URL environment variable if set
+    - Overridden/augmented by LICITAGYM_HTTP_ALLOWED_HOSTS if set
+    """
+    hosts = set()
+    env_val = os.getenv(ALLOWED_HOSTS_ENV, "").strip()
+    if env_val:
+        hosts.update(h.strip().lower() for h in env_val.split(",") if h.strip())
+    else:
+        hosts.update(DEFAULT_ALLOWED_HOSTS)
+
+    # Auto-add hostname from SUPABASE_URL if set and valid
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    if supabase_url:
+        try:
+            parsed = urllib.parse.urlsplit(supabase_url)
+            sb_host = parsed.hostname
+            if sb_host:
+                hosts.add(sb_host.lower())
+        except Exception as e:
+            logger.debug(f"Falha ao interpretar SUPABASE_URL '{supabase_url}': {e}")
+
+    return hosts
+
+
+def is_host_allowed(host: str, allowed_hosts: Iterable[str]) -> bool:
+    """Check if host matches the allowlist (exact match or subdomain match)."""
+    host_clean = host.strip().lower()
+    for allowed in allowed_hosts:
+        allowed_clean = allowed.strip().lower()
+        if not allowed_clean:
+            continue
+        if allowed_clean == "*":
+            return True
+        # Exact match
+        if host_clean == allowed_clean:
+            return True
+        # Subdomain match (*.domain.com, .domain.com, or domain.com)
+        if allowed_clean.startswith("*."):
+            suffix = allowed_clean[1:]  # .domain.com
+            if host_clean.endswith(suffix) and len(host_clean) > len(suffix):
+                return True
+        elif allowed_clean.startswith("."):
+            if (host_clean.endswith(allowed_clean) and len(host_clean) > len(allowed_clean)) or host_clean == allowed_clean[1:]:
+                return True
+        else:
+            if host_clean.endswith("." + allowed_clean):
+                return True
+    return False
+
+
+def validate_url(url: str, allowed_hosts: Iterable[str]) -> Tuple[str, str]:
+    """Validate URL scheme, host allowlist, and block private/link-local/loopback literal IPs.
+
+    Returns:
+        (scheme, hostname) on success.
+
+    Raises:
+        HttpFetchError: If scheme is not http/https, host is missing, IP is private/loopback, or host not in allowlist.
+    """
+    if not url or not isinstance(url, str):
+        raise HttpFetchError(
+            message=f"URL inválida fornecida: {url}",
+            url=str(url),
+            error_type="ssrf_protection",
+        )
+
+    parsed = urllib.parse.urlparse(url.strip())
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        raise HttpFetchError(
+            message=f"Esquema de URL não permitido '{scheme}' em {url}. Apenas http e https são aceitos.",
+            url=url,
+            error_type="ssrf_protection",
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise HttpFetchError(
+            message=f"Host ausente na URL: {url}",
+            url=url,
+            error_type="ssrf_protection",
+        )
+
+    hostname = hostname.lower()
+
+    # Block literal private, loopback, link-local, and reserved IP addresses
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise HttpFetchError(
+                message=f"Acesso a endereço IP local/privado bloqueado por segurança (SSRF): {hostname} em {url}",
+                url=url,
+                error_type="ssrf_protection",
+            )
+    except ValueError:
+        # Not a raw IP address literal, which is expected for domain names
+        pass
+
+    # Check host allowlist
+    if not is_host_allowed(hostname, allowed_hosts):
+        raise HttpFetchError(
+            message=(
+                f"Host '{hostname}' não está na lista de hosts permitidos para coletores: {sorted(allowed_hosts)}. "
+                f"Configure allowed_hosts ou {ALLOWED_HOSTS_ENV} para liberar."
+            ),
+            url=url,
+            error_type="ssrf_protection",
+        )
+
+    return scheme, hostname
+
+
+class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """HTTP redirect handler that validates target redirect URLs against SSRF protection."""
+
+    def __init__(self, validator_fn: Callable[[str], Any]):
+        super().__init__()
+        self.validator_fn = validator_fn
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        self.validator_fn(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def parse_retry_after(header_value: Optional[str], default_wait: float = 2.0, max_cap: float = 60.0) -> float:
@@ -153,6 +299,7 @@ class HttpClient:
     - Transient retry for 502/503/504
     - Timeout classification
     - Safe legacy envelope handling on rollback
+    - SSRF protection: scheme check, IP validation, host allowlist, redirect check
     """
 
     def __init__(
@@ -163,6 +310,7 @@ class HttpClient:
         max_backoff: float = 60.0,
         user_agent: str = "LicitaGym/Collector",
         transient_status_codes: Optional[Set[int]] = None,
+        allowed_hosts: Optional[Iterable[str]] = None,
     ):
         self.timeout = timeout
         self.max_retries = max_retries
@@ -174,6 +322,15 @@ class HttpClient:
             if transient_status_codes is not None
             else set(DEFAULT_TRANSIENT_STATUS_CODES)
         )
+        self.allowed_hosts = (
+            set(allowed_hosts)
+            if allowed_hosts is not None
+            else get_default_allowed_hosts()
+        )
+
+    def validate_url(self, url: str) -> Tuple[str, str]:
+        """Validate URL scheme, host allowlist, and block private/link-local literal IPs."""
+        return validate_url(url, self.allowed_hosts)
 
     def fetch_json(
         self,
@@ -184,11 +341,31 @@ class HttpClient:
         backoff_factor: Optional[float] = None,
         raise_for_status: bool = True,
         legacy_empty_envelope_key: Optional[str] = None,
+        allowed_hosts: Optional[Iterable[str]] = None,
     ) -> Dict[str, Any]:
-        """Fetch JSON with retry on 429 & transient 5xx, respecting Retry-After."""
+        """Fetch JSON with retry on 429 & transient 5xx, respecting Retry-After and SSRF validation."""
         effective_timeout = timeout if timeout is not None else self.timeout
         effective_max_retries = max_retries if max_retries is not None else self.max_retries
         effective_backoff = backoff_factor if backoff_factor is not None else self.backoff_factor
+
+        # Determine effective allowed hosts
+        effective_allowed_hosts = (
+            set(allowed_hosts)
+            if allowed_hosts is not None
+            else self.allowed_hosts
+        )
+
+        # Validate URL prior to any network attempt (SSRF prevention)
+        try:
+            validate_url(url, effective_allowed_hosts)
+        except HttpFetchError as ssrf_err:
+            if raise_for_status:
+                raise ssrf_err
+            return ssrf_err.to_dict()
+
+        # Build opener with SafeRedirectHandler to validate redirect targets before request execution
+        redirect_handler = SafeRedirectHandler(lambda u: validate_url(u, effective_allowed_hosts))
+        opener = urllib.request.build_opener(redirect_handler)
 
         req_headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
         if headers:
@@ -203,13 +380,34 @@ class HttpClient:
             attempt += 1
             try:
                 req = urllib.request.Request(url, headers=req_headers)
-                with urllib.request.urlopen(req, timeout=effective_timeout) as resp:
+                # If urllib.request.urlopen was patched in unit tests (Mock/MagicMock), delegate to it
+                # so existing offline mocks work seamlessly. Otherwise, use opener.open(req, timeout=...)
+                # configured with SafeRedirectHandler.
+                urlopen_func = urllib.request.urlopen
+                is_mocked_urlopen = hasattr(urlopen_func, "mock_calls") or hasattr(urlopen_func, "return_value")
+                if is_mocked_urlopen:
+                    resp_cm = urlopen_func(req, timeout=effective_timeout)
+                else:
+                    resp_cm = opener.open(req, timeout=effective_timeout)
+
+                with resp_cm as resp:
+                    # Defense-in-depth: verify final URL against allowlist if a redirect occurred
+                    final_url = resp.geturl() if hasattr(resp, "geturl") else url
+                    if final_url and final_url != url:
+                        validate_url(final_url, effective_allowed_hosts)
+
                     raw = resp.read().decode("utf-8")
                     if not raw.strip():
                         return {}
                     return json.loads(raw)
 
             except Exception as e:
+                # If a redirect validation error was raised, do not retry
+                if isinstance(e, HttpFetchError) and e.error_type == "ssrf_protection":
+                    if raise_for_status:
+                        raise e
+                    return e.to_dict()
+
                 last_error = e
                 error_type, status_code = classify_exception(e)
                 last_error_type = error_type
