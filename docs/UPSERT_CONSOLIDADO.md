@@ -39,20 +39,19 @@ Ordem de ingestão (respeita FKs):
 
 ## Deduplicação
 
-Cada registro tem `payload_hash` (MD5 do JSON). Upsert via natural key + hash evita duplicatas.
+Cada registro tem `payload_hash` (SHA-256 do payload estável, alinhado ao Edge `_shared/pncp/hash.ts`). Upsert via natural key (`on_conflict`) + hash evita duplicatas e garante idempotência.
 
 Se mesmo registro é coletado 2x → mesmo hash → atualiza (não duplica).
 
 ## Configuração
 
-**Local (dev):**
-```python
-SUPABASE_URL = "http://127.0.0.1:54321"
-SUPABASE_KEY = "eyJ..."  # anon key local
+**Local (dev) / Staging / Prod:**
+As credenciais devem ser configuradas exclusivamente via variáveis de ambiente (SEC-P1-01):
+```bash
+export SUPABASE_URL="http://127.0.0.1:54321"
+export SUPABASE_SERVICE_ROLE_KEY="sua_chave_service_role"
+# ou SUPABASE_KEY
 ```
-
-**Staging/Prod:**
-Editar `upsert_icatmat_consolidado.py` com credenciais do projeto remoto.
 
 ## Troubleshooting
 

@@ -77,7 +77,6 @@ def test_fetch_contratacoes_legacy_rollback(monkeypatch):
         assert res == {"data": []}
 
 
-<<<<<<< HEAD
 def test_collect_contratacoes_partial_failure_and_resume(tmp_path):
     manager = SyncStateManager("test_collect_pncp", state_dir=tmp_path)
 

@@ -9,19 +9,20 @@ import urllib.error
 import logging
 import sys
 import os
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # Load from .env — NEVER hardcode secrets
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
-if not SUPABASE_URL or not SERVICE_ROLE_KEY:
-    logger.error("SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY obrigatórios")
-    sys.exit(1)
+DEFAULT_ON_CONFLICT = "codigo_item,codigo_grupo"
 
-REST_URL = f"{SUPABASE_URL}/rest/v1/icatmat_pdm_completa"
+def get_rest_url(base_url: Optional[str] = None) -> str:
+    url = (base_url or os.getenv("SUPABASE_URL") or SUPABASE_URL or "").rstrip("/")
+    return f"{url}/rest/v1/icatmat_pdm_completa"
 
 def load_consolidated(filepath: str):
     logger.info(f"Carregando {filepath}...")
@@ -53,21 +54,37 @@ def prepare_record(rec):
         "data_sincronizacao": rec.get("data_sincronizacao"),
     }
 
-def upsert_batch(records, batch_size=100):
-    """Upsert via REST API"""
+def upsert_batch(
+    records,
+    batch_size=100,
+    on_conflict=DEFAULT_ON_CONFLICT,
+    supabase_url: Optional[str] = None,
+    service_role_key: Optional[str] = None,
+):
+    """Upsert via REST API with explicit on_conflict query parameter"""
+    url = (supabase_url or os.getenv("SUPABASE_URL") or SUPABASE_URL or "").rstrip("/")
+    key = service_role_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or SERVICE_ROLE_KEY
+
+    if not url or not key:
+        logger.error("SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_KEY) obrigatórios")
+        return 0
+
     total = len(records)
     success = 0
+
+    rest_url = get_rest_url(url)
+    endpoint_url = f"{rest_url}?on_conflict={on_conflict}" if on_conflict else rest_url
 
     for i in range(0, total, batch_size):
         batch = records[i:i+batch_size]
         body = json.dumps([prepare_record(r) for r in batch], ensure_ascii=False)
 
         req = urllib.request.Request(
-            REST_URL,
+            endpoint_url,
             data=body.encode(),
             headers={
-                "Authorization": f"Bearer {SERVICE_ROLE_KEY}",
-                "apikey": SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {key}",
+                "apikey": key,
                 "Content-Type": "application/json",
                 "Prefer": "resolution=merge-duplicates",
             },
@@ -91,10 +108,17 @@ def upsert_batch(records, batch_size=100):
 def main():
     logger.info("=== UPSERT CATMAT REMOTO ===")
 
-    records = load_consolidated("teste_catmat_consolidado.json")
-    logger.info(f"\nUpsertando para {REST_URL}")
+    url = os.getenv("SUPABASE_URL") or SUPABASE_URL
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or SERVICE_ROLE_KEY
+    if not url or not key:
+        logger.error("SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_KEY) obrigatórios")
+        return 1
 
-    success = upsert_batch(records)
+    records = load_consolidated("teste_catmat_consolidado.json")
+    rest_url = get_rest_url(url)
+    logger.info(f"\nUpsertando para {rest_url}")
+
+    success = upsert_batch(records, supabase_url=url, service_role_key=key)
     logger.info(f"\n✓ {success}/{len(records)} registros upserted")
 
     return 0 if success == len(records) else 1
