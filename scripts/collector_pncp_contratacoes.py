@@ -11,12 +11,12 @@ PARÂMETROS (via schemas-consultas-pncp.md):
 
 import json
 import logging
-import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
+from scripts.lib.payload_hash import compute_payload_hash
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -62,8 +62,8 @@ def fetch_contratacoes(pagina: int, data_inicial: str, data_final: str) -> Dict[
     )
 
 def compute_hash(obj: Dict[str, Any]) -> str:
-    json_str = json.dumps(obj, sort_keys=True, separators=(',', ':'))
-    return hashlib.md5(json_str.encode()).hexdigest()
+    """Stable SHA-256 hash of payload."""
+    return compute_payload_hash(obj)
 
 def collect_contratacoes(
     data_inicio_str: str,

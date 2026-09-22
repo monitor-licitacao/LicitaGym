@@ -2,10 +2,10 @@
 """Dry-run: mostra o que seria upsertado sem conectar Supabase."""
 
 import json
-import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 from datetime import datetime
+from scripts.lib.payload_hash import compute_payload_hash
 
 logger_info = print
 
@@ -22,8 +22,8 @@ RESULTS_PATTERNS = {
 }
 
 def compute_hash(obj: Dict[str, Any]) -> str:
-    json_str = json.dumps(obj, sort_keys=True, separators=(',', ':'))
-    return hashlib.md5(json_str.encode()).hexdigest()
+    """Stable SHA-256 hash of payload."""
+    return compute_payload_hash(obj)
 
 def load_resultado(endpoint: str) -> List[Dict[str, Any]]:
     pattern = RESULTS_PATTERNS.get(endpoint)

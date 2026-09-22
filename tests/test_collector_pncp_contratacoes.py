@@ -161,3 +161,10 @@ def test_collect_contratacoes_partial_failure_and_resume(tmp_path):
     assert checkpoint.last_page == 2
     assert checkpoint.total_records == 2
 
+
+def test_collector_pncp_compute_hash():
+    from scripts.collector_pncp_contratacoes import compute_hash
+    h = compute_hash({"codigo_item": 123, "preco": 100})
+    assert len(h) == 64
+
+

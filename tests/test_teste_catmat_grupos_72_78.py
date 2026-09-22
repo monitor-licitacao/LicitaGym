@@ -56,3 +56,11 @@ def test_fetch_catmat_500_raises():
 def test_fetch_catmat_disallowed_path_raises_value_error():
     with pytest.raises(ValueError, match="Path não permitido"):
         fetch("/modulo-desconhecido/endpoint")
+
+
+def test_teste_catmat_hash_helper():
+    from scripts.lib.payload_hash import compute_payload_hash
+    sample = {"codigo_grupo": 78, "codigo_item": 12345, "descricao_item": "Halter"}
+    h = compute_payload_hash(sample)
+    assert len(h) == 64
+
