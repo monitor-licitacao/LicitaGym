@@ -1,0 +1,157 @@
+{
+  "project": "ifaiagegyicjzlpskafh",
+  "base": "https://ifaiagegyicjzlpskafh.supabase.co/functions/v1",
+  "idempotency_probe_keys": [
+    "r1-smoke-arb-api-pncp-pca",
+    "r1-smoke-badcron-api-pncp-pca",
+    "r1-smoke-arb-api-pncp-contratacoes",
+    "r1-smoke-badcron-api-pncp-contratacoes",
+    "r1-smoke-arb-api-pncp-legislacao",
+    "r1-smoke-badcron-api-pncp-legislacao"
+  ],
+  "results": [
+    {
+      "case": "EDGE-002 api-pncp-pca missing Authorization",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-pca arbitrary Bearer",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-pca invalid cron secret",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-pca legitimate cron auth boundary (no sync)",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": false,
+      "note": "UNEXPECTED — expected 400 Idempotency-Key after auth"
+    },
+    {
+      "case": "EDGE-002 api-pncp-contratacoes missing Authorization",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-contratacoes arbitrary Bearer",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-contratacoes invalid cron secret",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-contratacoes legitimate cron auth boundary (no sync)",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": false,
+      "note": "UNEXPECTED — expected 400 Idempotency-Key after auth"
+    },
+    {
+      "case": "EDGE-002 api-pncp-legislacao missing Authorization",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-legislacao arbitrary Bearer",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-legislacao invalid cron secret",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-002 api-pncp-legislacao legitimate cron auth boundary (no sync)",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": false,
+      "note": "UNEXPECTED — expected 400 Idempotency-Key after auth"
+    },
+    {
+      "case": "EDGE-004 signed_url missing auth",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-004 signed_url invalid JWT",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-004 signed_url valid authorized JWT",
+      "status": null,
+      "error": null,
+      "PASS": null,
+      "note": "NOT RUN — SAFE FIXTURE UNAVAILABLE"
+    },
+    {
+      "case": "EDGE-003 WebRouter unauthenticated",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-003 WebRouter arbitrary Bearer + forbidden keys",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": true,
+      "note": "rejected"
+    },
+    {
+      "case": "EDGE-003 WebRouter authenticated + arbitrary destination keys",
+      "status": 401,
+      "error": "Unauthorized",
+      "PASS": false,
+      "note": "UNEXPECTED"
+    },
+    {
+      "case": "EDGE-003 WebRouter authenticated + permitted operation (provider)",
+      "status": null,
+      "error": null,
+      "PASS": null,
+      "note": "NOT RUN — avoid live provider mutation/cost; auth+payload reject covered"
+    },
+    {
+      "case": "EDGE-003 WebRouter redirect upstream not followed",
+      "status": null,
+      "error": null,
+      "PASS": null,
+      "note": "NOT RUN — requires controlled upstream; code has redirect:error; no localhost/RFC1918 probe"
+    }
+  ],
+  "pass_count": 13,
+  "fail_count": 4,
+  "not_run_count": 3
+}
