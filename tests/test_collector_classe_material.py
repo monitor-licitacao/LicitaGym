@@ -14,8 +14,9 @@ import urllib.error
 from unittest.mock import patch
 import pytest
 
-from scripts.collector_classe_material import fetch_classes
+from scripts.collector_classe_material import fetch_classes, collect_classes
 from scripts.lib.http_fetch import HttpFetchError, LEGACY_EMPTY_ON_ERROR_ENV
+from scripts.lib.sync_state import SyncStateManager
 
 
 class DummyHttpResponse:
@@ -99,3 +100,60 @@ def test_fetch_classes_legacy_rollback_env(monkeypatch):
     with patch("urllib.request.urlopen", side_effect=http_500):
         res = fetch_classes(codigo_grupo=78, codigo_classe=7830)
         assert res == {"resultado": []}
+
+
+def test_collect_classes_partial_failure_and_resume(tmp_path):
+    manager = SyncStateManager("test_collect_classes", state_dir=tmp_path)
+
+    # First call (G72 C7220) succeeds, second call (G78 C7830) fails
+    payload_g72 = {
+        "resultado": [{"codigoClasse": 7220, "codigoGrupo": 72, "nomeClasse": "CLASSE 7220"}],
+        "totalRegistros": 1,
+    }
+    http_500 = urllib.error.HTTPError(
+        url="http://test",
+        code=500,
+        msg="Internal Server Error",
+        hdrs={},
+        fp=io.BytesIO(b"error"),
+    )
+
+    call_count = 0
+
+    def mock_urlopen(req, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return DummyHttpResponse(payload_g72)
+        raise http_500
+
+    with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+        with pytest.raises(HttpFetchError):
+            collect_classes(sync_manager=manager, resume=False)
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "failed_partial"
+    assert checkpoint.partial is True
+    assert checkpoint.last_page == 1
+    assert checkpoint.total_records == 1
+
+    # Resume: G78 C7830 succeeds
+    payload_g78 = {
+        "resultado": [{"codigoClasse": 7830, "codigoGrupo": 78, "nomeClasse": "CLASSE 7830"}],
+        "totalRegistros": 1,
+    }
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_g78)):
+        res = collect_classes(sync_manager=manager, resume=True)
+        assert "grupo_72" in res
+        assert "grupo_78" in res
+        assert len(res["grupo_72"]) == 1
+        assert len(res["grupo_78"]) == 1
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "completed"
+    assert checkpoint.partial is False
+    assert checkpoint.last_page == 2
+    assert checkpoint.total_records == 2
+

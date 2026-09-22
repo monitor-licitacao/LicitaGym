@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -52,30 +53,80 @@ def fetch_classes(
         legacy_empty_envelope_key="resultado",
     )
 
+def collect_classes(
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
+) -> Dict[str, List[Dict]]:
+    """Coleta classes com suporte a checkpoint e resume."""
+    if sync_manager is None:
+        sync_manager = SyncStateManager("2_consultarClasseMaterial")
+
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(resume=should_resume)
+
+    completed_keys: List[str] = []
+    resultado: Dict[str, List[Dict]] = {}
+    if should_resume and isinstance(state.cursor, dict):
+        # Resume previously fetched classes if available
+        completed_keys = state.cursor.get("completed_keys", [])
+        resultado = state.cursor.get("resultado", {})
+
+    total_records = sum(len(v) for v in resultado.values())
+
+    for idx, (grupo, classe) in enumerate(CLASSES_PERMITIDAS.items(), 1):
+        key = f"grupo_{grupo}"
+        if should_resume and key in completed_keys:
+            logger.info(f"G{grupo} classe {classe} já coletada no checkpoint anterior, pulando.")
+            continue
+
+        logger.info(f"G{grupo} classe {classe}...")
+        try:
+            resp = fetch_classes(codigo_grupo=grupo, codigo_classe=classe)
+        except Exception as e:
+            sync_manager.record_partial_failure(
+                e,
+                page=idx,
+                error_details={"grupo": grupo, "classe": classe},
+            )
+            raise
+
+        classes = resp.get("resultado", [])
+        resultado[key] = classes
+        completed_keys.append(key)
+        total_records += len(classes)
+        logger.info(f"  {len(classes)} record(s)")
+
+        sync_manager.record_page_success(
+            page=idx,
+            records_in_page=len(classes),
+            cursor={"completed_keys": completed_keys, "resultado": resultado},
+        )
+
+    sync_manager.record_completed(total_records=total_records)
+    return resultado
+
 def main():
     logger.info("=== COLLECTOR: Endpoint 2 — Classe Material ===")
     logger.info("Golden rule: apenas 7220 (G72) e 7830 (G78)\n")
 
-    resultado = {}
+    try:
+        resultado = collect_classes()
 
-    for grupo, classe in CLASSES_PERMITIDAS.items():
-        logger.info(f"G{grupo} classe {classe}...")
-        resp = fetch_classes(codigo_grupo=grupo, codigo_classe=classe)
-        classes = resp.get("resultado", [])
-        resultado[f"grupo_{grupo}"] = classes
-        logger.info(f"  {len(classes)} record(s)")
+        # Salva
+        output = {
+            "endpoint": "2_consultarClasseMaterial",
+            "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+            "data": resultado
+        }
 
-    # Salva
-    output = {
-        "endpoint": "2_consultarClasseMaterial",
-        "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
-        "data": resultado
-    }
+        with open("collector_classe_material_resultado.json", "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
-    with open("collector_classe_material_resultado.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-
-    logger.info(f"\n✓ Salvo: collector_classe_material_resultado.json")
+        logger.info(f"\n✓ Salvo: collector_classe_material_resultado.json")
+        return 0
+    except Exception as e:
+        logger.error(f"Falha na coleta de classes: {e}")
+        return 1
 
 if __name__ == "__main__":
-    main()
+    exit(main())

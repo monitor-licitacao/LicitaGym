@@ -11,6 +11,7 @@ from scripts.collector_caracteristica_material import (
     collect_caracteristicas_por_item,
 )
 from scripts.lib.http_fetch import HttpFetchError, LEGACY_EMPTY_ON_ERROR_ENV
+from scripts.lib.sync_state import SyncStateManager
 
 
 class DummyHttpResponse:
@@ -102,3 +103,58 @@ def test_fetch_caracteristicas_legacy_rollback(monkeypatch):
     with patch("urllib.request.urlopen", side_effect=http_err):
         res = fetch_caracteristicas(codigo_item=374066, max_retries=1)
         assert res == {"resultado": []}
+
+
+def test_collect_caracteristicas_partial_failure_and_resume(tmp_path):
+    manager = SyncStateManager("test_collect_caracteristicas", state_dir=tmp_path)
+
+    payload_p1 = {
+        "resultado": [{"codigoCaracteristica": 10, "nomeCaracteristica": "COR"}],
+        "paginasRestantes": 1,
+    }
+    http_err_p2 = urllib.error.HTTPError(
+        url="http://test",
+        code=500,
+        msg="Internal Error",
+        hdrs={},
+        fp=io.BytesIO(b"error"),
+    )
+
+    call_count = 0
+
+    def mock_urlopen(req, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return DummyHttpResponse(payload_p1)
+        raise http_err_p2
+
+    with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+        with patch("time.sleep"):
+            with pytest.raises(HttpFetchError):
+                collect_caracteristicas_por_item(374066, sync_manager=manager, resume=False)
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "failed_partial"
+    assert checkpoint.partial is True
+    assert checkpoint.last_page == 1
+    assert checkpoint.total_records == 1
+
+    payload_p2 = {
+        "resultado": [{"codigoCaracteristica": 20, "nomeCaracteristica": "PESO"}],
+        "paginasRestantes": 0,
+    }
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
+        with patch("time.sleep"):
+            caracteristicas = collect_caracteristicas_por_item(374066, sync_manager=manager, resume=True)
+            assert len(caracteristicas) == 1
+            assert caracteristicas[0]["codigoCaracteristica"] == 20
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "completed"
+    assert checkpoint.partial is False
+    assert checkpoint.last_page == 2
+    assert checkpoint.total_records == 2
+

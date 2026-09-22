@@ -26,6 +26,7 @@ from scripts.comprasgov_consulta_collector import (
     BASE_URL,
 )
 from scripts.lib.http_client import LEGACY_EMPTY_ON_ERROR_ENV
+from scripts.lib.sync_state import SyncStateManager
 
 
 class DummyHttpResponse:
@@ -202,3 +203,81 @@ def test_relatorio_and_batch_methods(collector_with_sample_schema):
                 await collector_with_sample_schema.fechar()
 
             asyncio.run(run_batch())
+
+
+def test_consultar_multiplos_checkpoint_and_resume(collector_with_sample_schema, tmp_path):
+    manager = SyncStateManager("test_comprasgov_batch", state_dir=tmp_path)
+
+    # Add a second endpoint to the catalog
+    ep2 = EndpointConsulta(
+        modulo="01-PCA",
+        nome="consultarPca2",
+        metodo="GET",
+        path="/modulo-pca/2_consultarPca2",
+        parametros={},
+        temPaginacao=True,
+        temVarianteCsv=False,
+    )
+    collector_with_sample_schema.catalogo["consultarPca2"] = ep2
+
+    # In batch 1: consultarPca succeeds, consultarPca2 fails with 500
+    p1 = {"resultado": [{"id": 1}]}
+    http_500 = urllib.error.HTTPError(
+        url="https://dadosabertos.compras.gov.br/test",
+        code=500,
+        msg="Internal Error",
+        hdrs={},
+        fp=io.BytesIO(b"Internal Error"),
+    )
+
+    call_count = 0
+
+    def mock_urlopen(req, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if "1_consultarPca" in req.full_url:
+            return DummyHttpResponse(p1)
+        raise http_500
+
+    with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+        with patch("asyncio.sleep"):
+            async def run_failing_batch():
+                res = await collector_with_sample_schema.consultar_multiplos(
+                    ["consultarPca", "consultarPca2"],
+                    resume=False,
+                    sync_manager=manager,
+                )
+                assert len(res) == 2
+                assert res[0].sucesso is True
+                assert res[1].sucesso is False
+
+            asyncio.run(run_failing_batch())
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "failed_partial"
+    assert checkpoint.partial is True
+    assert checkpoint.cursor["completed_endpoints"] == ["consultarPca"]
+
+    # Now resume: only consultarPca2 is executed, and it succeeds
+    p2 = {"resultado": [{"id": 2}]}
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(p2)):
+        with patch("asyncio.sleep"):
+            async def run_resuming_batch():
+                res = await collector_with_sample_schema.consultar_multiplos(
+                    ["consultarPca", "consultarPca2"],
+                    resume=True,
+                    sync_manager=manager,
+                )
+                assert len(res) == 1  # Only the missing one ran
+                assert res[0].endpoint == "consultarPca2"
+                assert res[0].sucesso is True
+
+            asyncio.run(run_resuming_batch())
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "completed"
+    assert checkpoint.partial is False
+    assert "consultarPca2" in checkpoint.cursor["completed_endpoints"]
+

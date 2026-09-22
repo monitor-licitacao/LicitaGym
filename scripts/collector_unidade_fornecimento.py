@@ -10,6 +10,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -61,31 +62,55 @@ def fetch_unidades(
 def collect_unidades_por_grupo_classe(
     codigo_grupo: int,
     codigo_classe: int,
-    max_pages: Optional[int] = None
+    max_pages: Optional[int] = None,
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
 ) -> List[Dict]:
-    """Coleta todas unidades de fornecimento de um grupo/classe específico"""
+    """Coleta todas unidades de fornecimento de um grupo/classe específico com suporte a checkpoint e resume."""
     logger.info(f"\nColetando Unidades Fornecimento: G{codigo_grupo} classe {codigo_classe}...")
 
+    if sync_manager is None:
+        endpoint_key = f"6_consultarMaterialUnidadeFornecimento_G{codigo_grupo}_C{codigo_classe}"
+        sync_manager = SyncStateManager(endpoint_key)
+
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(
+        resume=should_resume,
+        metadata={"grupo": codigo_grupo, "classe": codigo_classe},
+    )
+
     todas_unidades = []
-    pagina = 1
+    pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
+    pages_coletadas = 0
 
     while True:
-        resp = fetch_unidades(
-            codigo_grupo=codigo_grupo,
-            codigo_classe=codigo_classe,
-            pagina=pagina,
-            tamanho_pagina=500
-        )
+        try:
+            resp = fetch_unidades(
+                codigo_grupo=codigo_grupo,
+                codigo_classe=codigo_classe,
+                pagina=pagina,
+                tamanho_pagina=500
+            )
+        except Exception as e:
+            sync_manager.record_partial_failure(
+                e,
+                page=pagina,
+                error_details={"grupo": codigo_grupo, "classe": codigo_classe},
+            )
+            raise
+
         unidades = resp.get("resultado", [])
 
         if not unidades:
-            logger.info(f"  Página {pagina}: vazio ou erro")
+            logger.info(f"  Página {pagina}: vazio")
             break
 
         logger.info(f"  Página {pagina}: {len(unidades)} unidades")
         todas_unidades.extend(unidades)
+        pages_coletadas += 1
+        sync_manager.record_page_success(page=pagina, records_in_page=len(unidades))
 
-        if max_pages and pagina >= max_pages:
+        if max_pages and pages_coletadas >= max_pages:
             break
 
         if resp.get("paginasRestantes", 0) == 0:
@@ -94,36 +119,43 @@ def collect_unidades_por_grupo_classe(
         pagina += 1
         time.sleep(0.5)
 
-    logger.info(f"  Total: {len(todas_unidades)} unidades")
+    total_records = state.total_records
+    sync_manager.record_completed(total_records=total_records)
+    logger.info(f"  Total: {len(todas_unidades)} unidades (esta execução)")
     return todas_unidades
 
 def main():
     logger.info("=== COLLECTOR: Endpoint 6 — Unidade Fornecimento ===")
     logger.info("Golden rule: apenas 7220 (G72) e 7830 (G78)\n")
 
-    resultado = {}
+    try:
+        resultado = {}
 
-    for grupo, classe in CLASSES_PERMITIDAS.items():
-        key = f"grupo_{grupo}"
-        unidades = collect_unidades_por_grupo_classe(grupo, classe)
-        resultado[key] = unidades
+        for grupo, classe in CLASSES_PERMITIDAS.items():
+            key = f"grupo_{grupo}"
+            unidades = collect_unidades_por_grupo_classe(grupo, classe)
+            resultado[key] = unidades
 
-    output = {
-        "endpoint": "6_consultarMaterialUnidadeFornecimento",
-        "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
-        "data": resultado,
-        "resumo": {
-            "total_grupo_72": len(resultado.get("grupo_72", [])),
-            "total_grupo_78": len(resultado.get("grupo_78", [])),
+        output = {
+            "endpoint": "6_consultarMaterialUnidadeFornecimento",
+            "golden_rule": "apenas 7220 (G72) e 7830 (G78)",
+            "data": resultado,
+            "resumo": {
+                "total_grupo_72": len(resultado.get("grupo_72", [])),
+                "total_grupo_78": len(resultado.get("grupo_78", [])),
+            }
         }
-    }
 
-    with open("collector_unidade_fornecimento_resultado.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+        with open("collector_unidade_fornecimento_resultado.json", "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"\n✓ Salvo: collector_unidade_fornecimento_resultado.json")
-    logger.info(f"  G72: {output['resumo']['total_grupo_72']} unidades")
-    logger.info(f"  G78: {output['resumo']['total_grupo_78']} unidades")
+        logger.info(f"\n✓ Salvo: collector_unidade_fornecimento_resultado.json")
+        logger.info(f"  G72: {output['resumo']['total_grupo_72']} unidades")
+        logger.info(f"  G78: {output['resumo']['total_grupo_78']} unidades")
+        return 0
+    except Exception as e:
+        logger.error(f"Falha na coleta de unidades: {e}")
+        return 1
 
 if __name__ == "__main__":
-    main()
+    exit(main())
