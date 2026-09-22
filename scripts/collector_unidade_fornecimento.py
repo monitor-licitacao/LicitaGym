@@ -7,6 +7,7 @@ Coleta Unidades de Fornecimento com retry exponencial para rate-limiting.
 
 import json
 import logging
+from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
@@ -79,7 +80,28 @@ def collect_unidades_por_grupo_classe(
         metadata={"grupo": codigo_grupo, "classe": codigo_classe},
     )
 
-    todas_unidades = []
+    todas_unidades: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "unidades" in state.cursor:
+            todas_unidades = list(state.cursor["unidades"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todas_unidades = list(acc)
+            else:
+                out_path = Path("collector_unidade_fornecimento_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        key = f"grupo_{codigo_grupo}"
+                        if isinstance(data, dict) and isinstance(data.get("data", {}).get(key), list):
+                            todas_unidades = list(data["data"][key])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir unidades de {out_path}: {e}")
+
+        logger.info(f"Reconstituídas {len(todas_unidades)} unidade(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -96,7 +118,9 @@ def collect_unidades_por_grupo_classe(
                 e,
                 page=pagina,
                 error_details={"grupo": codigo_grupo, "classe": codigo_classe},
+                cursor={"unidades": todas_unidades},
             )
+            sync_manager.save_accumulated_data(todas_unidades)
             raise
 
         unidades = resp.get("resultado", [])
@@ -108,7 +132,12 @@ def collect_unidades_por_grupo_classe(
         logger.info(f"  Página {pagina}: {len(unidades)} unidades")
         todas_unidades.extend(unidades)
         pages_coletadas += 1
-        sync_manager.record_page_success(page=pagina, records_in_page=len(unidades))
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(unidades),
+            cursor={"unidades": todas_unidades},
+        )
+        sync_manager.save_accumulated_data(todas_unidades)
 
         if max_pages and pages_coletadas >= max_pages:
             break
@@ -119,9 +148,9 @@ def collect_unidades_por_grupo_classe(
         pagina += 1
         time.sleep(0.5)
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
-    logger.info(f"  Total: {len(todas_unidades)} unidades (esta execução)")
+    total_records = len(todas_unidades)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    logger.info(f"  Total: {len(todas_unidades)} unidades")
     return todas_unidades
 
 def main():

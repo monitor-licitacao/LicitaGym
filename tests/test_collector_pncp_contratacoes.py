@@ -129,16 +129,35 @@ def test_collect_contratacoes_partial_failure_and_resume(tmp_path):
     assert checkpoint.last_page == 1
     assert checkpoint.total_records == 1
 
-    payload_p2 = {"data": []}
-    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
+    payload_p2 = {
+        "data": [
+            {
+                "numero": "2/2026",
+                "modalidade": "Pregão",
+                "dataPublicacao": "2026-02-01",
+                "itens": [
+                    {
+                        "codigoItemCatalogo": 374066,
+                        "quantidade": 1,
+                        "fornecedores": [
+                            {"ni": "98765432000188", "nome": "FORNECEDOR 2", "preco": 2000.0}
+                        ]
+                    }
+                ]
+            }
+        ],
+        "paginasRestantes": 0,
+    }
+    with patch("urllib.request.urlopen", side_effect=[DummyHttpResponse(payload_p2), DummyHttpResponse({"data": []})]):
         precos = collect_contratacoes("20260101", "20260301", max_pages=3, sync_manager=manager, resume=True)
-        assert len(precos) == 1
-        assert precos[0]["codigo_item_catalogo"] == 374066
+        assert len(precos) == 2
+        assert precos[0]["ni_fornecedor"] == "12345678000199"
+        assert precos[1]["ni_fornecedor"] == "98765432000188"
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None
     assert checkpoint.status == "completed"
     assert checkpoint.partial is False
-    assert checkpoint.last_page == 1  # Last successful page was 1
-    assert checkpoint.total_records == 1
+    assert checkpoint.last_page == 2
+    assert checkpoint.total_records == 2
 

@@ -104,10 +104,42 @@ class SyncStateManager:
         # Safe filename sanitizing slashes or special chars
         safe_name = endpoint.replace("/", "_").replace("\\", "_").strip("_")
         self.state_file = self.state_dir / f"{safe_name}.json"
+        self.data_file = self.state_dir / f"{safe_name}_data.json"
         self._current_state: Optional[SyncState] = None
 
     def get_state_file_path(self) -> Path:
         return self.state_file
+
+    def get_data_file_path(self) -> Path:
+        return self.data_file
+
+    def save_accumulated_data(self, data: Any) -> None:
+        """Persist accumulated collector records to side-car file atomically."""
+        if self.auto_create_dir:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = self.data_file.with_suffix(".tmp")
+        try:
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            tmp_file.replace(self.data_file)
+        except Exception as e:
+            logger.error(f"[SyncState:{self.endpoint}] Erro ao salvar dados acumulados em {self.data_file}: {e}")
+            if tmp_file.exists():
+                try:
+                    tmp_file.unlink()
+                except Exception:
+                    pass
+
+    def load_accumulated_data(self) -> Optional[Any]:
+        """Load accumulated collector records from side-car file if it exists."""
+        if not self.data_file.exists():
+            return None
+        try:
+            with open(self.data_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"[SyncState:{self.endpoint}] Falha ao ler dados acumulados em {self.data_file}: {e}")
+            return None
 
     def load_checkpoint(self) -> Optional[SyncState]:
         """Load existing checkpoint state from disk if present."""
@@ -317,4 +349,10 @@ class SyncStateManager:
                 logger.info(f"[SyncState:{self.endpoint}] Checkpoint removido: {self.state_file}")
             except Exception as e:
                 logger.warning(f"[SyncState:{self.endpoint}] Falha ao remover {self.state_file}: {e}")
+        if self.data_file.exists():
+            try:
+                self.data_file.unlink()
+                logger.info(f"[SyncState:{self.endpoint}] Dados acumulados removidos: {self.data_file}")
+            except Exception as e:
+                logger.warning(f"[SyncState:{self.endpoint}] Falha ao remover {self.data_file}: {e}")
         self._current_state = None

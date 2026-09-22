@@ -21,6 +21,7 @@ import time
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional, Dict, List
 from urllib.parse import urlencode
 from dataclasses import dataclass, asdict
@@ -266,12 +267,30 @@ class ConsultaComprasGovCollector:
             sync_manager = SyncStateManager("comprasgov_consultar_multiplos")
 
         completed_endpoints: List[str] = []
+        reconstituted_resultados: List[ConsultaResultado] = []
         if sync_manager is not None:
             state = sync_manager.start_run(resume=should_resume)
-            if should_resume and isinstance(state.cursor, dict):
-                completed_endpoints = state.cursor.get("completed_endpoints", [])
+            if should_resume:
+                prev_data = None
+                if isinstance(state.cursor, dict) and "resultados" in state.cursor:
+                    prev_data = state.cursor["resultados"]
+                else:
+                    prev_data = sync_manager.load_accumulated_data()
 
-        resultados = []
+                if isinstance(prev_data, list):
+                    for item in prev_data:
+                        if isinstance(item, dict):
+                            try:
+                                reconstituted_resultados.append(ConsultaResultado(**item))
+                            except Exception as e:
+                                logger.warning(f"Erro ao reconstituir ConsultaResultado: {e}")
+
+                if isinstance(state.cursor, dict) and "completed_endpoints" in state.cursor:
+                    completed_endpoints = list(state.cursor["completed_endpoints"])
+                else:
+                    completed_endpoints = [r.endpoint for r in reconstituted_resultados if r.sucesso]
+
+        resultados = list(reconstituted_resultados)
         endpoints_para_executar = [
             ep for ep in nomes_endpoints if ep not in completed_endpoints
         ]
@@ -305,27 +324,35 @@ class ConsultaComprasGovCollector:
 
             if sync_manager is not None:
                 registros_lote = sum(r.registrosTotais for r in resultados_lote if r.sucesso)
+                cursor_payload = {
+                    "completed_endpoints": completed_endpoints,
+                    "resultados": [asdict(r) for r in resultados if r.sucesso],
+                }
                 if has_failure:
                     sync_manager.record_partial_failure(
                         primeiro_erro or "Falha em lote de endpoints",
                         page=i // MAX_PARALELO + 1,
                         error_details={"failed_endpoints": [r.endpoint for r in resultados_lote if not r.sucesso]},
-                        cursor={"completed_endpoints": completed_endpoints},
+                        cursor=cursor_payload,
                     )
                 else:
                     sync_manager.record_page_success(
                         page=i // MAX_PARALELO + 1,
                         records_in_page=registros_lote,
-                        cursor={"completed_endpoints": completed_endpoints},
+                        cursor=cursor_payload,
                     )
+                sync_manager.save_accumulated_data([asdict(r) for r in resultados if r.sucesso])
 
             if i + MAX_PARALELO < len(endpoints_para_executar):
                 await asyncio.sleep(DELAY_ENTRE_LOTES_MS / 1000)
 
-        self.resultados.extend(resultados)
+        for r in resultados:
+            if not any(existing.endpoint == r.endpoint and existing.dataExecucao == r.dataExecucao for existing in self.resultados):
+                self.resultados.append(r)
 
         if sync_manager is not None and not has_failure:
-            sync_manager.record_completed(total_records=sum(r.registrosTotais for r in self.resultados if r.sucesso))
+            total_records = sum(r.registrosTotais for r in resultados if r.sucesso)
+            sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
 
         return resultados
 

@@ -6,6 +6,7 @@ Golden rule: apenas classes 7220 (G72) e 7830 (G78)
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
@@ -66,10 +67,27 @@ def collect_classes(
 
     completed_keys: List[str] = []
     resultado: Dict[str, List[Dict]] = {}
-    if should_resume and isinstance(state.cursor, dict):
+    if should_resume:
         # Resume previously fetched classes if available
-        completed_keys = state.cursor.get("completed_keys", [])
-        resultado = state.cursor.get("resultado", {})
+        if isinstance(state.cursor, dict):
+            completed_keys = state.cursor.get("completed_keys", [])
+            resultado = state.cursor.get("resultado", {})
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, dict):
+                resultado = acc.get("resultado", {})
+                completed_keys = acc.get("completed_keys", list(resultado.keys()))
+            else:
+                out_path = Path("collector_classe_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, dict) and isinstance(data.get("data"), dict):
+                            resultado = dict(data["data"])
+                            completed_keys = list(resultado.keys())
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir classes de {out_path}: {e}")
 
     total_records = sum(len(v) for v in resultado.values())
 
@@ -87,7 +105,9 @@ def collect_classes(
                 e,
                 page=idx,
                 error_details={"grupo": grupo, "classe": classe},
+                cursor={"completed_keys": completed_keys, "resultado": resultado},
             )
+            sync_manager.save_accumulated_data({"completed_keys": completed_keys, "resultado": resultado})
             raise
 
         classes = resp.get("resultado", [])
@@ -101,6 +121,7 @@ def collect_classes(
             records_in_page=len(classes),
             cursor={"completed_keys": completed_keys, "resultado": resultado},
         )
+        sync_manager.save_accumulated_data({"completed_keys": completed_keys, "resultado": resultado})
 
     sync_manager.record_completed(total_records=total_records)
     return resultado

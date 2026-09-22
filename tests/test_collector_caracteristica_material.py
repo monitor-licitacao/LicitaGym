@@ -148,8 +148,9 @@ def test_collect_caracteristicas_partial_failure_and_resume(tmp_path):
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
         with patch("time.sleep"):
             caracteristicas = collect_caracteristicas_por_item(374066, sync_manager=manager, resume=True)
-            assert len(caracteristicas) == 1
-            assert caracteristicas[0]["codigoCaracteristica"] == 20
+            assert len(caracteristicas) == 2
+            assert caracteristicas[0]["codigoCaracteristica"] == 10
+            assert caracteristicas[1]["codigoCaracteristica"] == 20
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None

@@ -6,6 +6,7 @@ Golden rule: apenas grupos 72 e 78
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
@@ -43,7 +44,29 @@ def collect_grupos(
     should_resume = is_sync_resume_enabled() if resume is None else resume
     state = sync_manager.start_run(resume=should_resume)
 
-    todos_grupos = []
+    todos_grupos: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        # Reconstitute prior records on resume
+        if isinstance(state.cursor, dict) and "grupos" in state.cursor:
+            todos_grupos = list(state.cursor["grupos"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todos_grupos = list(acc)
+            else:
+                # Try loading from collector_grupo_material_resultado.json
+                out_path = Path("collector_grupo_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, dict) and isinstance(data.get("resultado"), list):
+                            todos_grupos = list(data["resultado"])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir de {out_path}: {e}")
+
+        logger.info(f"Reconstituídos {len(todos_grupos)} registro(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -51,7 +74,12 @@ def collect_grupos(
         try:
             resp = fetch_grupos(pagina=pagina)
         except Exception as e:
-            sync_manager.record_partial_failure(e, page=pagina)
+            sync_manager.record_partial_failure(
+                e,
+                page=pagina,
+                cursor={"grupos": todos_grupos},
+            )
+            sync_manager.save_accumulated_data(todos_grupos)
             raise
 
         registros = resp.get("resultado", [])
@@ -69,7 +97,12 @@ def collect_grupos(
 
         pages_coletadas += 1
         logger.info(f"Página {pagina}: {len(registros)} registros ({filtrados} grupos fitness)")
-        sync_manager.record_page_success(page=pagina, records_in_page=filtrados)
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=filtrados,
+            cursor={"grupos": todos_grupos},
+        )
+        sync_manager.save_accumulated_data(todos_grupos)
 
         if max_pages and pages_coletadas >= max_pages:
             logger.info(f"Limite de {max_pages} página(s) atingido")
@@ -77,8 +110,8 @@ def collect_grupos(
 
         pagina += 1
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
+    total_records = len(todos_grupos)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
     return todos_grupos
 
 def main():

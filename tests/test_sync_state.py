@@ -194,11 +194,30 @@ def test_sync_state_manager_clear(tmp_path):
     manager = SyncStateManager("test_ep_clear", state_dir=tmp_path)
     manager.start_run(resume=False)
     manager.record_page_success(page=1, records_in_page=10)
+    manager.save_accumulated_data([{"item": 1}])
     assert manager.get_state_file_path().exists()
+    assert manager.get_data_file_path().exists()
 
     manager.clear()
     assert not manager.get_state_file_path().exists()
+    assert not manager.get_data_file_path().exists()
     assert manager.load_checkpoint() is None
+
+
+def test_sync_state_manager_accumulated_data(tmp_path):
+    manager = SyncStateManager("test_ep_data", state_dir=tmp_path)
+    assert manager.load_accumulated_data() is None
+
+    sample = [{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}]
+    manager.save_accumulated_data(sample)
+
+    assert manager.get_data_file_path().exists()
+    loaded = manager.load_accumulated_data()
+    assert loaded == sample
+
+    manager.clear()
+    assert not manager.get_data_file_path().exists()
+    assert manager.load_accumulated_data() is None
 
 
 def test_sync_state_manager_safe_filename(tmp_path):

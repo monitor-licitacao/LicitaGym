@@ -7,6 +7,7 @@ Coleta Items de Material com dados detalhados.
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
@@ -79,7 +80,28 @@ def collect_items_por_grupo_classe(
         metadata={"grupo": codigo_grupo, "classe": codigo_classe},
     )
 
-    todos_items = []
+    todos_items: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "items" in state.cursor:
+            todos_items = list(state.cursor["items"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todos_items = list(acc)
+            else:
+                out_path = Path("collector_item_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        key = f"grupo_{codigo_grupo}"
+                        if isinstance(data, dict) and isinstance(data.get("data", {}).get(key), list):
+                            todos_items = list(data["data"][key])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir items de {out_path}: {e}")
+
+        logger.info(f"Reconstituídos {len(todos_items)} item(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -96,7 +118,9 @@ def collect_items_por_grupo_classe(
                 e,
                 page=pagina,
                 error_details={"grupo": codigo_grupo, "classe": codigo_classe},
+                cursor={"items": todos_items},
             )
+            sync_manager.save_accumulated_data(todos_items)
             raise
 
         items = resp.get("resultado", [])
@@ -104,7 +128,12 @@ def collect_items_por_grupo_classe(
         logger.info(f"  Página {pagina}: {len(items)} items")
         todos_items.extend(items)
         pages_coletadas += 1
-        sync_manager.record_page_success(page=pagina, records_in_page=len(items))
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(items),
+            cursor={"items": todos_items},
+        )
+        sync_manager.save_accumulated_data(todos_items)
 
         if max_pages and pages_coletadas >= max_pages:
             break
@@ -114,9 +143,9 @@ def collect_items_por_grupo_classe(
 
         pagina += 1
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
-    logger.info(f"  Total: {len(todos_items)} items (esta execução)")
+    total_records = len(todos_items)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    logger.info(f"  Total: {len(todos_items)} items")
     return todos_items
 
 def main():

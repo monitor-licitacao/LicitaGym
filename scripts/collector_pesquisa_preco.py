@@ -7,6 +7,7 @@ Coleta preços + fornecedores para items fitness no mercado.
 
 import json
 import logging
+from pathlib import Path
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -89,10 +90,31 @@ def collect_pesquisa_preco(
     materiais_encontrados: List[Dict] = []
     detalhes_todos: List[Dict] = []
 
-    if should_resume and isinstance(state.cursor, dict):
-        completed_items = state.cursor.get("completed_items", [])
-        materiais_encontrados = state.cursor.get("materiais_encontrados", [])
-        detalhes_todos = state.cursor.get("detalhes_todos", [])
+    if should_resume:
+        if isinstance(state.cursor, dict):
+            completed_items = list(state.cursor.get("completed_items", []))
+            materiais_encontrados = list(state.cursor.get("materiais_encontrados", []))
+            detalhes_todos = list(state.cursor.get("detalhes_todos", []))
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, dict):
+                completed_items = list(acc.get("completed_items", []))
+                materiais_encontrados = list(acc.get("materiais_encontrados", []))
+                detalhes_todos = list(acc.get("detalhes_todos", []))
+            else:
+                out_path = Path("collector_pesquisa_preco_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, dict):
+                            materiais_encontrados = list(data.get("materiais", []))
+                            detalhes_todos = list(data.get("detalhes", []))
+                            completed_items = list({m["codigoItem"] for m in materiais_encontrados if "codigoItem" in m})
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir pesquisa de preço de {out_path}: {e}")
+
+        logger.info(f"Reconstituídos {len(completed_items)} item(s), {len(materiais_encontrados)} materiais, {len(detalhes_todos)} detalhes de execuções anteriores")
 
     total_items = len(items_to_process)
     for i, codigo_item in enumerate(items_to_process, 1):
@@ -110,7 +132,17 @@ def collect_pesquisa_preco(
                 e,
                 page=i,
                 error_details={"codigo_item": codigo_item},
+                cursor={
+                    "completed_items": completed_items,
+                    "materiais_encontrados": materiais_encontrados,
+                    "detalhes_todos": detalhes_todos,
+                },
             )
+            sync_manager.save_accumulated_data({
+                "completed_items": completed_items,
+                "materiais_encontrados": materiais_encontrados,
+                "detalhes_todos": detalhes_todos,
+            })
             raise
 
         materiais = resp.get("resultado", [])
@@ -129,7 +161,17 @@ def collect_pesquisa_preco(
                             e,
                             page=i,
                             error_details={"codigo_item": codigo_item, "codigo_material": codigo_material},
+                            cursor={
+                                "completed_items": completed_items,
+                                "materiais_encontrados": materiais_encontrados,
+                                "detalhes_todos": detalhes_todos,
+                            },
                         )
+                        sync_manager.save_accumulated_data({
+                            "completed_items": completed_items,
+                            "materiais_encontrados": materiais_encontrados,
+                            "detalhes_todos": detalhes_todos,
+                        })
                         raise
 
                     detalhes = detalhe.get("resultado", [])
@@ -147,9 +189,15 @@ def collect_pesquisa_preco(
                 "detalhes_todos": detalhes_todos,
             },
         )
+        sync_manager.save_accumulated_data({
+            "completed_items": completed_items,
+            "materiais_encontrados": materiais_encontrados,
+            "detalhes_todos": detalhes_todos,
+        })
         time.sleep(0.2)
 
-    sync_manager.record_completed(total_records=len(detalhes_todos))
+    total_records = len(detalhes_todos)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
     return {
         "materiais": materiais_encontrados,
         "detalhes": detalhes_todos,

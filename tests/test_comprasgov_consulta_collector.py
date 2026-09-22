@@ -269,9 +269,11 @@ def test_consultar_multiplos_checkpoint_and_resume(collector_with_sample_schema,
                     resume=True,
                     sync_manager=manager,
                 )
-                assert len(res) == 1  # Only the missing one ran
-                assert res[0].endpoint == "consultarPca2"
+                assert len(res) == 2
+                assert res[0].endpoint == "consultarPca"
                 assert res[0].sucesso is True
+                assert res[1].endpoint == "consultarPca2"
+                assert res[1].sucesso is True
 
             asyncio.run(run_resuming_batch())
 

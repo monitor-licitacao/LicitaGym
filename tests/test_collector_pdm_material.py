@@ -141,8 +141,9 @@ def test_collect_pdms_partial_failure_and_resume(tmp_path):
     }
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
         pdms = collect_pdms_por_grupo_classe(78, 7830, sync_manager=manager, resume=True)
-        assert len(pdms) == 1
-        assert pdms[0]["codigoPdm"] == 101
+        assert len(pdms) == 2
+        assert pdms[0]["codigoPdm"] == 100
+        assert pdms[1]["codigoPdm"] == 101
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None

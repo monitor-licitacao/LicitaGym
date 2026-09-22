@@ -7,6 +7,7 @@ Coleta PDMs (Produtos Descritivos Básicos) por grupo e classe.
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
@@ -77,7 +78,28 @@ def collect_pdms_por_grupo_classe(
         metadata={"grupo": codigo_grupo, "classe": codigo_classe},
     )
 
-    todos_pdms = []
+    todos_pdms: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "pdms" in state.cursor:
+            todos_pdms = list(state.cursor["pdms"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todos_pdms = list(acc)
+            else:
+                out_path = Path("collector_pdm_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        key = f"grupo_{codigo_grupo}"
+                        if isinstance(data, dict) and isinstance(data.get("data", {}).get(key), list):
+                            todos_pdms = list(data["data"][key])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir PDMs de {out_path}: {e}")
+
+        logger.info(f"Reconstituídos {len(todos_pdms)} PDM(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -94,7 +116,9 @@ def collect_pdms_por_grupo_classe(
                 e,
                 page=pagina,
                 error_details={"grupo": codigo_grupo, "classe": codigo_classe},
+                cursor={"pdms": todos_pdms},
             )
+            sync_manager.save_accumulated_data(todos_pdms)
             raise
 
         pdms = resp.get("resultado", [])
@@ -102,7 +126,12 @@ def collect_pdms_por_grupo_classe(
         logger.info(f"  Página {pagina}: {len(pdms)} PDMs")
         todos_pdms.extend(pdms)
         pages_coletadas += 1
-        sync_manager.record_page_success(page=pagina, records_in_page=len(pdms))
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(pdms),
+            cursor={"pdms": todos_pdms},
+        )
+        sync_manager.save_accumulated_data(todos_pdms)
 
         if max_pages and pages_coletadas >= max_pages:
             break
@@ -112,9 +141,9 @@ def collect_pdms_por_grupo_classe(
 
         pagina += 1
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
-    logger.info(f"  Total: {len(todos_pdms)} PDMs (esta execução)")
+    total_records = len(todos_pdms)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    logger.info(f"  Total: {len(todos_pdms)} PDMs")
     return todos_pdms
 
 def main():
