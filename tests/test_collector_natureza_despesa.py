@@ -125,8 +125,9 @@ def test_collect_naturezas_partial_failure_and_resume(tmp_path):
     }
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
         naturezas = collect_naturezas_por_grupo_classe(78, 7830, sync_manager=manager, resume=True)
-        assert len(naturezas) == 1
-        assert naturezas[0]["codigoNatureza"] == 339031
+        assert len(naturezas) == 2
+        assert naturezas[0]["codigoNatureza"] == 339030
+        assert naturezas[1]["codigoNatureza"] == 339031
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None

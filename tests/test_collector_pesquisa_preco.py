@@ -118,18 +118,19 @@ def test_collect_pesquisa_preco_partial_failure_and_resume(tmp_path):
     assert checkpoint.last_page == 1
     assert checkpoint.total_records == 1
 
-    # Resume item 2: returns empty material
-    payload_mat_2 = {"resultado": []}
-    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_mat_2)):
+    # Resume item 2: returns material and detail, verifying accumulation
+    payload_mat_2 = {"resultado": [{"codigoMaterial": 200, "codigoItem": 2}]}
+    payload_det_2 = {"resultado": [{"codigoMaterial": 200, "preco": 500.0}]}
+    with patch("urllib.request.urlopen", side_effect=[DummyHttpResponse(payload_mat_2), DummyHttpResponse(payload_det_2)]):
         with patch("time.sleep"):
             res = collect_pesquisa_preco(items_e4=items, max_items=2, sync_manager=manager, resume=True)
-            assert len(res["materiais"]) == 1
-            assert len(res["detalhes"]) == 1
+            assert len(res["materiais"]) == 2
+            assert len(res["detalhes"]) == 2
             assert res["items_processados"] == 2
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None
     assert checkpoint.status == "completed"
     assert checkpoint.partial is False
-    assert checkpoint.total_records == 1
+    assert checkpoint.total_records == 2
 

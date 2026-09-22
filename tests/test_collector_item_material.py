@@ -119,8 +119,9 @@ def test_collect_items_partial_failure_and_resume(tmp_path):
     }
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
         items = collect_items_por_grupo_classe(78, 7830, sync_manager=manager, resume=True)
-        assert len(items) == 1
-        assert items[0]["codigoItem"] == 2
+        assert len(items) == 2
+        assert items[0]["codigoItem"] == 1
+        assert items[1]["codigoItem"] == 2
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None

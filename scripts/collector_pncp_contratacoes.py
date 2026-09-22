@@ -12,6 +12,7 @@ PARÂMETROS (via schemas-consultas-pncp.md):
 import json
 import logging
 import hashlib
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
@@ -82,8 +83,25 @@ def collect_contratacoes(
     )
 
     precos_encontrados: List[Dict] = []
-    if should_resume and isinstance(state.cursor, dict):
-        precos_encontrados = state.cursor.get("precos_encontrados", [])
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "precos_encontrados" in state.cursor:
+            precos_encontrados = list(state.cursor["precos_encontrados"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                precos_encontrados = list(acc)
+            else:
+                out_path = Path("collector_pncp_contratacoes_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, dict) and isinstance(data.get("dados"), list):
+                            precos_encontrados = list(data["dados"])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir contratações de {out_path}: {e}")
+
+        logger.info(f"Reconstituídos {len(precos_encontrados)} preço(s) de execuções anteriores")
 
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
 
@@ -96,7 +114,9 @@ def collect_contratacoes(
                 e,
                 page=pagina,
                 error_details={"data_inicio": data_inicio_str, "data_fim": data_fim_str},
+                cursor={"precos_encontrados": precos_encontrados},
             )
+            sync_manager.save_accumulated_data(precos_encontrados)
             raise
 
         contratacoes = resp.get("data", [])
@@ -146,9 +166,15 @@ def collect_contratacoes(
             records_in_page=novos_precos,
             cursor={"precos_encontrados": precos_encontrados},
         )
+        sync_manager.save_accumulated_data(precos_encontrados)
+
+        if resp.get("paginasRestantes") == 0:
+            break
+
         pagina += 1
 
-    sync_manager.record_completed(total_records=len(precos_encontrados))
+    total_records = len(precos_encontrados)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
     return precos_encontrados
 
 def main():

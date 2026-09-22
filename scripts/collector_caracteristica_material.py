@@ -7,6 +7,7 @@ Coleta Características com retry exponencial para rate-limiting.
 
 import json
 import logging
+from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
@@ -69,7 +70,28 @@ def collect_caracteristicas_por_item(
         metadata={"codigo_item": codigo_item},
     )
 
-    todas_caracteristicas = []
+    todas_caracteristicas: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "caracteristicas" in state.cursor:
+            todas_caracteristicas = list(state.cursor["caracteristicas"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todas_caracteristicas = list(acc)
+            else:
+                out_path = Path("collector_caracteristica_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        key = f"item_{codigo_item}"
+                        if isinstance(data, dict) and isinstance(data.get("data", {}).get(key), list):
+                            todas_caracteristicas = list(data["data"][key])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir caracteristicas de {out_path}: {e}")
+
+        logger.info(f"Reconstituídas {len(todas_caracteristicas)} característica(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -85,7 +107,9 @@ def collect_caracteristicas_por_item(
                 e,
                 page=pagina,
                 error_details={"codigo_item": codigo_item},
+                cursor={"caracteristicas": todas_caracteristicas},
             )
+            sync_manager.save_accumulated_data(todas_caracteristicas)
             raise
 
         caracteristicas = resp.get("resultado", [])
@@ -97,7 +121,12 @@ def collect_caracteristicas_por_item(
         logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
         todas_caracteristicas.extend(caracteristicas)
         pages_coletadas += 1
-        sync_manager.record_page_success(page=pagina, records_in_page=len(caracteristicas))
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(caracteristicas),
+            cursor={"caracteristicas": todas_caracteristicas},
+        )
+        sync_manager.save_accumulated_data(todas_caracteristicas)
 
         if max_pages and pages_coletadas >= max_pages:
             break
@@ -108,9 +137,9 @@ def collect_caracteristicas_por_item(
         pagina += 1
         time.sleep(0.5)
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
-    logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item}, esta execução)")
+    total_records = len(todas_caracteristicas)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item})")
     return todas_caracteristicas
 
 def main():
@@ -138,9 +167,26 @@ def main():
 
     completed_items = []
     resultado = {}
-    if should_resume and isinstance(state.cursor, dict):
-        completed_items = state.cursor.get("completed_items", [])
-        resultado = state.cursor.get("resultado", {})
+    if should_resume:
+        if isinstance(state.cursor, dict):
+            completed_items = state.cursor.get("completed_items", [])
+            resultado = state.cursor.get("resultado", {})
+        else:
+            acc = main_sync.load_accumulated_data()
+            if isinstance(acc, dict):
+                resultado = acc.get("resultado", {})
+                completed_items = acc.get("completed_items", [int(k.replace("item_", "")) for k in resultado.keys() if k.startswith("item_")])
+            else:
+                out_path = Path("collector_caracteristica_material_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, dict) and isinstance(data.get("data"), dict):
+                            resultado = dict(data["data"])
+                            completed_items = [int(k.replace("item_", "")) for k in resultado.keys() if k.startswith("item_")]
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir características de {out_path}: {e}")
 
     try:
         for i, codigo_item in enumerate(items_reais, 1):
@@ -158,7 +204,9 @@ def main():
                     e,
                     page=i,
                     error_details={"codigo_item": codigo_item},
+                    cursor={"completed_items": completed_items, "resultado": resultado},
                 )
+                main_sync.save_accumulated_data({"completed_items": completed_items, "resultado": resultado})
                 raise
 
             resultado[f"item_{codigo_item}"] = caracteristicas
@@ -168,6 +216,7 @@ def main():
                 records_in_page=len(caracteristicas),
                 cursor={"completed_items": completed_items, "resultado": resultado},
             )
+            main_sync.save_accumulated_data({"completed_items": completed_items, "resultado": resultado})
 
         main_sync.record_completed(total_records=sum(len(v) for v in resultado.values()))
 

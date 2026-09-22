@@ -124,7 +124,7 @@ def test_collect_grupos_records_partial_failure_and_resumes(tmp_path):
 
     with patch("urllib.request.urlopen", side_effect=mock_urlopen_p2):
         grupos = collect_grupos(sync_manager=manager, resume=True)
-        assert len(grupos) == 1
+        assert len(grupos) == 2  # Reconstituted p1 (1) + fetched p2 (1)
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None

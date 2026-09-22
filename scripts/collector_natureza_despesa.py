@@ -7,6 +7,7 @@ Coleta Naturezas de Despesa associadas a items de material.
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
@@ -76,7 +77,28 @@ def collect_naturezas_por_grupo_classe(
         metadata={"grupo": codigo_grupo, "classe": codigo_classe},
     )
 
-    todas_naturezas = []
+    todas_naturezas: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "naturezas" in state.cursor:
+            todas_naturezas = list(state.cursor["naturezas"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todas_naturezas = list(acc)
+            else:
+                out_path = Path("collector_natureza_despesa_resultado.json")
+                if out_path.exists():
+                    try:
+                        with open(out_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        key = f"grupo_{codigo_grupo}"
+                        if isinstance(data, dict) and isinstance(data.get("data", {}).get(key), list):
+                            todas_naturezas = list(data["data"][key])
+                    except Exception as e:
+                        logger.warning(f"Não foi possível reconstituir naturezas de {out_path}: {e}")
+
+        logger.info(f"Reconstituídas {len(todas_naturezas)} natureza(s) de execuções anteriores")
+
     pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
@@ -93,7 +115,9 @@ def collect_naturezas_por_grupo_classe(
                 e,
                 page=pagina,
                 error_details={"grupo": codigo_grupo, "classe": codigo_classe},
+                cursor={"naturezas": todas_naturezas},
             )
+            sync_manager.save_accumulated_data(todas_naturezas)
             raise
 
         naturezas = resp.get("resultado", [])
@@ -101,7 +125,12 @@ def collect_naturezas_por_grupo_classe(
         logger.info(f"  Página {pagina}: {len(naturezas)} naturezas")
         todas_naturezas.extend(naturezas)
         pages_coletadas += 1
-        sync_manager.record_page_success(page=pagina, records_in_page=len(naturezas))
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(naturezas),
+            cursor={"naturezas": todas_naturezas},
+        )
+        sync_manager.save_accumulated_data(todas_naturezas)
 
         if max_pages and pages_coletadas >= max_pages:
             break
@@ -111,9 +140,9 @@ def collect_naturezas_por_grupo_classe(
 
         pagina += 1
 
-    total_records = state.total_records
-    sync_manager.record_completed(total_records=total_records)
-    logger.info(f"  Total: {len(todas_naturezas)} naturezas (esta execução)")
+    total_records = len(todas_naturezas)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    logger.info(f"  Total: {len(todas_naturezas)} naturezas")
     return todas_naturezas
 
 def main():

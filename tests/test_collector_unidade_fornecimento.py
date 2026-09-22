@@ -144,8 +144,9 @@ def test_collect_unidades_partial_failure_and_resume(tmp_path):
     with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
         with patch("time.sleep"):
             unidades = collect_unidades_por_grupo_classe(78, 7830, sync_manager=manager, resume=True)
-            assert len(unidades) == 1
-            assert unidades[0]["codigoUnidade"] == 2
+            assert len(unidades) == 2
+            assert unidades[0]["codigoUnidade"] == 1
+            assert unidades[1]["codigoUnidade"] == 2
 
     checkpoint = manager.load_checkpoint()
     assert checkpoint is not None
