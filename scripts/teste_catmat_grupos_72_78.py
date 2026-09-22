@@ -16,11 +16,11 @@ Join: Item (base) <- Grupo/Classe/PDM (1:1) + Características/Unidades/Natureza
 """
 
 import json
-import hashlib
 import logging
 from typing import Any, Dict, List
 from datetime import datetime
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.payload_hash import compute_payload_hash
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -180,9 +180,8 @@ def test_catmat():
             "data_sincronizacao": datetime.now().isoformat(),
         }
 
-        # Hash para detect duplicatas
-        hash_input = f"{grupo_id}:{item_id}:{item.get('descricaoItem', '')}"
-        payload["payload_hash"] = hashlib.md5(hash_input.encode()).hexdigest()
+        # Hash SHA-256 estável para rastreabilidade e detecção de duplicatas (alinhado a Edge _shared/pncp/hash.ts)
+        payload["payload_hash"] = compute_payload_hash(payload)
 
         consolidated.append(payload)
 
