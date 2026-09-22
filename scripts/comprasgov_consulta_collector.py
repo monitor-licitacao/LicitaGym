@@ -31,6 +31,7 @@ from scripts.lib.http_client import (
     clamp_compras_gov_page_size,
     is_legacy_empty_on_error_enabled,
 )
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(
     level=logging.INFO,
@@ -256,13 +257,34 @@ class ConsultaComprasGovCollector:
         self,
         nomes_endpoints: List[str],
         opcoes: Optional[Dict[str, Any]] = None,
+        resume: Optional[bool] = None,
+        sync_manager: Optional[SyncStateManager] = None,
     ) -> List[ConsultaResultado]:
-        """Consulta múltiplos endpoints com paralelismo limitado"""
+        """Consulta múltiplos endpoints com paralelismo limitado e suporte a checkpoint"""
+        should_resume = is_sync_resume_enabled() if resume is None else resume
+        if sync_manager is None and should_resume:
+            sync_manager = SyncStateManager("comprasgov_consultar_multiplos")
+
+        completed_endpoints: List[str] = []
+        if sync_manager is not None:
+            state = sync_manager.start_run(resume=should_resume)
+            if should_resume and isinstance(state.cursor, dict):
+                completed_endpoints = state.cursor.get("completed_endpoints", [])
 
         resultados = []
+        endpoints_para_executar = [
+            ep for ep in nomes_endpoints if ep not in completed_endpoints
+        ]
 
-        for i in range(0, len(nomes_endpoints), MAX_PARALELO):
-            lote = nomes_endpoints[i:i + MAX_PARALELO]
+        if len(endpoints_para_executar) < len(nomes_endpoints):
+            pulados = len(nomes_endpoints) - len(endpoints_para_executar)
+            logger.info(f"{pulados} endpoint(s) já concluídos no checkpoint anterior, pulando.")
+
+        has_failure = False
+        primeiro_erro = None
+
+        for i in range(0, len(endpoints_para_executar), MAX_PARALELO):
+            lote = endpoints_para_executar[i:i + MAX_PARALELO]
             logger.info(f"Processando lote {i//MAX_PARALELO + 1}: {len(lote)} endpoints")
 
             tarefas = [
@@ -273,16 +295,46 @@ class ConsultaComprasGovCollector:
             resultados_lote = await asyncio.gather(*tarefas)
             resultados.extend(resultados_lote)
 
-            if i + MAX_PARALELO < len(nomes_endpoints):
+            for r in resultados_lote:
+                if r.sucesso:
+                    completed_endpoints.append(r.endpoint)
+                else:
+                    has_failure = True
+                    if primeiro_erro is None:
+                        primeiro_erro = r.erros[0] if r.erros else f"Falha em {r.endpoint}"
+
+            if sync_manager is not None:
+                registros_lote = sum(r.registrosTotais for r in resultados_lote if r.sucesso)
+                if has_failure:
+                    sync_manager.record_partial_failure(
+                        primeiro_erro or "Falha em lote de endpoints",
+                        page=i // MAX_PARALELO + 1,
+                        error_details={"failed_endpoints": [r.endpoint for r in resultados_lote if not r.sucesso]},
+                        cursor={"completed_endpoints": completed_endpoints},
+                    )
+                else:
+                    sync_manager.record_page_success(
+                        page=i // MAX_PARALELO + 1,
+                        records_in_page=registros_lote,
+                        cursor={"completed_endpoints": completed_endpoints},
+                    )
+
+            if i + MAX_PARALELO < len(endpoints_para_executar):
                 await asyncio.sleep(DELAY_ENTRE_LOTES_MS / 1000)
 
         self.resultados.extend(resultados)
+
+        if sync_manager is not None and not has_failure:
+            sync_manager.record_completed(total_records=sum(r.registrosTotais for r in self.resultados if r.sucesso))
+
         return resultados
 
     async def consultar_por_modulo(
         self,
         modulo: str,
         opcoes: Optional[Dict[str, Any]] = None,
+        resume: Optional[bool] = None,
+        sync_manager: Optional[SyncStateManager] = None,
     ) -> List[ConsultaResultado]:
         """Consulta todos os endpoints de um módulo"""
 
@@ -296,12 +348,14 @@ class ConsultaComprasGovCollector:
             return []
 
         logger.info(f"Consultando módulo {modulo}: {len(endpoints_modulo)} endpoints")
-        return await self.consultar_multiplos(endpoints_modulo, opcoes)
+        return await self.consultar_multiplos(endpoints_modulo, opcoes, resume=resume, sync_manager=sync_manager)
 
     async def consultar_periodo(
         self,
         data_inicio: str,  # "2026-09-01"
         data_fim: str,      # "2026-09-30"
+        resume: Optional[bool] = None,
+        sync_manager: Optional[SyncStateManager] = None,
     ) -> List[ConsultaResultado]:
         """Consulta endpoints que suportam filtro por data"""
 
@@ -316,7 +370,7 @@ class ConsultaComprasGovCollector:
         }
 
         logger.info(f"Consultando período {data_inicio} a {data_fim}: {len(endpoints_com_data)} endpoints")
-        return await self.consultar_multiplos(endpoints_com_data, opcoes)
+        return await self.consultar_multiplos(endpoints_com_data, opcoes, resume=resume, sync_manager=sync_manager)
 
     async def fechar(self):
         """Fecha sessão HTTP (no-op para compatibilidade)"""
@@ -348,6 +402,7 @@ async def main():
     parser.add_argument("--modulo", help="Módulo específico (ex: 01-PCA)")
     parser.add_argument("--data-inicio", help="Data início (YYYY-MM-DD)")
     parser.add_argument("--data-fim", help="Data fim (YYYY-MM-DD)")
+    parser.add_argument("--resume", action="store_true", help="Retoma do último checkpoint salvo")
     parser.add_argument("--output", help="Arquivo de saída JSON", default="comprasgov_resultado.json")
 
     args = parser.parse_args()
@@ -356,9 +411,9 @@ async def main():
 
     try:
         if args.modulo:
-            resultados = await collector.consultar_por_modulo(args.modulo)
+            resultados = await collector.consultar_por_modulo(args.modulo, resume=args.resume)
         elif args.data_inicio and args.data_fim:
-            resultados = await collector.consultar_periodo(args.data_inicio, args.data_fim)
+            resultados = await collector.consultar_periodo(args.data_inicio, args.data_fim, resume=args.resume)
         else:
             logger.error("Especifique --modulo ou --data-inicio e --data-fim")
             return 1

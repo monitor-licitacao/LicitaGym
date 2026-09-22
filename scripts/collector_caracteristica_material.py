@@ -10,6 +10,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -53,18 +54,40 @@ def fetch_caracteristicas(
 
 def collect_caracteristicas_por_item(
     codigo_item: int,
-    max_pages: Optional[int] = None
+    max_pages: Optional[int] = None,
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
 ) -> List[Dict]:
-    """Coleta todas características de um item específico (E7 filtra por item, não grupo/classe)."""
+    """Coleta todas características de um item específico com suporte a checkpoint e resume."""
+    if sync_manager is None:
+        endpoint_key = f"7_consultarMaterialCaracteristicas_item_{codigo_item}"
+        sync_manager = SyncStateManager(endpoint_key)
+
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(
+        resume=should_resume,
+        metadata={"codigo_item": codigo_item},
+    )
+
     todas_caracteristicas = []
-    pagina = 1
+    pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
+    pages_coletadas = 0
 
     while True:
-        resp = fetch_caracteristicas(
-            codigo_item=codigo_item,
-            pagina=pagina,
-            tamanho_pagina=500
-        )
+        try:
+            resp = fetch_caracteristicas(
+                codigo_item=codigo_item,
+                pagina=pagina,
+                tamanho_pagina=500
+            )
+        except Exception as e:
+            sync_manager.record_partial_failure(
+                e,
+                page=pagina,
+                error_details={"codigo_item": codigo_item},
+            )
+            raise
+
         caracteristicas = resp.get("resultado", [])
 
         if not caracteristicas:
@@ -73,8 +96,10 @@ def collect_caracteristicas_por_item(
 
         logger.info(f"  Página {pagina}: {len(caracteristicas)} características")
         todas_caracteristicas.extend(caracteristicas)
+        pages_coletadas += 1
+        sync_manager.record_page_success(page=pagina, records_in_page=len(caracteristicas))
 
-        if max_pages and pagina >= max_pages:
+        if max_pages and pages_coletadas >= max_pages:
             break
 
         if resp.get("paginasRestantes", 0) == 0:
@@ -83,7 +108,9 @@ def collect_caracteristicas_por_item(
         pagina += 1
         time.sleep(0.5)
 
-    logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item})")
+    total_records = state.total_records
+    sync_manager.record_completed(total_records=total_records)
+    logger.info(f"  Total: {len(todas_caracteristicas)} características (item {codigo_item}, esta execução)")
     return todas_caracteristicas
 
 def main():
@@ -105,32 +132,66 @@ def main():
         logger.warning("E4 não encontrado. Usando sample (item 374066).")
         items_reais = [374066]
 
+    main_sync = SyncStateManager("7_consultarMaterialCaracteristicas")
+    should_resume = is_sync_resume_enabled()
+    state = main_sync.start_run(resume=should_resume)
+
+    completed_items = []
     resultado = {}
-    resumo_por_grupo = {"grupo_72": [], "grupo_78": []}
+    if should_resume and isinstance(state.cursor, dict):
+        completed_items = state.cursor.get("completed_items", [])
+        resultado = state.cursor.get("resultado", {})
 
-    for i, codigo_item in enumerate(items_reais, 1):
-        if i % 100 == 0:
-            logger.info(f"  [{i}/{len(items_reais)}] processado...")
+    try:
+        for i, codigo_item in enumerate(items_reais, 1):
+            if should_resume and codigo_item in completed_items:
+                logger.info(f"Item {codigo_item} já coletado anteriormente, pulando.")
+                continue
 
-        caracteristicas = collect_caracteristicas_por_item(codigo_item, max_pages=None)
-        resultado[f"item_{codigo_item}"] = caracteristicas
+            if i % 100 == 0:
+                logger.info(f"  [{i}/{len(items_reais)}] processado...")
 
-    output = {
-        "endpoint": "7_consultarMaterialCaracteristicas",
-        "golden_rule": "E7 filtra por codigoItem (não grupo/classe)",
-        "data": resultado,
-        "resumo": {
-            "total_items": len(items_reais),
-            "total_caracteristicas_coletadas": sum(len(v) for v in resultado.values())
+            try:
+                caracteristicas = collect_caracteristicas_por_item(codigo_item, max_pages=None)
+            except Exception as e:
+                main_sync.record_partial_failure(
+                    e,
+                    page=i,
+                    error_details={"codigo_item": codigo_item},
+                )
+                raise
+
+            resultado[f"item_{codigo_item}"] = caracteristicas
+            completed_items.append(codigo_item)
+            main_sync.record_page_success(
+                page=i,
+                records_in_page=len(caracteristicas),
+                cursor={"completed_items": completed_items, "resultado": resultado},
+            )
+
+        main_sync.record_completed(total_records=sum(len(v) for v in resultado.values()))
+
+        output = {
+            "endpoint": "7_consultarMaterialCaracteristicas",
+            "golden_rule": "E7 filtra por codigoItem (não grupo/classe)",
+            "data": resultado,
+            "resumo": {
+                "total_items": len(items_reais),
+                "total_caracteristicas_coletadas": sum(len(v) for v in resultado.values())
+            }
         }
-    }
 
-    with open("collector_caracteristica_material_resultado.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+        with open("collector_caracteristica_material_resultado.json", "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"\n✓ Salvo: collector_caracteristica_material_resultado.json")
-    logger.info(f"  Items: {output['resumo']['total_items']}")
-    logger.info(f"  Características: {output['resumo']['total_caracteristicas_coletadas']}")
+        logger.info(f"\n✓ Salvo: collector_caracteristica_material_resultado.json")
+        logger.info(f"  Items: {output['resumo']['total_items']}")
+        logger.info(f"  Características: {output['resumo']['total_caracteristicas_coletadas']}")
+        return 0
+
+    except Exception as e:
+        logger.error(f"Falha na coleta de características: {e}")
+        return 1
 
 if __name__ == "__main__":
-    main()
+    exit(main())

@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,29 +29,47 @@ def fetch_grupos(pagina: int = 1, tamanho_pagina: int = 500, max_retries: int = 
         raise_for_status=True,
     )
 
-def collect_grupos(max_pages: Optional[int] = None) -> List[Dict]:
+def collect_grupos(
+    max_pages: Optional[int] = None,
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
+) -> List[Dict]:
     """Coleta todos os grupos (apenas 72, 78 da golden rule)."""
     logger.info("Coletando Grupos de Material...")
 
+    if sync_manager is None:
+        sync_manager = SyncStateManager("1_consultarGrupoMaterial")
+
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(resume=should_resume)
+
     todos_grupos = []
-    pagina = 1
+    pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
     pages_coletadas = 0
 
     while True:
-        resp = fetch_grupos(pagina=pagina)
+        try:
+            resp = fetch_grupos(pagina=pagina)
+        except Exception as e:
+            sync_manager.record_partial_failure(e, page=pagina)
+            raise
+
         registros = resp.get("resultado", [])
 
         if not registros:
             logger.info("Fim da paginação")
             break
 
+        filtrados = 0
         for reg in registros:
             codigo_grupo = reg.get("codigoGrupo")
             if codigo_grupo in GRUPOS_PERMITIDOS:
                 todos_grupos.append(reg)
+                filtrados += 1
 
         pages_coletadas += 1
-        logger.info(f"Página {pagina}: {len(registros)} registros")
+        logger.info(f"Página {pagina}: {len(registros)} registros ({filtrados} grupos fitness)")
+        sync_manager.record_page_success(page=pagina, records_in_page=filtrados)
 
         if max_pages and pages_coletadas >= max_pages:
             logger.info(f"Limite de {max_pages} página(s) atingido")
@@ -58,6 +77,8 @@ def collect_grupos(max_pages: Optional[int] = None) -> List[Dict]:
 
         pagina += 1
 
+    total_records = state.total_records
+    sync_manager.record_completed(total_records=total_records)
     return todos_grupos
 
 def main():

@@ -13,8 +13,9 @@ import json
 import logging
 import hashlib
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
+from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -63,29 +64,40 @@ def compute_hash(obj: Dict[str, Any]) -> str:
     json_str = json.dumps(obj, sort_keys=True, separators=(',', ':'))
     return hashlib.md5(json_str.encode()).hexdigest()
 
-def main():
-    logger.info("=== COLLECTOR: PNCP Contratações (Fase 3) ===\n")
+def collect_contratacoes(
+    data_inicio_str: str,
+    data_fim_str: str,
+    max_pages: int = 5,
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
+) -> List[Dict]:
+    """Coleta contratações PNCP com suporte a checkpoint e resume."""
+    if sync_manager is None:
+        sync_manager = SyncStateManager("pncp_contratacoes_publicacao")
 
-    load_items_e4()
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(
+        resume=should_resume,
+        metadata={"data_inicio": data_inicio_str, "data_fim": data_fim_str},
+    )
 
-    # Período: últimos 90 dias
-    data_fim = datetime.now()
-    data_inicio = data_fim - timedelta(days=90)
+    precos_encontrados: List[Dict] = []
+    if should_resume and isinstance(state.cursor, dict):
+        precos_encontrados = state.cursor.get("precos_encontrados", [])
 
-    data_inicio_str = data_inicio.strftime("%Y%m%d")
-    data_fim_str = data_fim.strftime("%Y%m%d")
+    pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
 
-    logger.info(f"Período: {data_inicio_str} a {data_fim_str}")
-    logger.info(f"Modalidade: 6 (licitações)")
-    logger.info(f"TamanhoPagina: 50 (máximo)\n")
-
-    precos_encontrados = []
-    pagina = 1
-    total_processado = 0
-
-    while pagina <= 5:  # Primeiras 5 páginas (teste)
+    while pagina <= max_pages:
         logger.info(f"[Página {pagina}]")
-        resp = fetch_contratacoes(pagina, data_inicio_str, data_fim_str)
+        try:
+            resp = fetch_contratacoes(pagina, data_inicio_str, data_fim_str)
+        except Exception as e:
+            sync_manager.record_partial_failure(
+                e,
+                page=pagina,
+                error_details={"data_inicio": data_inicio_str, "data_fim": data_fim_str},
+            )
+            raise
 
         contratacoes = resp.get("data", [])
         if not contratacoes:
@@ -93,6 +105,7 @@ def main():
             break
 
         logger.info(f"  {len(contratacoes)} contratações")
+        novos_precos = 0
 
         for contrato in contratacoes:
             items_contrato = contrato.get("itens", [])
@@ -126,32 +139,63 @@ def main():
                                 })
                             }
                             precos_encontrados.append(preco_rec)
+                            novos_precos += 1
 
-        total_processado += len(contratacoes)
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=novos_precos,
+            cursor={"precos_encontrados": precos_encontrados},
+        )
         pagina += 1
 
-    output = {
-        "endpoint": "/v1/contratacoes/publicacao",
-        "periodo": f"{data_inicio_str} a {data_fim_str}",
-        "parametros": {
-            "tamanhoPagina": 50,
-            "codigoModalidadeContratacao": 6,
-        },
-        "golden_rule": "items G72/G78 fitness",
-        "resumo": {
-            "total_contratacoes_processadas": total_processado,
-            "precos_encontrados": len(precos_encontrados),
-            "fornecedores_unicos": len(set(p["ni_fornecedor"] for p in precos_encontrados if p.get("ni_fornecedor"))),
-        },
-        "dados": precos_encontrados
-    }
+    sync_manager.record_completed(total_records=len(precos_encontrados))
+    return precos_encontrados
 
-    with open("collector_pncp_contratacoes_resultado.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+def main():
+    logger.info("=== COLLECTOR: PNCP Contratações (Fase 3) ===\n")
 
-    logger.info(f"\n✓ Salvo: collector_pncp_contratacoes_resultado.json")
-    logger.info(f"  Preços: {output['resumo']['precos_encontrados']}")
-    logger.info(f"  Fornecedores: {output['resumo']['fornecedores_unicos']}")
+    load_items_e4()
+
+    # Período: últimos 90 dias
+    data_fim = datetime.now()
+    data_inicio = data_fim - timedelta(days=90)
+
+    data_inicio_str = data_inicio.strftime("%Y%m%d")
+    data_fim_str = data_fim.strftime("%Y%m%d")
+
+    logger.info(f"Período: {data_inicio_str} a {data_fim_str}")
+    logger.info(f"Modalidade: 6 (licitações)")
+    logger.info(f"TamanhoPagina: 50 (máximo)\n")
+
+    try:
+        precos_encontrados = collect_contratacoes(data_inicio_str, data_fim_str, max_pages=5)
+
+        output = {
+            "endpoint": "/v1/contratacoes/publicacao",
+            "periodo": f"{data_inicio_str} a {data_fim_str}",
+            "parametros": {
+                "tamanhoPagina": 50,
+                "codigoModalidadeContratacao": 6,
+            },
+            "golden_rule": "items G72/G78 fitness",
+            "resumo": {
+                "total_contratacoes_processadas": len(precos_encontrados),
+                "precos_encontrados": len(precos_encontrados),
+                "fornecedores_unicos": len(set(p["ni_fornecedor"] for p in precos_encontrados if p.get("ni_fornecedor"))),
+            },
+            "dados": precos_encontrados
+        }
+
+        with open("collector_pncp_contratacoes_resultado.json", "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"\n✓ Salvo: collector_pncp_contratacoes_resultado.json")
+        logger.info(f"  Preços: {output['resumo']['precos_encontrados']}")
+        logger.info(f"  Fornecedores: {output['resumo']['fornecedores_unicos']}")
+        return 0
+    except Exception as e:
+        logger.error(f"Falha na coleta de contratações PNCP: {e}")
+        return 1
 
 if __name__ == "__main__":
     main()

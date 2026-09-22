@@ -17,6 +17,7 @@ import pytest
 
 from scripts.collector_pdm_material import fetch_pdms, collect_pdms_por_grupo_classe
 from scripts.lib.http_fetch import HttpFetchError, LEGACY_EMPTY_ON_ERROR_ENV
+from scripts.lib.sync_state import SyncStateManager
 
 
 class DummyHttpResponse:
@@ -97,3 +98,56 @@ def test_fetch_pdms_legacy_rollback(monkeypatch):
     with patch("urllib.request.urlopen", side_effect=http_err):
         res = fetch_pdms(codigo_grupo=78, codigo_classe=7830)
         assert res == {"resultado": []}
+
+
+def test_collect_pdms_partial_failure_and_resume(tmp_path):
+    manager = SyncStateManager("test_collect_pdms", state_dir=tmp_path)
+
+    payload_p1 = {
+        "resultado": [{"codigoPdm": 100, "nomePdm": "ESTEIRA"}],
+        "paginasRestantes": 1,
+    }
+    http_err_p2 = urllib.error.HTTPError(
+        url="http://test",
+        code=500,
+        msg="Internal Error",
+        hdrs={},
+        fp=io.BytesIO(b"error"),
+    )
+
+    call_count = 0
+
+    def mock_urlopen(req, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return DummyHttpResponse(payload_p1)
+        raise http_err_p2
+
+    with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+        with pytest.raises(HttpFetchError):
+            collect_pdms_por_grupo_classe(78, 7830, sync_manager=manager, resume=False)
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "failed_partial"
+    assert checkpoint.partial is True
+    assert checkpoint.last_page == 1
+    assert checkpoint.total_records == 1
+
+    payload_p2 = {
+        "resultado": [{"codigoPdm": 101, "nomePdm": "BICICLETA"}],
+        "paginasRestantes": 0,
+    }
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload_p2)):
+        pdms = collect_pdms_por_grupo_classe(78, 7830, sync_manager=manager, resume=True)
+        assert len(pdms) == 1
+        assert pdms[0]["codigoPdm"] == 101
+
+    checkpoint = manager.load_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.status == "completed"
+    assert checkpoint.partial is False
+    assert checkpoint.last_page == 2
+    assert checkpoint.total_records == 2
+

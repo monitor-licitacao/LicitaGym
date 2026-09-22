@@ -70,4 +70,9 @@ scripts/collector_*_resultado.json
 scripts/*_teste.json
 teste_catmat_consolidado.json
 comprasgov_resultado.json
+
+# Sync state checkpoint files
+.sync_state/
+scripts/.sync_state/
+*.sync_state/
 ```
