@@ -1,4 +1,5 @@
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { DateSlice, pendingFromPriorRun } from "./pagination-budget.ts";
 
 /** Edge timeout / cliente cancelado — libera lock preso em `executando`. */
 const STALE_LOCK_MS = 3 * 60 * 1000;
@@ -42,6 +43,36 @@ export async function acquireSyncLock(
 
   if (error) throw error;
   return { runId: data.id as string, alreadyRunning: false };
+}
+
+export async function loadPendingSlices(
+  client: SupabaseClient,
+  lockKey: string,
+  currentRunId: string,
+): Promise<DateSlice[] | null> {
+  const selectPrior = () =>
+    client.schema("private")
+      .from("pncp_sync_run")
+      .select("status, parametros")
+      .eq("lock_key", lockKey)
+      .neq("id", currentRunId);
+
+  const { data: latest, error } = await selectPrior()
+    .order("iniciada_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!latest) return null;
+  if (latest.status === "concluida" || latest.status === "concluida_com_erros") return null;
+  if (latest.status === "incompleta") return pendingFromPriorRun(latest);
+
+  const { data: incomplete, error: incompleteError } = await selectPrior()
+    .eq("status", "incompleta")
+    .order("iniciada_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (incompleteError) throw incompleteError;
+  return pendingFromPriorRun(incomplete);
 }
 
 export async function resolveIdempotency(

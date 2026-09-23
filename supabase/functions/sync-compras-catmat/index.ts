@@ -22,10 +22,7 @@ import type {
 import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
 import { acquireSyncLock } from "../_shared/pncp/lock.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
-import {
-  LICITAGYM_CATMAT_CLASSE,
-  LICITAGYM_CATMAT_GRUPO,
-} from "../_shared/pncp/licitagym-catmat.ts";
+import { resolveCatmatIngestTargets } from "../_shared/pncp/catmat-scope-resolver.ts";
 import { assertCatmatClasseInScope } from "../_shared/pncp/licitagym-scope-gate.ts";
 import {
   createServiceClient,
@@ -106,8 +103,41 @@ Deno.serve(async (req) => {
   if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;
-  const codigoGrupo = body.codigo_grupo ?? Number(LICITAGYM_CATMAT_GRUPO);
-  const codigoClasse = body.codigo_classe ?? Number(LICITAGYM_CATMAT_CLASSE);
+  const resolved = resolveCatmatIngestTargets(body);
+  if (!resolved.ok) {
+    return jsonResponse({ status: "blocked", reason: resolved.reason }, 423);
+  }
+  if (resolved.pairs.length !== 1) {
+    const runs = [];
+    for (const pair of resolved.pairs) {
+      const response = await ingestOneCatmatClass({
+        ...body,
+        codigo_grupo: pair.grupo,
+        codigo_classe: pair.classe,
+      });
+      runs.push({ http_status: response.status, ...(await response.json()) });
+    }
+    const failed = runs.some((run) => run.http_status >= 400);
+    return jsonResponse({
+      status: failed ? "concluida_com_erros" : "concluida",
+      scope: "transitional_fitness_scope",
+      classes: resolved.pairs.map((pair) => String(pair.classe)),
+      runs,
+    }, failed ? 500 : 200);
+  }
+  return await ingestOneCatmatClass({
+    ...body,
+    codigo_grupo: resolved.pairs[0].grupo,
+    codigo_classe: resolved.pairs[0].classe,
+  });
+});
+
+async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
+  const codigoGrupo = body.codigo_grupo;
+  const codigoClasse = body.codigo_classe;
+  if (codigoGrupo == null || codigoClasse == null) {
+    return jsonResponse({ status: "blocked", reason: "par grupo/classe ausente" }, 500);
+  }
   const scopeErr = assertCatmatClasseInScope(codigoGrupo, codigoClasse);
   if (scopeErr) {
     return jsonResponse({ status: "blocked", reason: scopeErr }, 423);
@@ -399,4 +429,4 @@ Deno.serve(async (req) => {
       sync_id: runId,
     }, 500);
   }
-});
+}

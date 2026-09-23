@@ -31,7 +31,7 @@ type SyncBody = {
   ano?: number;
   /** Um código CATMAT/CATSER (legado). */
   codigo_classificacao_superior?: string;
-  /** Vários códigos — ex.: ["7830"] para ginástica e recreação. */
+  /** Subconjunto explícito. Vazio: classes da política transitória (7830 e 7220). */
   codigos_classificacao?: string[];
   pagina_inicial?: number;
   /** Limita páginas por código (útil em cron parcial ou smoke test). */

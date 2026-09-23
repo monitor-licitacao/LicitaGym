@@ -1,7 +1,8 @@
-# Sync CATMAT Compras.gov.br (classe 7830 fitness por padrao; 72/7220 piso via -CodigoGrupo/-CodigoClasse) + loop de caracteristicas
+# Sync CATMAT. Sem -CodigoGrupo/-CodigoClasse a Edge aplica a policy inteira.
+# Um par especifico continua valido: -CodigoGrupo 72 -CodigoClasse 7220
 param(
-  [int]$CodigoGrupo = 78,
-  [int]$CodigoClasse = 7830,
+  [int]$CodigoGrupo = -1,
+  [int]$CodigoClasse = -1,
   [switch]$SomenteCaracteristicas,
   [switch]$SkipCaracteristicas,
   [int]$LimiteCaracteristicas = 80,
@@ -48,18 +49,102 @@ function Invoke-SyncComprasCatmat {
   }
 }
 
-$body = @{
-  codigo_grupo          = $CodigoGrupo
-  codigo_classe         = $CodigoClasse
-  max_paginas           = $MaxPaginas
-  limite_caracteristicas = $LimiteCaracteristicas
-}
-if ($SomenteCaracteristicas) {
-  $body.somente_caracteristicas = $true
+$temGrupo = $CodigoGrupo -ge 0
+$temClasse = $CodigoClasse -ge 0
+if ($temGrupo -xor $temClasse) {
+  throw "codigo_grupo e codigo_classe devem vir juntos, ou nenhum dos dois."
 }
 
+function New-CatmatBody {
+  param([hashtable]$Extra)
+  $body = @{}
+  foreach ($key in $Extra.Keys) { $body[$key] = $Extra[$key] }
+  if ($temGrupo) {
+    $body.codigo_grupo = $CodigoGrupo
+    $body.codigo_classe = $CodigoClasse
+  }
+  return $body
+}
+
+function Write-CatmatRuns {
+  param($Json)
+  if ($Json.runs) {
+    foreach ($run in @($Json.runs)) {
+      if ($run.error -or ($run.http_status -ge 400) -or ($run.status -eq "blocked")) {
+        throw "classe $($run.codigo_classe) falhou: $($run.error) $($run.reason) status=$($run.status)"
+      }
+      Write-Host ("  classe={0} grupo={1} sync_id={2} status={3}" -f `
+          $run.codigo_classe, $run.codigo_grupo, $run.sync_id, $run.status) -ForegroundColor Green
+    }
+    return
+  }
+  if (-not $temGrupo) {
+    Write-Host "  AVISO: resposta sem runs. Confira se a funcao implantada resolve a policy completa." -ForegroundColor Yellow
+  }
+  if ($null -ne $Json.codigo_classe) {
+    Write-Host ("  classe={0} grupo={1} sync_id={2} status={3}" -f `
+        $Json.codigo_classe, $Json.codigo_grupo, $Json.sync_id, $Json.status) -ForegroundColor Green
+  }
+}
+
+function Get-CatmatPares {
+  param($Json)
+  $pares = @()
+  if ($temGrupo) {
+    $pares += [pscustomobject]@{ grupo = $CodigoGrupo; classe = $CodigoClasse }
+    return $pares
+  }
+  if ($Json.runs) {
+    foreach ($run in @($Json.runs)) {
+      $pares += [pscustomobject]@{ grupo = [int]$run.codigo_grupo; classe = [int]$run.codigo_classe }
+    }
+    return $pares
+  }
+  if ($null -ne $Json.codigo_classe) {
+    $pares += [pscustomobject]@{ grupo = [int]$Json.codigo_grupo; classe = [int]$Json.codigo_classe }
+  }
+  return $pares
+}
+
+function Invoke-CaracteristicasDaClasse {
+  param([int]$Grupo, [int]$Classe, $OffsetInicial)
+  $offset = $OffsetInicial
+  $rodada = 0
+  while ($null -ne $offset) {
+    $rodada++
+    Write-Host "Caracteristicas classe=$Classe offset=$offset (rodada $rodada)..." -ForegroundColor Cyan
+    $bodyCar = @{
+      codigo_grupo            = $Grupo
+      codigo_classe           = $Classe
+      somente_caracteristicas = $true
+      offset_caracteristicas  = $offset
+      limite_caracteristicas  = $LimiteCaracteristicas
+    }
+    try {
+      $response = Invoke-SyncComprasCatmat -Body $bodyCar
+      $carJson = $response.Content | ConvertFrom-Json
+      if ($carJson.error -or ($carJson.status -eq "blocked")) {
+        throw $carJson.error
+      }
+      Write-Host ("  classe={0} processados={1} novos={2} alterados={3} erros={4}" -f `
+          $Classe, $carJson.caracteristicas_processadas, $carJson.novos, $carJson.alterados, $carJson.erros) -ForegroundColor Green
+      $offset = $carJson.proximo_offset_caracteristicas
+      if ($null -ne $offset) { Start-Sleep -Seconds 2 }
+    }
+    catch {
+      Write-Host "  Falha classe ${Classe}: $($_.Exception.Message)" -ForegroundColor Red
+      exit 1
+    }
+  }
+}
+
+$json = $null
 if (-not $SomenteCaracteristicas) {
-  Write-Host "Sync referencia (grupo/classe/pdm/itens/unidades)..." -ForegroundColor Cyan
+  $body = New-CatmatBody -Extra @{
+    max_paginas            = $MaxPaginas
+    limite_caracteristicas = $LimiteCaracteristicas
+  }
+  Write-Host "Sync referencia (sem par fixo; a Edge resolve a policy)..." -ForegroundColor Cyan
   $tentativa = 0
   $referenciaOk = $false
   while (-not $referenciaOk -and $tentativa -lt $ReferenciaRetries) {
@@ -68,9 +153,10 @@ if (-not $SomenteCaracteristicas) {
       $response = Invoke-SyncComprasCatmat -Body $body
       $json = $response.Content | ConvertFrom-Json
       $json | ConvertTo-Json -Depth 8
-      if ($json.error) {
-        throw $json.error
+      if ($json.error -or ($json.status -eq "blocked")) {
+        throw $(if ($json.error) { $json.error } else { $json.reason })
       }
+      Write-CatmatRuns -Json $json
       $referenciaOk = $true
     }
     catch {
@@ -92,30 +178,28 @@ if ($SkipCaracteristicas) {
   exit 0
 }
 
-$offset = 0
-$rodada = 0
-do {
-  $rodada++
-  Write-Host "Caracteristicas offset=$offset (rodada $rodada)..." -ForegroundColor Cyan
-  $bodyCar = @{
-    codigo_grupo             = $CodigoGrupo
-    codigo_classe            = $CodigoClasse
-    somente_caracteristicas  = $true
-    offset_caracteristicas   = $offset
-    limite_caracteristicas   = $LimiteCaracteristicas
+if ($SomenteCaracteristicas -and -not $temGrupo) {
+  $body = New-CatmatBody -Extra @{
+    somente_caracteristicas = $true
+    limite_caracteristicas  = $LimiteCaracteristicas
   }
-  try {
-    $response = Invoke-SyncComprasCatmat -Body $bodyCar
-    $json = $response.Content | ConvertFrom-Json
-    Write-Host ("  processados={0} novos={1} alterados={2} erros={3}" -f `
-        $json.caracteristicas_processadas, $json.novos, $json.alterados, $json.erros) -ForegroundColor Green
-    $offset = $json.proximo_offset_caracteristicas
-    if ($offset) { Start-Sleep -Seconds 2 }
+  $response = Invoke-SyncComprasCatmat -Body $body
+  $json = $response.Content | ConvertFrom-Json
+  if ($json.error -or ($json.status -eq "blocked")) {
+    throw $(if ($json.error) { $json.error } else { $json.reason })
   }
-  catch {
-    Write-Host "  Falha: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
+  Write-CatmatRuns -Json $json
+  foreach ($run in @(if ($json.runs) { $json.runs } else { $json })) {
+    if ($null -ne $run.proximo_offset_caracteristicas) {
+      Invoke-CaracteristicasDaClasse -Grupo ([int]$run.codigo_grupo) -Classe ([int]$run.codigo_classe) -OffsetInicial $run.proximo_offset_caracteristicas
+    }
   }
-} while ($null -ne $offset)
+  Write-Host "Sync CATMAT concluido." -ForegroundColor Cyan
+  exit 0
+}
+
+foreach ($par in @(Get-CatmatPares -Json $json)) {
+  Invoke-CaracteristicasDaClasse -Grupo $par.grupo -Classe $par.classe -OffsetInicial 0
+}
 
 Write-Host "Sync CATMAT concluido." -ForegroundColor Cyan

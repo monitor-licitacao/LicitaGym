@@ -1,4 +1,4 @@
-# Pipeline escopo LicitaGym: CATMAT 78/7830 -> PCA 7830 -> link catalogo_ponte
+# Pipeline escopo LicitaGym. Nenhum body envia classe. A Edge resolve a policy.
 param(
   [int]$Ano = (Get-Date).Year,
   [int]$PcaPaginasPorRodada = 2,
@@ -40,16 +40,11 @@ function Invoke-EdgeJson {
   return $response.Content | ConvertFrom-Json
 }
 
-Write-Host "=== LicitaGym scope 78/7830 ===" -ForegroundColor Cyan
+Write-Host "=== LicitaGym scope (policy da Edge; sem classe no body) ===" -ForegroundColor Cyan
 Write-Host "Base: $BaseUrl"
 
 if (-not $SkipCatmat) {
-  Write-Host "`n[1/3] sync-compras-catmat (78/7830)..." -ForegroundColor Cyan
-  $catArgs = @{
-    codigo_grupo  = 78
-    codigo_classe = 7830
-    max_paginas   = 500
-  }
+  Write-Host "`n[1/3] sync-compras-catmat (sem codigo_grupo/codigo_classe)..." -ForegroundColor Cyan
   if ($SkipCaracteristicas) {
     & "$PSScriptRoot\invoke-sync-compras-catmat.ps1" -BaseUrl $BaseUrl -Secret $Secret -SkipCaracteristicas
   } else {
@@ -59,31 +54,35 @@ if (-not $SkipCatmat) {
 }
 
 if (-not $SkipPca) {
-  Write-Host "`n[2/3] sync-pncp-pca (7830) em lotes de $PcaPaginasPorRodada pagina(s)..." -ForegroundColor Cyan
+  Write-Host "`n[2/3] sync-pncp-pca (sem codigos_classificacao) em lotes de $PcaPaginasPorRodada pagina(s)..." -ForegroundColor Cyan
   $pagina = 1
   $rodada = 0
+  $classesAbertas = @()
   do {
     $rodada++
     $body = @{
-      ano                   = $Ano
-      codigos_classificacao = @("7830")
-      pagina_inicial        = $pagina
-      max_paginas           = $PcaPaginasPorRodada
-      tamanho_pagina        = $PcaTamanhoPagina
+      ano            = $Ano
+      pagina_inicial = $pagina
+      max_paginas    = $PcaPaginasPorRodada
+      tamanho_pagina = $PcaTamanhoPagina
+    }
+    if ($classesAbertas.Count -gt 0) {
+      $body.codigos_classificacao = $classesAbertas
     }
     if ($ForcarPca -and $rodada -eq 1) { $body.forcar = $true }
 
-    Write-Host "  Rodada $rodada pagina_inicial=$pagina..." -ForegroundColor DarkCyan
+    $lista = if ($classesAbertas.Count -gt 0) { $classesAbertas -join "," } else { "(policy)" }
+    Write-Host "  Rodada $rodada pagina_inicial=$pagina classes=$lista..." -ForegroundColor DarkCyan
     try {
       $json = Invoke-EdgeJson -FunctionName "sync-pncp-pca" -Body $body -TimeoutSec $PcaTimeoutSec
     }
     catch {
-      Write-Host "  Falha PCA: $($_.Exception.Message)" -ForegroundColor Red
+      Write-Host "  Falha PCA (BLOCKED, nao e zero): $($_.Exception.Message)" -ForegroundColor Red
       exit 1
     }
 
-    if ($json.status -eq "blocked") {
-      Write-Host "  Gate: $($json.reason)" -ForegroundColor Yellow
+    if ($json.status -eq "blocked" -or $json.status -eq "already_running" -or $json.error) {
+      Write-Host "  PCA BLOCKED: $($json.status) $($json.reason) $($json.error)" -ForegroundColor Yellow
       exit 1
     }
     if ($json.status -eq "ignorado") {
@@ -91,40 +90,94 @@ if (-not $SkipPca) {
       break
     }
 
-    $info = $json.por_codigo."7830"
-    if (-not $info) { $info = $json.por_codigo | Select-Object -First 1 }
-    $restantes = [int]($info.paginas_restantes)
-    $ultima = [int]($info.ultima_pagina)
-    Write-Host ("  recebidos={0} novos={1} alterados={2} erros={3} ultima_pag={4} restantes={5}" -f `
-        $json.recebidos, $json.novos, $json.alterados, $json.erros, $ultima, $restantes) -ForegroundColor Green
-
-    if ($restantes -le 0) { break }
-    $pagina = $ultima + 1
+    $rows = @()
+    if ($json.por_codigo) {
+      foreach ($prop in @($json.por_codigo.PSObject.Properties)) {
+        $rows += [pscustomobject]@{
+          classe     = [string]$prop.Name
+          restantes  = [int]$prop.Value.paginas_restantes
+          ultima     = [int]$prop.Value.ultima_pagina
+          recebidos  = [int]$prop.Value.recebidos
+          erros      = [int]$prop.Value.erros
+          sync_id    = [string]$json.sync_id
+        }
+      }
+    }
+    if ($rows.Count -eq 0) {
+      Write-Host "  PCA sem por_codigo. Classe nao executada (BLOCKED)." -ForegroundColor Red
+      exit 1
+    }
+    $classesAbertas = @()
+    $proxima = $pagina
+    foreach ($row in $rows) {
+      Write-Host ("  classe={0} sync_id={1} recebidos={2} erros={3} ultima_pag={4} restantes={5}" -f `
+          $row.classe, $row.sync_id, $row.recebidos, $row.erros, $row.ultima, $row.restantes) -ForegroundColor Green
+      if ($row.erros -gt 0) {
+        Write-Host "  classe $($row.classe) com erros (BLOCKED)." -ForegroundColor Red
+        exit 1
+      }
+      if ($row.restantes -gt 0) {
+        $classesAbertas += $row.classe
+        if (($row.ultima + 1) -gt $proxima) { $proxima = $row.ultima + 1 }
+      }
+    }
+    if ($rodada -eq 1 -and $rows.Count -lt 2) {
+      Write-Host "  AVISO: uma classe na resposta. Confira se a funcao implantada resolve a policy completa." -ForegroundColor Yellow
+    }
+    if ($classesAbertas.Count -eq 0) { break }
+    $pagina = $proxima
     Start-Sleep -Seconds 3
   } while ($true)
 }
 
 if (-not $SkipLink) {
-  Write-Host "`n[3/3] link-catmat-pca (7830) paginado..." -ForegroundColor Cyan
+  Write-Host "`n[3/3] link-catmat-pca (sem classe_catmat) paginado..." -ForegroundColor Cyan
   $linkOffset = 0
   $linkRodada = 0
   $totNovos = 0
   do {
     $linkRodada++
-    $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
-      classe_catmat         = "7830"
-      limiar_similaridade = 0.55
-      limite                = 500
-      offset                = $linkOffset
-    } -TimeoutSec 300
-    $analisados = if ($null -ne $json.analisados) { [int]$json.analisados } else { 0 }
-    $vinculos = if ($null -ne $json.vinculos_novos) { [int]$json.vinculos_novos } else { 0 }
-    $pdmV = if ($null -ne $json.pdm_vinculos) { [int]$json.pdm_vinculos } else { 0 }
-    $totNovos += $vinculos
-    Write-Host ("  rodada={0} offset={1} analisados={2} novos={3} pdm={4} tem_mais={5}" -f `
-        $linkRodada, $linkOffset, $analisados, $vinculos, $pdmV, $json.tem_mais) -ForegroundColor Green
-    if (-not $json.tem_mais -or $analisados -le 0) { break }
-    $linkOffset = [int]$json.proximo_offset
+    try {
+      $json = Invoke-EdgeJson -FunctionName "link-catmat-pca" -Body @{
+        limiar_similaridade = 0.55
+        limite              = 500
+        offset              = $linkOffset
+      } -TimeoutSec 300
+    }
+    catch {
+      Write-Host "  Falha link (BLOCKED, nao e zero): $($_.Exception.Message)" -ForegroundColor Red
+      exit 1
+    }
+    if ($json.error -or ($json.status -eq "blocked")) {
+      Write-Host "  link BLOCKED: $($json.error) $($json.reason)" -ForegroundColor Red
+      exit 1
+    }
+    $batches = @()
+    if ($json.resultados) { $batches = @($json.resultados) } else { $batches = @($json) }
+    if ($batches.Count -eq 0) {
+      Write-Host "  link sem lotes. Classe nao executada (BLOCKED)." -ForegroundColor Red
+      exit 1
+    }
+    $anyMore = $false
+    $nextOffset = $linkOffset
+    foreach ($batch in $batches) {
+      $analisados = if ($null -ne $batch.analisados) { [int]$batch.analisados } else { 0 }
+      $vinculos = if ($null -ne $batch.vinculos_novos) { [int]$batch.vinculos_novos } else { 0 }
+      $pdmV = if ($null -ne $batch.pdm_vinculos) { [int]$batch.pdm_vinculos } else { 0 }
+      $totNovos += $vinculos
+      Write-Host ("  classe={0} rodada={1} offset={2} analisados={3} novos={4} pdm={5} tem_mais={6}" -f `
+          $batch.classe_catmat, $linkRodada, $linkOffset, $analisados, $vinculos, $pdmV, $batch.tem_mais) -ForegroundColor Green
+      if ($batch.tem_mais) {
+        $anyMore = $true
+        $cand = [int]$batch.proximo_offset
+        if ($cand -gt $nextOffset) { $nextOffset = $cand }
+      }
+    }
+    if ($linkRodada -eq 1 -and -not $json.resultados) {
+      Write-Host "  AVISO: resposta plana de uma classe. Confira se a funcao implantada resolve a policy completa." -ForegroundColor Yellow
+    }
+    if (-not $anyMore) { break }
+    $linkOffset = $nextOffset
     Start-Sleep -Seconds 2
   } while ($true)
   Write-Host "  Total vinculos_novos nesta execucao: $totNovos" -ForegroundColor Cyan

@@ -1,4 +1,10 @@
-import { fetchWithTimeout, withRetry } from "./retry.ts";
+import {
+  fetchWithTimeout,
+  parseRetryAfterMs,
+  PermanentHttpError,
+  RetryableHttpError,
+  withRetry,
+} from "./retry.ts";
 
 const DEFAULT_BASE = "https://pncp.gov.br/api/consulta/v1";
 
@@ -61,7 +67,13 @@ export class PncpConsultaClient {
           headers: { Accept: "application/json" },
         });
         if (res.status === 429 || res.status >= 500) {
-          throw new Error(`PNCP consulta HTTP ${res.status}`);
+          const retryAfterMs = res.status === 429
+            ? parseRetryAfterMs(res.headers.get("Retry-After"))
+            : null;
+          throw new RetryableHttpError(`PNCP consulta HTTP ${res.status}`, retryAfterMs);
+        }
+        if (res.status >= 400) {
+          throw new PermanentHttpError(`PNCP consulta HTTP ${res.status}`);
         }
         return res;
       } catch (error) {

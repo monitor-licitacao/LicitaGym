@@ -1,6 +1,7 @@
-# Vincula pca_itens (classe 7830) a catalogo_itens via catalogo_ponte
+# Vincula pca_itens. Sem -ClasseCatmat a Edge aplica a policy inteira.
+# Uma classe especifica: -ClasseCatmat 7220
 param(
-  [string]$ClasseCatmat = "7830",
+  [string]$ClasseCatmat = "",
   [double]$LimiarSimilaridade = 0.55,
   [int]$Limite = 500,
   [int]$Offset = 0,
@@ -18,11 +19,11 @@ if (-not $Secret) {
 }
 
 $body = @{
-  classe_catmat         = $ClasseCatmat
   limiar_similaridade   = $LimiarSimilaridade
   limite                = $Limite
   offset                = $Offset
 }
+if ($ClasseCatmat) { $body.classe_catmat = $ClasseCatmat }
 
 $response = Invoke-WebRequest `
   -Method POST `

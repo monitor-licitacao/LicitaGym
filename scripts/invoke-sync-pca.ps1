@@ -1,10 +1,11 @@
-# Smoke test / carga anual do sync PCA (classe 7830 por padrao)
+# Carga / smoke do sync PCA. Sem -CodigosClassificacao a Edge aplica a policy inteira.
+# Uma classe especifica continua valida: -CodigosClassificacao 7220
 param(
   [int]$Ano = (Get-Date).Year,
   [int]$MaxPaginas = 100,
   [int]$PaginaInicial = 1,
   [int]$TamanhoPagina = 500,
-  [string[]]$CodigosClassificacao = @("7830"),
+  [string[]]$CodigosClassificacao = @(),
   [switch]$SomenteVerificacao,
   [switch]$Forcar,
   [string]$BaseUrl = "http://127.0.0.1:54321",
@@ -22,11 +23,13 @@ if (-not $Secret) {
 }
 
 $body = @{
-  ano                   = $Ano
-  codigos_classificacao = $CodigosClassificacao
-  max_paginas           = $MaxPaginas
-  pagina_inicial        = $PaginaInicial
-  tamanho_pagina        = $TamanhoPagina
+  ano              = $Ano
+  max_paginas      = $MaxPaginas
+  pagina_inicial   = $PaginaInicial
+  tamanho_pagina   = $TamanhoPagina
+}
+if ($CodigosClassificacao -and $CodigosClassificacao.Count -gt 0) {
+  $body.codigos_classificacao = $CodigosClassificacao
 }
 if ($SomenteVerificacao) { $body.somente_verificacao = $true }
 if ($Forcar) { $body.forcar = $true }

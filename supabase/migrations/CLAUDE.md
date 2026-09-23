@@ -21,6 +21,7 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #7184 | 2:09 PM | ◆ | Fase 3 migration created — precos_praticados_itens table | ~349 |
 | #7126 | 10:47 AM | ✓ | SCHEMA_STANDARDS.md created — icatmat_ migration checklist and templates | ~377 |
 | #7114 | 9:21 AM | ◆ | Migration icatmat_classe_material — composite CHECK enforces exact class-group mapping | ~303 |
 | #7113 | " | ◆ | Supabase migration — icatmat_grupo_material table (Endpoint 1) | ~284 |

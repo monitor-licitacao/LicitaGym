@@ -5,7 +5,15 @@ import {
   formatPncpDate,
   PncpConsultaClient,
 } from "../_shared/pncp/consulta-client.ts";
-import { acquireSyncLock } from "../_shared/pncp/lock.ts";
+import { acquireSyncLock, loadPendingSlices } from "../_shared/pncp/lock.ts";
+import {
+  mayInactivateNotSeen,
+  PAGE_HARD_CAP,
+  PageFetchError,
+  rootSlices,
+  runCappedDateSync,
+  syncTerminalStatus,
+} from "../_shared/pncp/pagination-budget.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
 import { normalizeAta } from "../_shared/pncp/normalize.ts";
 import {
@@ -59,83 +67,125 @@ Deno.serve(async (req) => {
   const tamanhoPagina = clampConsultaPageSize("atasContratos");
 
   try {
-    let pagina = 1;
-    let paginasRestantes = 1;
+    const prior = await loadPendingSlices(client, lockKey, runId);
+    const slices = prior ?? rootSlices(dataInicial, dataFinal);
+    const result = await runCappedDateSync({
+      cap: PAGE_HARD_CAP,
+      slices,
+      fetchPage: async (slice, pagina) => {
+        const fetched = await consulta.fetchAtas({
+          dataInicial: slice.dataInicial,
+          dataFinal: slice.dataFinal,
+          pagina,
+          tamanhoPagina,
+        });
+        const pagination = consulta.extractPagination(fetched.body, pagina);
+        return {
+          paginasRestantes: pagination.paginasRestantes,
+          status: fetched.status,
+          elapsedMs: fetched.elapsedMs,
+          body: fetched.body,
+        };
+      },
+      onPage: async (slice, pagina, page) => {
+        const endpoint = `/atas?pagina=${pagina}`;
+        const respostaHash = await sha256Hex(JSON.stringify(page.body));
 
-    while (paginasRestantes > 0 && pagina <= 200) {
-      const endpoint = `/atas?pagina=${pagina}`;
-      const { status, body: responseBody, elapsedMs } = await consulta.fetchAtas({
-        dataInicial,
-        dataFinal,
-        pagina,
-        tamanhoPagina,
-      });
-      const respostaHash = await sha256Hex(JSON.stringify(responseBody));
+        await logSyncRequest(client, {
+          syncRunId: runId,
+          endpoint,
+          parametros: {
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
+            pagina,
+            tamanhoPagina,
+          },
+          pagina,
+          statusHttp: page.status,
+          tempoRespostaMs: page.elapsedMs,
+          respostaHash,
+        });
 
-      await logSyncRequest(client, {
-        syncRunId: runId,
-        endpoint,
-        parametros: { dataInicial, dataFinal, pagina, tamanhoPagina },
-        pagina,
-        statusHttp: status,
-        tempoRespostaMs: elapsedMs,
-        respostaHash,
-      });
+        await storeSourceRecord(client, {
+          syncRunId: runId,
+          resourceType: "contratacoes_atas",
+          endpoint,
+          requestHash: await hashPayload({
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
+            pagina,
+          }),
+          contentHash: respostaHash,
+          payload: page.body,
+        });
 
-      await storeSourceRecord(client, {
-        syncRunId: runId,
-        resourceType: "contratacoes_atas",
-        endpoint,
-        requestHash: await hashPayload({ dataInicial, dataFinal, pagina }),
-        contentHash: respostaHash,
-        payload: responseBody,
-      });
+        const list = consulta.extractList(page.body);
+        for (const raw of list) {
+          const row = normalizeAta(raw as Record<string, unknown>);
+          if (!row.numero_controle_pncp) continue;
+          stats.recebidos++;
 
-      const list = consulta.extractList(responseBody);
-      const pagination = consulta.extractPagination(responseBody, pagina);
-      paginasRestantes = pagination.paginasRestantes;
+          const upsert = await upsertByHash(
+            client,
+            "contratacoes_atas",
+            { numero_controle_pncp: row.numero_controle_pncp },
+            row,
+            { syncRunId: runId, lastSeenSyncId: runId },
+          );
+          if (upsert === "novo") stats.novos++;
+          else if (upsert === "alterado") stats.alterados++;
+          else if (upsert === "inalterado") stats.inalterados++;
+          else stats.erros++;
+        }
+      },
+    });
 
-      for (const raw of list) {
-        const row = normalizeAta(raw as Record<string, unknown>);
-        if (!row.numero_controle_pncp) continue;
-        stats.recebidos++;
-
-        const result = await upsertByHash(
-          client,
-          "contratacoes_atas",
-          { numero_controle_pncp: row.numero_controle_pncp },
-          row,
-          { syncRunId: runId, lastSeenSyncId: runId },
-        );
-        if (result === "novo") stats.novos++;
-        else if (result === "alterado") stats.alterados++;
-        else if (result === "inalterado") stats.inalterados++;
-        else stats.erros++;
-      }
-
-      if (paginasRestantes <= 0) break;
-      pagina++;
-    }
-
-    if (body.modo === "completo") {
+    const status = syncTerminalStatus(result.pending, stats.erros);
+    if (mayInactivateNotSeen(body.modo, status)) {
       await inactivateNotSeen(client, "contratacoes_atas", runId);
     }
 
     await finishSyncRun(client, runId, {
-      status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+      status,
       totalRecebidos: stats.recebidos,
       totalNovos: stats.novos,
       totalAtualizados: stats.alterados,
       totalInalterados: stats.inalterados,
       totalErros: stats.erros,
+      erroPrincipal: status === "incompleta"
+        ? `checkpoint: ${result.pending.length} fatias pendentes`
+        : undefined,
+      paginaAtual: result.pending[0]?.nextPage,
+      parametros: {
+        ...body,
+        continuation: { pending: result.pending, pagesFetched: result.pagesFetched },
+      },
     });
 
-    return jsonResponse({ sync_id: runId, status: "concluida", ...stats });
-  } catch (error) {
-    await finishSyncRun(client, runId, {
-      status: "falhou",
-      erroPrincipal: error instanceof Error ? error.message : String(error),
+    return jsonResponse({
+      sync_id: runId,
+      status,
+      paginas_buscadas: result.pagesFetched,
+      fatias_pendentes: result.pending.length,
+      ...stats,
     });
-    return jsonResponse({ error: String(error), sync_id: runId }, 500);
+  } catch (error) {
+    const pending = error instanceof PageFetchError ? error.pending : null;
+    const status = pending && pending.length > 0 ? "incompleta" : "falhou";
+    const message = error instanceof Error ? error.message : String(error);
+    await finishSyncRun(client, runId, {
+      status,
+      erroPrincipal: message,
+      totalRecebidos: stats.recebidos,
+      totalNovos: stats.novos,
+      totalAtualizados: stats.alterados,
+      totalInalterados: stats.inalterados,
+      totalErros: stats.erros,
+      paginaAtual: pending?.[0]?.nextPage,
+      parametros: pending
+        ? { ...body, continuation: { pending } }
+        : undefined,
+    });
+    return jsonResponse({ error: message, sync_id: runId, status }, 500);
   }
 });

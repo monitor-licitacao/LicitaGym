@@ -8,6 +8,7 @@ import {
   logSyncRequest,
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
+import { orgSyncClasses } from "../_shared/pncp/catmat-scope-resolver.ts";
 import { upsertByHash } from "../_shared/pncp/upsert.ts";
 
 Deno.serve(async (req) => {
@@ -27,11 +28,10 @@ Deno.serve(async (req) => {
   const stats = { entidades_inseridas: 0, orgaos_inseridas: 0, unidades_inseridas: 0, erros: 0 };
 
   try {
-    // Ler CNPJs distintos de pca_planos (recorte fitness 7830)
     const cnpjsResult = await client
       .from("pca_planos")
       .select("orgao_cnpj")
-      .eq("classe_catmat", "7830")
+      .in("classe_catmat", orgSyncClasses())
       .order("orgao_cnpj", { ascending: true });
 
     if (cnpjsResult.error) {

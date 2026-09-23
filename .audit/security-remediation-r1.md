@@ -4,13 +4,14 @@
 |-------|--------|
 | **Date** | 2026-09-22 |
 | **Scope** | SEC-EDGE-002/003/004, SEC-DB-003/004 |
-| **Status** | **R1 CLOSED** (negative-path / ACL verified; residual positives → R1.1) |
+| **Status** | **R1 CLOSED / FROZEN** |
+| **Freeze baseline** | `ba7a2bc` |
+| **Lifecycle** | `IMPLEMENTED → PRE-DEPLOY PASS → DEPLOYED → VERIFIED → REMEDIATED → FROZEN` |
 | **Project** | `ifaiagegyicjzlpskafh` |
-| **Code baseline at deploy** | HEAD `542cbf8483ad4bc63cdc9737d22a1b60a06fadd5` |
 | **Not in scope** | SEC-DB-001, SEC-DB-002, L6B, Storage/Auth audit |
 
-**Lifecycle:** `IMPLEMENTED → DEPLOYED → VERIFIED → REMEDIATED`  
-**Nomenclature:** REMEDIATED here means vulnerability paths closed + remote evidence; **not** full positive E2E.
+**Nomenclature:** REMEDIATED = vulnerability paths closed + remote evidence; **not** full positive E2E.  
+**Do not** mutate this baseline retrospectively from R1.1 / Storage-Auth / L6.
 
 ```text
 SECURITY R1
