@@ -11,7 +11,7 @@ applyTo: "supabase/functions/**"
 
 ## Função nova
 - Deve ser adicionada ao passo de deploy em `.github/workflows/deploy-supabase-functions.yml`, senão nunca é publicada.
-- Reutilizar `_shared/` antes de criar código novo: `http.ts`, `pncp/retry.ts`, `pncp/pagination-budget.ts`, `pncp/idempotency.ts`, `pncp/upsert.ts`, `pncp/hash.ts`, `pncp/checkpoint.ts`, `pncp/lock.ts`, `compras-gov/*-client.ts`.
+- Reutilizar `_shared/` antes de criar código novo: `http.ts`, `pncp/retry.ts`, `pncp/idempotency.ts`, `pncp/upsert.ts`, `pncp/hash.ts`, `pncp/checkpoint.ts`, `pncp/lock.ts`, `compras-gov/*-client.ts`. Para `tamanhoPagina`, usar `clampConsultaPageSize` (`pncp/consulta-client.ts`) ou `clampComprasGovPageSize` (`compras-gov/material-client.ts`) — não criar limitador novo.
 
 ## Chamadas às APIs oficiais
 - Parâmetros conforme `docs/pncp/schemas-consultas-pncp.md` e `docs/compras-gov/schemas-consultas.md` (nomes exatos, obrigatórios, enums).

@@ -31,7 +31,7 @@ Normalmente **[IMPORTANTE]**:
 
 ## Ao gerar código
 - Leia `docs/pncp/schemas-consultas-pncp.md` e `docs/compras-gov/schemas-consultas.md` antes de escrever requisições.
-- Reutilize os clientes e helpers de `supabase/functions/_shared/` (http, retry, pagination-budget, idempotency, upsert, hash, checkpoint).
+- Reutilize os clientes e helpers de `supabase/functions/_shared/` (http, retry, idempotency, upsert, hash, checkpoint, lock) e os limitadores de página `clampConsultaPageSize` (`pncp/consulta-client.ts`) e `clampComprasGovPageSize` (`compras-gov/material-client.ts`).
 - Não introduza AWS Cognito/RDS/S3 nem Asaas sem pedido explícito.
 - UI: estados de carregamento, vazio e erro explícitos; nunca preencher com valor inventado.
 
