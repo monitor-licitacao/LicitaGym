@@ -1,5 +1,4 @@
 import {
-  effectiveClassCodes,
   isPolicyPair,
   TRANSITIONAL_FITNESS_SCOPE,
 } from "./catmat-scope-resolver.ts";
@@ -29,9 +28,19 @@ export function isCatalogoCatmatClasseAllowed(
   return isPolicyPair(codigoGrupo, codigoClasse);
 }
 
-/** Classes da política. PNCP_PCA_CLASSIFICACOES não substitui esta lista. */
+/** Classes CORE do PCA por padrão (7830). 7220 fica no catálogo, não no seed PCA.
+ * `PNCP_PCA_CLASSIFICACOES` (CSV) sobrescreve explicitamente quando setado.
+ */
 export function defaultPcaClassificacoes(): string[] {
-  return effectiveClassCodes();
+  const fromEnv = Deno.env.get("PNCP_PCA_CLASSIFICACOES")?.trim();
+  if (fromEnv) {
+    return [
+      ...new Set(
+        fromEnv.split(",").map((part) => part.trim()).filter(Boolean),
+      ),
+    ];
+  }
+  return [LICITAGYM_CATMAT_CLASSE];
 }
 
 export function resolvePcaClassificacoes(body: {
