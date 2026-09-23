@@ -224,6 +224,7 @@ Deno.test("concluida prior run is not a continuation source", () => {
   assertEquals(pendingFromPriorRun(null), null);
   assertEquals(mayInactivateNotSeen("completo", "incompleta"), false);
   assertEquals(mayInactivateNotSeen("completo", "concluida"), true);
+  assertEquals(mayInactivateNotSeen("completo", "concluida_com_erros"), false);
   assertEquals(mayInactivateNotSeen("incremental", "concluida"), false);
 });
 

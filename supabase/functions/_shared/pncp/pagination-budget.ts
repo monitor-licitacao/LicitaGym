@@ -125,9 +125,34 @@ export function syncTerminalStatus(
   return upsertErrors > 0 ? "concluida_com_erros" : "concluida";
 }
 
+/**
+ * Soft-delete unseen rows only when modo=completo AND the continuation chain
+ * fully finished as `concluida`. Never on `incompleta` or `concluida_com_erros`.
+ */
 export function mayInactivateNotSeen(modo: string | undefined, status: string): boolean {
-  return modo === "completo" &&
-    (status === "concluida" || status === "concluida_com_erros");
+  return modo === "completo" && status === "concluida";
+}
+
+/**
+ * Shared marker for last_seen across capped continuation runs.
+ * First run in a chain uses its own run id; later runs inherit
+ * `parametros.continuation.chain_id` (or the prior incompleta run id).
+ */
+export function resolveContinuationChainId(
+  prior: { id: string; status: string; parametros: unknown } | null,
+  currentRunId: string,
+): string {
+  if (!prior || prior.status !== "incompleta") return currentRunId;
+  const parametros = prior.parametros;
+  if (parametros && typeof parametros === "object") {
+    const continuation = (parametros as {
+      continuation?: { chain_id?: unknown };
+    }).continuation;
+    if (typeof continuation?.chain_id === "string" && continuation.chain_id.length > 0) {
+      return continuation.chain_id;
+    }
+  }
+  return prior.id;
 }
 
 export class PageFetchError extends Error {

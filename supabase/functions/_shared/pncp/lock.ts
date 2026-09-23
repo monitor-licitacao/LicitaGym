@@ -1,8 +1,17 @@
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { DateSlice, pendingFromPriorRun } from "./pagination-budget.ts";
+import {
+  DateSlice,
+  pendingFromPriorRun,
+  resolveContinuationChainId,
+} from "./pagination-budget.ts";
 
 /** Edge timeout / cliente cancelado — libera lock preso em `executando`. */
 const STALE_LOCK_MS = 3 * 60 * 1000;
+
+export type PendingContinuation = {
+  slices: DateSlice[];
+  chainId: string;
+};
 
 export async function acquireSyncLock(
   client: SupabaseClient,
@@ -49,13 +58,24 @@ export async function loadPendingSlices(
   client: SupabaseClient,
   lockKey: string,
   currentRunId: string,
-): Promise<DateSlice[] | null> {
+): Promise<PendingContinuation | null> {
   const selectPrior = () =>
     client.schema("private")
       .from("pncp_sync_run")
-      .select("status, parametros")
+      .select("id, status, parametros")
       .eq("lock_key", lockKey)
       .neq("id", currentRunId);
+
+  const toContinuation = (
+    prior: { id: string; status: string; parametros: unknown } | null,
+  ): PendingContinuation | null => {
+    const slices = pendingFromPriorRun(prior);
+    if (!slices || !prior) return null;
+    return {
+      slices,
+      chainId: resolveContinuationChainId(prior, currentRunId),
+    };
+  };
 
   const { data: latest, error } = await selectPrior()
     .order("iniciada_em", { ascending: false })
@@ -63,8 +83,10 @@ export async function loadPendingSlices(
     .maybeSingle();
   if (error) throw error;
   if (!latest) return null;
-  if (latest.status === "concluida" || latest.status === "concluida_com_erros") return null;
-  if (latest.status === "incompleta") return pendingFromPriorRun(latest);
+  if (latest.status === "concluida" || latest.status === "concluida_com_erros") {
+    return null;
+  }
+  if (latest.status === "incompleta") return toContinuation(latest);
 
   const { data: incomplete, error: incompleteError } = await selectPrior()
     .eq("status", "incompleta")
@@ -72,7 +94,7 @@ export async function loadPendingSlices(
     .limit(1)
     .maybeSingle();
   if (incompleteError) throw incompleteError;
-  return pendingFromPriorRun(incomplete);
+  return toContinuation(incomplete);
 }
 
 export async function resolveIdempotency(

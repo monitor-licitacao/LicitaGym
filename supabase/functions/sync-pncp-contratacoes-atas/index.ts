@@ -65,10 +65,12 @@ Deno.serve(async (req) => {
 
   const stats = { novos: 0, alterados: 0, inalterados: 0, erros: 0, recebidos: 0 };
   const tamanhoPagina = clampConsultaPageSize("atasContratos");
+  let chainId = runId;
 
   try {
     const prior = await loadPendingSlices(client, lockKey, runId);
-    const slices = prior ?? rootSlices(dataInicial, dataFinal);
+    const slices = prior?.slices ?? rootSlices(dataInicial, dataFinal);
+    chainId = prior?.chainId ?? runId;
     const result = await runCappedDateSync({
       cap: PAGE_HARD_CAP,
       slices,
@@ -130,7 +132,7 @@ Deno.serve(async (req) => {
             "contratacoes_atas",
             { numero_controle_pncp: row.numero_controle_pncp },
             row,
-            { syncRunId: runId, lastSeenSyncId: runId },
+            { syncRunId: runId, lastSeenSyncId: chainId },
           );
           if (upsert === "novo") stats.novos++;
           else if (upsert === "alterado") stats.alterados++;
@@ -142,7 +144,7 @@ Deno.serve(async (req) => {
 
     const status = syncTerminalStatus(result.pending, stats.erros);
     if (mayInactivateNotSeen(body.modo, status)) {
-      await inactivateNotSeen(client, "contratacoes_atas", runId);
+      await inactivateNotSeen(client, "contratacoes_atas", chainId);
     }
 
     await finishSyncRun(client, runId, {
@@ -158,12 +160,17 @@ Deno.serve(async (req) => {
       paginaAtual: result.pending[0]?.nextPage,
       parametros: {
         ...body,
-        continuation: { pending: result.pending, pagesFetched: result.pagesFetched },
+        continuation: {
+          pending: result.pending,
+          pagesFetched: result.pagesFetched,
+          chain_id: chainId,
+        },
       },
     });
 
     return jsonResponse({
       sync_id: runId,
+      chain_id: chainId,
       status,
       paginas_buscadas: result.pagesFetched,
       fatias_pendentes: result.pending.length,
@@ -183,7 +190,7 @@ Deno.serve(async (req) => {
       totalErros: stats.erros,
       paginaAtual: pending?.[0]?.nextPage,
       parametros: pending
-        ? { ...body, continuation: { pending } }
+        ? { ...body, continuation: { pending, chain_id: chainId } }
         : undefined,
     });
     return jsonResponse({ error: message, sync_id: runId, status }, 500);
