@@ -1,0 +1,22 @@
+# Normaliza quebras de linha: LF no repositório, nativo no checkout (CRLF no Windows).
+* text=auto
+
+# Scripts Windows sempre com CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Scripts shell e SQL sempre com LF
+*.sh  text eol=lf
+*.sql text eol=lf
+
+# Binários
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
+*.onnx binary
+*.zip  binary
+*.gz   binary
+*.parquet binary
