@@ -4,7 +4,7 @@ applyTo: "supabase/functions/**"
 # Supabase Edge Functions (Deno/TypeScript)
 
 ## Segurança — [BLOQUEANTE]
-- O deploy usa `--no-verify-jwt`. **Todo handler** deve chamar logo no início `requireCronAuth`, `requireUserAuth` ou `requireCronOrUserAuth` (`_shared/http.ts`) e retornar a resposta de erro quando não for `null`.
+- O deploy usa `--no-verify-jwt`. **Todo handler protegido** deve chamar logo no início `validateCronAuth(req)` (`_shared/http.ts`) e retornar uma resposta 401 quando o resultado for `false`; se forem necessários handlers de usuário, adicionar antes um helper de validação de sessão/claims e documentá-lo aqui.
 - `service_role` / cliente admin (`_shared/pncp/supabase-admin.ts`) só em funções de sync/cron; nunca em endpoint `api-*` chamado pelo usuário sem checar autorização.
 - Nenhum secret em código, log ou resposta HTTP. Ler de `Deno.env.get`.
 - Não refletir mensagens de erro internas (stack, SQL) para o cliente.
