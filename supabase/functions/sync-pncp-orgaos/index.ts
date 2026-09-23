@@ -9,6 +9,7 @@ import {
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
 import { orgSyncClasses } from "../_shared/pncp/catmat-scope-resolver.ts";
+import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
 import { upsertByHash } from "../_shared/pncp/upsert.ts";
 
 Deno.serve(async (req) => {
@@ -28,21 +29,41 @@ Deno.serve(async (req) => {
   const stats = { entidades_inseridas: 0, orgaos_inseridas: 0, unidades_inseridas: 0, erros: 0 };
 
   try {
-    const cnpjsResult = await client
-      .from("pca_planos")
-      .select("orgao_cnpj")
-      .in("classe_catmat", orgSyncClasses())
-      .order("orgao_cnpj", { ascending: true });
+    const classCodes = orgSyncClasses().map((classe) => Number(classe));
+    const itemsResult = await client
+      .from("pca_itens")
+      .select("pca_plano_id")
+      .in("codigo_classe_catmat", classCodes);
 
-    if (cnpjsResult.error) {
-      throw new Error(`Erro ao ler pca_planos: ${cnpjsResult.error.message}`);
+    if (itemsResult.error) {
+      throw new Error(`Erro ao ler pca_itens: ${itemsResult.error.message}`);
     }
 
+    const planIds = [
+      ...new Set(
+        (itemsResult.data ?? [])
+          .map((row) => row.pca_plano_id as string)
+          .filter((id) => id.length > 0),
+      ),
+    ];
+
     const cnpjsSet = new Set<string>();
-    (cnpjsResult.data ?? []).forEach((row: Record<string, unknown>) => {
-      const cnpj = String(row.orgao_cnpj ?? "").trim();
-      if (cnpj && cnpj.length > 0) cnpjsSet.add(cnpj);
-    });
+    if (planIds.length > 0) {
+      const cnpjsResult = await client
+        .from("pca_planos")
+        .select("orgao_cnpj")
+        .in("id", planIds)
+        .order("orgao_cnpj", { ascending: true });
+
+      if (cnpjsResult.error) {
+        throw new Error(`Erro ao ler pca_planos: ${cnpjsResult.error.message}`);
+      }
+
+      (cnpjsResult.data ?? []).forEach((row: Record<string, unknown>) => {
+        const cnpj = String(row.orgao_cnpj ?? "").trim();
+        if (cnpj.length > 0) cnpjsSet.add(cnpj);
+      });
+    }
 
     const cnpjs = Array.from(cnpjsSet);
     for (const cnpj of cnpjs) {
@@ -50,10 +71,15 @@ Deno.serve(async (req) => {
         const orgaoData = await integracao.getOrgao(cnpj);
         const payload = orgaoData as Record<string, unknown>;
 
+        const endpoint = `/orgaos/${cnpj}`;
+        const requestHash = await hashPayload({ cnpj });
+        const contentHash = await sha256Hex(JSON.stringify(payload));
         await storeSourceRecord(client, {
           syncRunId: runId,
-          endpoint: `/orgaos/${cnpj}`,
-          chave_natural: cnpj,
+          resourceType: "orgaos",
+          endpoint,
+          requestHash,
+          contentHash,
           payload,
         });
 
@@ -109,14 +135,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    await finishSyncRun(client, runId, stats);
+    await finishSyncRun(client, runId, {
+      status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+      totalRecebidos: cnpjs.length,
+      totalErros: stats.erros,
+      parametros: stats,
+    });
     return jsonResponse({ status: "ok", stats, cnpjs_processados: cnpjs.length });
   } catch (error) {
-    await finishSyncRun(
-      client,
-      runId,
-      { ...stats, erro: error instanceof Error ? error.message : String(error) },
-    );
+    await finishSyncRun(client, runId, {
+      status: "falhou",
+      totalErros: stats.erros + 1,
+      erroPrincipal: error instanceof Error ? error.message : String(error),
+      parametros: stats,
+    });
     return jsonResponse(
       { status: "error", erro: error instanceof Error ? error.message : String(error) },
       500,
