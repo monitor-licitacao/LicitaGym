@@ -325,8 +325,9 @@ async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
     }
 
     if (!incluirCaracteristicas) {
+      const terminalStatus = stats.erros > 0 ? "concluida_com_erros" : "concluida";
       await finishSyncRun(client, runId, {
-        status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+        status: terminalStatus,
         totalRecebidos: stats.recebidos,
         totalNovos: stats.novos,
         totalAtualizados: stats.alterados,
@@ -336,14 +337,14 @@ async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
 
       return jsonResponse({
         sync_id: runId,
-        status: "concluida",
+        status: terminalStatus,
         codigo_grupo: codigoGrupo,
         codigo_classe: codigoClasse,
         somente_caracteristicas: somenteCaracteristicas,
         incluir_caracteristicas: false,
         proximo_offset_caracteristicas: 0,
         ...stats,
-      });
+      }, stats.erros > 0 ? 500 : 200);
     }
 
     const { data: itensParaCaracteristicas, error: itensError } = await client
@@ -405,9 +406,10 @@ async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
       totalErros: stats.erros,
     });
 
+    const terminalStatus = stats.erros > 0 ? "concluida_com_erros" : "concluida";
     return jsonResponse({
       sync_id: runId,
-      status: "concluida",
+      status: terminalStatus,
       codigo_grupo: codigoGrupo,
       codigo_classe: codigoClasse,
       somente_caracteristicas: somenteCaracteristicas,
@@ -416,7 +418,7 @@ async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
       caracteristicas_processadas: processados,
       proximo_offset_caracteristicas: proximoOffset,
       ...stats,
-    });
+    }, stats.erros > 0 ? 500 : 200);
   } catch (error) {
     const detalhe = error instanceof Error
       ? error.message
