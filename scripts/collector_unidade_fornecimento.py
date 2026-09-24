@@ -25,13 +25,16 @@ CLASSES_PERMITIDAS = {72: 7220, 78: 7830}
 def fetch_unidades(
     codigo_grupo: Optional[int] = None,
     codigo_classe: Optional[int] = None,
+    codigo_pdm: Optional[int] = None,
     codigo_item: Optional[int] = None,
     codigo_unidade: Optional[int] = None,
     pagina: int = 1,
     tamanho_pagina: int = 500,
     max_retries: int = 3
 ) -> Dict[str, Any]:
-    """Consulta Unidades de Fornecimento com retry exponencial"""
+    """Consulta Unidades de Fornecimento com retry exponencial.
+    Conforme schema Compras.gov (schemas-consultas.md §1.6), E6 aceita codigoPdm.
+    """
     url = f"{BASE_URL}{ENDPOINT}"
 
     params = {
@@ -43,6 +46,8 @@ def fetch_unidades(
         params["codigoGrupo"] = codigo_grupo
     if codigo_classe is not None:
         params["codigoClasse"] = codigo_classe
+    if codigo_pdm is not None:
+        params["codigoPdm"] = codigo_pdm
     if codigo_item is not None:
         params["codigoItem"] = codigo_item
     if codigo_unidade is not None:
@@ -60,15 +65,187 @@ def fetch_unidades(
         legacy_empty_envelope_key="resultado",
     )
 
+def load_pdms_for_collector(codigo_grupo: int, codigo_classe: int) -> List[int]:
+    """Carrega lista de PDMs para o grupo/classe a partir de arquivos gerados por E3, E4, seed ou fallback."""
+    pdms: List[int] = []
+
+    # 1. Tentar E3 (pdm_material)
+    for path in [Path("collector_pdm_material_resultado.json"), Path("scripts/collector_pdm_material_resultado.json")]:
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    e3_data = json.load(f)
+                key = f"grupo_{codigo_grupo}"
+                raw_list = e3_data.get("data", {}).get(key, []) if isinstance(e3_data, dict) else []
+                for p in raw_list:
+                    if p.get("codigoPdm"):
+                        pdms.append(int(p["codigoPdm"]))
+                if pdms:
+                    logger.info(f"Carregados {len(pdms)} PDMs de {path} para G{codigo_grupo}")
+                    return sorted(list(set(pdms)))
+            except Exception as e:
+                logger.warning(f"Erro ao ler {path}: {e}")
+
+    # 2. Tentar E4 (item_material)
+    for path in [Path("collector_item_material_resultado.json"), Path("scripts/collector_item_material_resultado.json")]:
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    e4_data = json.load(f)
+                key = f"grupo_{codigo_grupo}"
+                raw_list = e4_data.get("data", {}).get(key, []) if isinstance(e4_data, dict) else []
+                for item in raw_list:
+                    if item.get("codigoPdm"):
+                        pdms.append(int(item["codigoPdm"]))
+                if pdms:
+                    logger.info(f"Carregados {len(pdms)} PDMs de {path} para G{codigo_grupo}")
+                    return sorted(list(set(pdms)))
+            except Exception as e:
+                logger.warning(f"Erro ao ler {path}: {e}")
+
+    # 3. Tentar seed curadoria para G78
+    if codigo_grupo == 78:
+        for seed_path in [Path("supabase/seeds/licitagym-curadoria-catmat.json")]:
+            if seed_path.exists():
+                try:
+                    with open(seed_path, "r", encoding="utf-8") as f:
+                        curadoria = json.load(f)
+                    cur_pdms = curadoria.get("curadoriaInicialPorCodigoPdm", {})
+                    for p_str in cur_pdms.keys():
+                        try:
+                            pdms.append(int(p_str))
+                        except ValueError:
+                            pass
+                    if pdms:
+                        logger.info(f"Carregados {len(pdms)} PDMs de seed curadoria para G78")
+                        return sorted(list(set(pdms)))
+                except Exception as e:
+                    logger.warning(f"Erro ao ler {seed_path}: {e}")
+
+    # 4. Fallback canônico conhecido
+    fallback_map = {
+        72: [17743],
+        78: [2640],
+    }
+    fb = fallback_map.get(codigo_grupo, [])
+    logger.info(f"Usando fallback de PDMs para G{codigo_grupo}: {fb}")
+    return fb
+
+
+def collect_unidades_por_pdm(
+    codigo_pdm: int,
+    max_pages: Optional[int] = None,
+    resume: Optional[bool] = None,
+    sync_manager: Optional[SyncStateManager] = None,
+) -> List[Dict]:
+    """Coleta unidades de fornecimento associadas a um PDM específico."""
+    logger.info(f"  Coletando unidades para PDM {codigo_pdm}...")
+    if sync_manager is None:
+        endpoint_key = f"6_consultarMaterialUnidadeFornecimento_pdm_{codigo_pdm}"
+        sync_manager = SyncStateManager(endpoint_key)
+
+    should_resume = is_sync_resume_enabled() if resume is None else resume
+    state = sync_manager.start_run(
+        resume=should_resume,
+        metadata={"codigo_pdm": codigo_pdm},
+    )
+
+    todas_unidades: List[Dict] = []
+    if should_resume and state.last_page > 0:
+        if isinstance(state.cursor, dict) and "unidades" in state.cursor:
+            todas_unidades = list(state.cursor["unidades"])
+        else:
+            acc = sync_manager.load_accumulated_data()
+            if isinstance(acc, list):
+                todas_unidades = list(acc)
+
+    pagina = (state.last_page + 1) if (should_resume and state.last_page > 0) else 1
+    pages_coletadas = 0
+
+    while True:
+        try:
+            resp = fetch_unidades(
+                codigo_pdm=codigo_pdm,
+                pagina=pagina,
+                tamanho_pagina=500,
+            )
+        except Exception as e:
+            sync_manager.record_partial_failure(
+                e,
+                page=pagina,
+                error_details={"codigo_pdm": codigo_pdm},
+                cursor={"unidades": todas_unidades},
+            )
+            sync_manager.save_accumulated_data(todas_unidades)
+            raise
+
+        unidades = resp.get("resultado", [])
+        if not unidades:
+            break
+
+        todas_unidades.extend(unidades)
+        pages_coletadas += 1
+        sync_manager.record_page_success(
+            page=pagina,
+            records_in_page=len(unidades),
+            cursor={"unidades": todas_unidades},
+        )
+        sync_manager.save_accumulated_data(todas_unidades)
+
+        if max_pages and pages_coletadas >= max_pages:
+            break
+
+        if resp.get("paginasRestantes", 0) == 0:
+            break
+
+        pagina += 1
+        time.sleep(0.5)
+
+    total_records = len(todas_unidades)
+    sync_manager.record_completed(total_records=total_records, metadata_update={"total_records": total_records})
+    return todas_unidades
+
+
 def collect_unidades_por_grupo_classe(
     codigo_grupo: int,
     codigo_classe: int,
     max_pages: Optional[int] = None,
     resume: Optional[bool] = None,
     sync_manager: Optional[SyncStateManager] = None,
+    codigo_pdm: Optional[int] = None,
+    pdms: Optional[List[int]] = None,
+    use_pdm_iteration: Optional[bool] = None,
 ) -> List[Dict]:
-    """Coleta todas unidades de fornecimento de um grupo/classe específico com suporte a checkpoint e resume."""
+    """Coleta unidades de fornecimento de um grupo/classe específico.
+    Se use_pdm_iteration=True ou (use_pdm_iteration is None e sync_manager is None e codigo_pdm/pdms fornecidos ou encontrados),
+    itera por PDM conforme padrão Compras.gov Dados Abertos (schemas-consultas.md §1.6).
+    Se sync_manager for explicitamente passado sem codigo_pdm/pdms, opera em modo endpoint direto grupo/classe com esse sync_manager.
+    """
     logger.info(f"\nColetando Unidades Fornecimento: G{codigo_grupo} classe {codigo_classe}...")
+
+    # Se sync_manager foi fornecido explicitamente sem PDMs, manter modo clássico grupo/classe usando o sync_manager
+    should_iterate_pdm = use_pdm_iteration
+    if should_iterate_pdm is None:
+        if sync_manager is not None and codigo_pdm is None and pdms is None:
+            should_iterate_pdm = False
+        else:
+            should_iterate_pdm = True
+
+    if should_iterate_pdm:
+        if codigo_pdm is not None:
+            lista_pdms = [codigo_pdm]
+        elif pdms is not None:
+            lista_pdms = pdms
+        else:
+            lista_pdms = load_pdms_for_collector(codigo_grupo, codigo_classe)
+
+        if lista_pdms:
+            logger.info(f"Iterando {len(lista_pdms)} PDM(s) para G{codigo_grupo}/C{codigo_classe}...")
+            todas: List[Dict] = []
+            for pdm in lista_pdms:
+                unis = collect_unidades_por_pdm(pdm, max_pages=max_pages, resume=resume, sync_manager=sync_manager if len(lista_pdms) == 1 else None)
+                todas.extend(unis)
+            return todas
 
     if sync_manager is None:
         endpoint_key = f"6_consultarMaterialUnidadeFornecimento_G{codigo_grupo}_C{codigo_classe}"

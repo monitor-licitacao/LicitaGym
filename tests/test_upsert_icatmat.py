@@ -168,3 +168,121 @@ def test_upsert_remoto_main_returns_1_without_env(monkeypatch):
     code = remoto.main()
     assert code == 1
 
+
+def test_load_resultado_unwraps_dictionary_and_envelope(tmp_path):
+    """CATMAT-P1-002: load_resultado unwrap 'resultado' array and 'data' dicts without AttributeError."""
+    # Teste 1: data com dict agrupado por grupo (ex: E4 item_material)
+    e4_file = tmp_path / "collector_item_material_resultado.json"
+    e4_content = {
+        "endpoint": "4_consultarItemMaterial",
+        "data": {
+            "grupo_72": [{"codigoItem": 1, "descricaoItem": "Item 1"}],
+            "grupo_78": [{"codigoItem": 2, "descricaoItem": "Item 2"}],
+        }
+    }
+    with open(e4_file, "w", encoding="utf-8") as f:
+        json.dump(e4_content, f)
+
+    records_e4 = consolidado.load_resultado("E4", base_dir=tmp_path)
+    assert len(records_e4) == 2
+    assert records_e4[0]["codigoItem"] == 1
+    assert records_e4[1]["codigoItem"] == 2
+
+    # Teste 2: data com envelope 'resultado' direto (ex: E1 grupo_material)
+    e1_file = tmp_path / "collector_grupo_material_resultado.json"
+    e1_content = {
+        "resultado": [
+            {"codigoGrupo": 72, "nomeGrupo": "G72"},
+            {"codigoGrupo": 78, "nomeGrupo": "G78"},
+        ]
+    }
+    with open(e1_file, "w", encoding="utf-8") as f:
+        json.dump(e1_content, f)
+
+    records_e1 = consolidado.load_resultado("E1", base_dir=tmp_path)
+    assert len(records_e1) == 2
+    assert records_e1[0]["codigoGrupo"] == 72
+
+
+def test_enrich_e7_null_sentinel_policy():
+    """CATMAT-P0-004 & CATMAT-P1-001: enrich_e7 handles missing/empty/null codigoValorCaracteristica."""
+    records = [
+        {
+            "codigoGrupo": 78,
+            "codigoClasse": 7830,
+            "codigoPdm": 2640,
+            "codigoItem": 374066,
+            "codigoCaracteristica": 10,
+            "nomeCaracteristica": "COR",
+            "codigoValorCaracteristica": "123",
+            "nomeValorCaracteristica": "PRETO",
+        },
+        {
+            "codigoGrupo": 78,
+            "codigoClasse": 7830,
+            "codigoPdm": 2640,
+            "codigoItem": 374066,
+            "codigoCaracteristica": 20,
+            "nomeCaracteristica": "MATERIAL",
+            "codigoValorCaracteristica": None,  # Nulo explícito
+            "nomeValorCaracteristica": "ACO",
+        },
+        {
+            "codigoGrupo": 78,
+            "codigoClasse": 7830,
+            "codigoPdm": 2640,
+            "codigoItem": 374066,
+            "codigoCaracteristica": 30,
+            "nomeCaracteristica": "PESO",
+            "codigoValorCaracteristica": "   ",  # Vazio
+            "nomeValorCaracteristica": "10KG",
+        },
+    ]
+
+    # Padrão: sentinel "0"
+    enriched = enrich_e7(records)
+    assert len(enriched) == 3
+    assert enriched[0]["codigo_valor_caracteristica"] == "123"
+    assert enriched[0]["nome_valor_caracteristica"] == "PRETO"
+    assert enriched[1]["codigo_valor_caracteristica"] == "0"
+    assert enriched[1]["nome_valor_caracteristica"] == "ACO"
+    assert enriched[2]["codigo_valor_caracteristica"] == "0"
+    assert enriched[2]["nome_valor_caracteristica"] == "10KG"
+
+    # Modo nullable explícito: null_sentinel=None
+    enriched_null = enrich_e7(records, null_sentinel=None)
+    assert enriched_null[1]["codigo_valor_caracteristica"] is None
+    assert enriched_null[2]["codigo_valor_caracteristica"] is None
+
+
+def test_enrich_e5_e6_flexible_field_mapping():
+    """CATMAT-P0-003: enrich_e5 and enrich_e6 support official DmMaterial DTO field names."""
+    e5_records = [
+        {
+            "codigoPdm": 2640,
+            "codigoNaturezaDespesa": "339030",
+            "nomeNaturezaDespesa": "CONSUMO",
+        }
+    ]
+    e5_res = enrich_e5(e5_records)
+    assert len(e5_res) == 1
+    assert e5_res[0]["codigo_pdm"] == 2640
+    assert e5_res[0]["codigo_natureza"] == "339030"
+    assert e5_res[0]["descricao_natureza"] == "CONSUMO"
+
+    e6_records = [
+        {
+            "codigoPdm": 2640,
+            "siglaUnidadeFornecimento": "UN",
+            "nomeUnidadeFornecimento": "UNIDADE",
+            "numeroSequencialUnidadeFornecimento": 1,
+        }
+    ]
+    e6_res = enrich_e6(e6_records)
+    assert len(e6_res) == 1
+    assert e6_res[0]["codigo_pdm"] == 2640
+    assert e6_res[0]["sigla_unidade"] == "UN"
+    assert e6_res[0]["codigo_unidade"] == 1
+    assert e6_res[0]["descricao_unidade"] == "UNIDADE"
+
+

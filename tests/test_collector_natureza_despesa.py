@@ -26,6 +26,21 @@ class DummyHttpResponse:
         pass
 
 
+def test_fetch_naturezas_with_codigo_pdm():
+    """Verify that fetch_naturezas correctly accepts and sends codigoPdm in request query."""
+    payload = {
+        "resultado": [{"codigoNatureza": 339030, "nomeNatureza": "MATERIAL DE CONSUMO"}],
+        "totalRegistros": 1,
+        "paginasRestantes": 0,
+    }
+    with patch("urllib.request.urlopen", return_value=DummyHttpResponse(payload)) as mock_urlopen:
+        res = fetch_naturezas(codigo_pdm=2640, pagina=1, tamanho_pagina=500)
+        assert len(res["resultado"]) == 1
+        assert mock_urlopen.called
+        req = mock_urlopen.call_args[0][0]
+        assert "codigoPdm=2640" in req.full_url
+
+
 def test_fetch_naturezas_200_success():
     payload = {
         "resultado": [{"codigoNatureza": 339030, "nomeNatureza": "MATERIAL DE CONSUMO"}],

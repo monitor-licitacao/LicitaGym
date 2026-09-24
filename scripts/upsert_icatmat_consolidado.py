@@ -49,24 +49,59 @@ def compute_hash(obj: Dict[str, Any]) -> str:
     """Stable SHA-256 hash of payload."""
     return compute_payload_hash(obj)
 
-def load_resultado(endpoint: str) -> List[Dict[str, Any]]:
-    """Carrega resultado JSON de collector."""
+def load_resultado(endpoint: str, base_dir: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Carrega resultado JSON de collector, desempacotando envelopes e dicionários aninhados.
+    
+    Resolve CATMAT-P1-002: desempacota envelope 'resultado' ou chaves aninhadas em 'data'
+    (ex: data.grupo_72, data.grupo_78 ou data.item_374066) para evitar AttributeError: 'str' object has no attribute 'get'.
+    """
     pattern = RESULTS_PATTERNS.get(endpoint)
     if not pattern:
         logger.warning(f"Pattern não encontrado para {endpoint}")
         return []
 
-    files = list(COLLECTORS_DIR.glob(pattern))
+    search_dirs = [base_dir] if base_dir else [Path("."), COLLECTORS_DIR]
+    files: List[Path] = []
+    for d in search_dirs:
+        if d and d.exists():
+            matched = list(d.glob(pattern))
+            if matched:
+                files.extend(matched)
+                break
+
     if not files:
         logger.warning(f"Nenhum arquivo encontrado para {endpoint} ({pattern})")
         return []
 
     filepath = files[0]
     try:
-        with open(filepath) as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        logger.info(f"{endpoint}: carregado {len(data)} registros de {filepath.name}")
-        return data
+
+        records: List[Dict[str, Any]] = []
+
+        if isinstance(data, list):
+            records = data
+        elif isinstance(data, dict):
+            # Formato 1: envelope com chave 'resultado' sendo lista
+            if "resultado" in data and isinstance(data["resultado"], list):
+                records = data["resultado"]
+            # Formato 2: envelope com chave 'data'
+            elif "data" in data:
+                val = data["data"]
+                if isinstance(val, list):
+                    records = val
+                elif isinstance(val, dict):
+                    # Agrupamentos como {"grupo_72": [...], "grupo_78": [...]} ou {"item_374066": [...]}
+                    for k, sub_list in val.items():
+                        if isinstance(sub_list, list):
+                            records.extend(sub_list)
+            # Formato 3: envelope com chave 'registros' ou similar
+            elif "registros" in data and isinstance(data["registros"], list):
+                records = data["registros"]
+
+        logger.info(f"{endpoint}: carregado {len(records)} registros de {filepath.name}")
+        return records
     except Exception as e:
         logger.error(f"{endpoint}: erro ao carregar {filepath.name} — {e}")
         return []
@@ -80,6 +115,17 @@ TABLE_ON_CONFLICT: Dict[str, str] = {
     "icatmat_natureza_despesa": "codigo_grupo,codigo_classe,codigo_item,codigo_natureza",
     "icatmat_unidade_fornecimento": "codigo_grupo,codigo_classe,codigo_item,codigo_unidade",
     "icatmat_caracteristica_material": "codigo_grupo,codigo_classe,codigo_item,codigo_caracteristica",
+}
+
+# Canonical natural keys aligned to Compras.gov Dados Abertos specs & prod tables
+CANONICAL_NATURAL_KEYS: Dict[str, str] = {
+    "icatmat_grupo_material": "codigo_grupo",
+    "icatmat_classe_material": "codigo_grupo,codigo_classe",
+    "icatmat_pdm_material": "codigo_grupo,codigo_classe,codigo_pdm",
+    "icatmat_item_material": "codigo_grupo,codigo_classe,codigo_pdm,codigo_item",
+    "icatmat_natureza_despesa": "codigo_pdm,codigo_natureza",
+    "icatmat_unidade_fornecimento": "codigo_pdm,sigla_unidade,codigo_unidade",
+    "icatmat_caracteristica_material": "codigo_item,codigo_caracteristica,codigo_valor_caracteristica",
 }
 
 def upsert_table(table: str, records: List[Dict[str, Any]], on_conflict: Optional[str] = None) -> int:
@@ -166,16 +212,18 @@ def enrich_e4(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return enriched
 
 def enrich_e5(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Enrich E5."""
+    """Enrich E5: mapeia campos de DmMaterialNaturezaDespesaDTO ou formato icatmat."""
     enriched = []
     for r in records:
+        codigo_natureza = r.get("codigoNatureza") if r.get("codigoNatureza") is not None else r.get("codigoNaturezaDespesa")
+        descricao_natureza = r.get("descricaoNatureza") or r.get("nomeNaturezaDespesa") or r.get("nomeNatureza")
         enriched.append({
             "codigo_grupo": r.get("codigoGrupo"),
             "codigo_classe": r.get("codigoClasse"),
             "codigo_pdm": r.get("codigoPdm"),
             "codigo_item": r.get("codigoItem"),
-            "codigo_natureza": r.get("codigoNatureza"),
-            "descricao_natureza": r.get("descricaoNatureza"),
+            "codigo_natureza": codigo_natureza,
+            "descricao_natureza": descricao_natureza,
             "data_hora_atualizacao": r.get("dataHoraAtualizacao"),
             "payload_hash": compute_hash(r),
             "sync_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -183,27 +231,45 @@ def enrich_e5(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return enriched
 
 def enrich_e6(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Enrich E6."""
+    """Enrich E6: mapeia campos de DmMaterialUnidadeFornecimentoDTO ou formato icatmat."""
     enriched = []
     for r in records:
+        codigo_unidade = r.get("codigoUnidade") if r.get("codigoUnidade") is not None else r.get("numeroSequencialUnidadeFornecimento")
+        descricao_unidade = r.get("descricaoUnidade") or r.get("descricaoUnidadeFornecimento") or r.get("nomeUnidadeFornecimento") or r.get("nomeUnidade")
+        sigla_unidade = r.get("siglaUnidade") or r.get("siglaUnidadeFornecimento")
         enriched.append({
             "codigo_grupo": r.get("codigoGrupo"),
             "codigo_classe": r.get("codigoClasse"),
             "codigo_pdm": r.get("codigoPdm"),
             "codigo_item": r.get("codigoItem"),
-            "codigo_unidade": r.get("codigoUnidade"),
-            "descricao_unidade": r.get("descricaoUnidade"),
-            "sigla_unidade": r.get("siglaUnidade"),
+            "codigo_unidade": codigo_unidade,
+            "descricao_unidade": descricao_unidade,
+            "sigla_unidade": sigla_unidade,
             "data_hora_atualizacao": r.get("dataHoraAtualizacao"),
             "payload_hash": compute_hash(r),
             "sync_timestamp": datetime.now(timezone.utc).isoformat(),
         })
     return enriched
 
-def enrich_e7(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Enrich E7."""
+def enrich_e7(records: List[Dict[str, Any]], null_sentinel: Optional[str] = "0") -> List[Dict[str, Any]]:
+    """Enrich E7: mapeia campos de DmMaterialCaracteristicasDTO e define política de nulo para codigo_valor_caracteristica.
+    
+    CATMAT-P0-004 e CATMAT-P1-001:
+    - Mapeia codigo_valor_caracteristica e nome_valor_caracteristica.
+    - Política de nulo: quando ausente, vazio ou None, normaliza para null_sentinel (padrão '0')
+      para garantir integridade referencial e compatibilidade com NOT NULL em tabelas relacionais.
+      Se null_sentinel for None, mantém None (nullable).
+    """
     enriched = []
     for r in records:
+        raw_val_cod = r.get("codigoValorCaracteristica") if r.get("codigoValorCaracteristica") is not None else r.get("codigo_valor_caracteristica")
+        if raw_val_cod is None or str(raw_val_cod).strip() == "":
+            val_cod = null_sentinel
+        else:
+            val_cod = str(raw_val_cod).strip()
+
+        nome_val = r.get("nomeValorCaracteristica") or r.get("nome_valor_caracteristica") or r.get("descricaoValorCaracteristica")
+
         enriched.append({
             "codigo_grupo": r.get("codigoGrupo"),
             "codigo_classe": r.get("codigoClasse"),
@@ -213,6 +279,8 @@ def enrich_e7(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "nome_caracteristica": r.get("nomeCaracteristica"),
             "descricao_caracteristica": r.get("descricaoCaracteristica"),
             "tipo_caracteristica": r.get("tipoCaracteristica"),
+            "codigo_valor_caracteristica": val_cod,
+            "nome_valor_caracteristica": nome_val,
             "data_hora_atualizacao": r.get("dataHoraAtualizacao"),
             "payload_hash": compute_hash(r),
             "sync_timestamp": datetime.now(timezone.utc).isoformat(),
