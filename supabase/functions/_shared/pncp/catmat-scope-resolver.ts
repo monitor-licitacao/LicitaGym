@@ -191,13 +191,15 @@ export async function loadEffectiveMaterialItems(
   policy: readonly ScopeClassRule[] = TRANSITIONAL_FITNESS_SCOPE,
 ): Promise<EffectiveMaterialItem[]> {
   const classes = effectiveClasses(policy).map((rule) => Number(rule.classe));
-  const { rows: pdmRows } = await fetchAllByRange((from, to) =>
-    client
-      .from("catmat_pdms")
-      .select("codigo_pdm, codigo_grupo, codigo_classe, status")
-      .in("codigo_classe", classes)
-      .order("codigo_pdm")
-      .range(from, to)
+  const { rows: pdmRows } = await fetchAllByRange(
+    (from, to) =>
+      client
+        .from("catmat_pdms")
+        .select("codigo_pdm, codigo_grupo, codigo_classe, status")
+        .in("codigo_classe", classes)
+        .order("codigo_pdm")
+        .range(from, to),
+    { orderBy: "codigo_pdm" },
   );
   const pdms = pdmRows.map((row) => ({
     codigo_pdm: row.codigo_pdm as number | string,
@@ -213,13 +215,15 @@ export async function loadEffectiveMaterialItems(
     scopedPdms.map((pdm) => pdm.codigo_pdm),
     POSTGREST_PAGE_SIZE,
   )) {
-    const { rows: itemRows } = await fetchAllByRange((from, to) =>
-      client
-        .from("catmat_itens")
-        .select("codigo_item, codigo_pdm, status_item")
-        .in("codigo_pdm", pdmChunk)
-        .order("codigo_item")
-        .range(from, to)
+    const { rows: itemRows } = await fetchAllByRange(
+      (from, to) =>
+        client
+          .from("catmat_itens")
+          .select("codigo_item, codigo_pdm, status_item")
+          .in("codigo_pdm", pdmChunk)
+          .order("codigo_item")
+          .range(from, to),
+      { orderBy: "codigo_item" },
     );
     for (const row of itemRows) {
       itens.push({

@@ -44,13 +44,15 @@ Deno.serve(async (req) => {
     const classCodes = orgSyncClasses().map((classe) => Number(classe));
     const { rows: itemRows, pages: itemPages } = await fetchAllByRange<{
       pca_plano_id: string;
-    }>((from, to) =>
-      client
-        .from("pca_itens")
-        .select("pca_plano_id")
-        .in("codigo_classe_catmat", classCodes)
-        .order("id")
-        .range(from, to)
+    }>(
+      (from, to) =>
+        client
+          .from("pca_itens")
+          .select("pca_plano_id")
+          .in("codigo_classe_catmat", classCodes)
+          .order("id")
+          .range(from, to),
+      { orderBy: "id" },
     );
     stats.pca_itens_lidos = itemRows.length;
 
@@ -72,6 +74,7 @@ Deno.serve(async (req) => {
             .in("id", idChunk)
             .order("id")
             .range(from, to),
+        { orderBy: "id" },
       );
       stats.pca_planos_lidos += planRows.length;
       for (const row of planRows) {

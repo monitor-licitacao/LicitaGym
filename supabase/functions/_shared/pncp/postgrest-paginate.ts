@@ -7,6 +7,16 @@ export type PageResult<T> = {
   error: { message: string } | null;
 };
 
+export type FetchAllByRangeOptions = {
+  pageSize?: number;
+  /**
+   * Unique stable column that caller MUST already apply via
+   * `.order(orderBy)` before `.range(...)` inside `fetchPage`.
+   * Required so offset pages cannot skip/duplicate rows.
+   */
+  orderBy: string;
+};
+
 /**
  * Fetch all rows via repeated `.range(from, to)` until a short page.
  * Avoids silent truncation at the PostgREST max-rows default (1000).
@@ -14,14 +24,20 @@ export type PageResult<T> = {
  * Accepts PromiseLike so Supabase PostgrestFilterBuilder (Thenable) works
  * without wrapping the builder in `async` / `await`.
  *
- * Caller MUST apply `.order(<unique stable column>)` before `.range(...)`.
- * Without a deterministic order, offset pages can skip/duplicate rows.
+ * Caller MUST apply `.order(options.orderBy)` before `.range(...)` in fetchPage.
  * Prefer PK / unique natural keys (e.g. `id`, `codigo_pdm`, `codigo_item`).
  */
 export async function fetchAllByRange<T>(
   fetchPage: (from: number, to: number) => PromiseLike<PageResult<T>>,
-  pageSize = POSTGREST_PAGE_SIZE,
+  options: FetchAllByRangeOptions,
 ): Promise<{ rows: T[]; pages: number }> {
+  const orderBy = options.orderBy?.trim();
+  if (!orderBy) {
+    throw new Error(
+      "fetchAllByRange requires options.orderBy (stable unique column already used in .order())",
+    );
+  }
+  const pageSize = options.pageSize ?? POSTGREST_PAGE_SIZE;
   const rows: T[] = [];
   let pages = 0;
   let from = 0;
