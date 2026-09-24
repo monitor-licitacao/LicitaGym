@@ -250,6 +250,9 @@ export class PncpConsultaClient {
       }
       return { status: "ok", elapsedMs };
     } catch (error) {
+      if (error instanceof BudgetExhaustedError) {
+        throw error;
+      }
       return {
         status: "PNCP_DEGRADADO",
         elapsedMs: Date.now() - started,

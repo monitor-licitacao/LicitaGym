@@ -1,6 +1,8 @@
 import {
+  DEFAULT_FETCH_TIMEOUT_MS,
   fetchWithTimeout,
   parseRetryAfterMs,
+  type RequestBudget,
   RetryableHttpError,
   withRetry,
 } from "./retry.ts";
@@ -48,7 +50,19 @@ function parseTs(value: string | undefined): number | null {
 }
 
 export class PncpSearchClient {
+  private budget: RequestBudget | undefined;
+
   constructor(private baseUrl = Deno.env.get("PNCP_SEARCH_BASE") ?? DEFAULT_SEARCH_BASE) {}
+
+  withBudget(budget: RequestBudget): this {
+    this.budget = budget;
+    return this;
+  }
+
+  clearBudget(): this {
+    this.budget = undefined;
+    return this;
+  }
 
   async fetchPcaOrgaoPage(params: {
     pagina?: number;
@@ -63,25 +77,38 @@ export class PncpSearchClient {
     url.searchParams.set("ordenacao", "-data");
     if (params.ano) url.searchParams.set("anos", String(params.ano));
 
-    const response = await withRetry(async () => {
-      try {
-        const res = await fetchWithTimeout(url, {
-          headers: { Accept: "application/json" },
-        });
-        if (res.status === 429 || res.status >= 500) {
-          const retryAfterMs = res.status === 429
-            ? parseRetryAfterMs(res.headers.get("Retry-After"))
-            : null;
-          throw new RetryableHttpError(`PNCP search HTTP ${res.status}`, retryAfterMs);
+    const response = await withRetry(
+      async () => {
+        const timeoutMs = this.budget
+          ? this.budget.attemptTimeoutMs(DEFAULT_FETCH_TIMEOUT_MS)
+          : DEFAULT_FETCH_TIMEOUT_MS;
+        try {
+          const res = await fetchWithTimeout(url, {
+            headers: { Accept: "application/json" },
+          }, timeoutMs);
+          if (res.status === 429 || res.status >= 500) {
+            const retryAfterMs = res.status === 429
+              ? parseRetryAfterMs(res.headers.get("Retry-After"))
+              : null;
+            throw new RetryableHttpError(
+              `PNCP search HTTP ${res.status}`,
+              retryAfterMs,
+            );
+          }
+          return res;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "TimeoutError") {
+            throw new Error(`PNCP search timeout (${timeoutMs}ms)`);
+          }
+          throw error;
         }
-        return res;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "TimeoutError") {
-          throw new Error("PNCP search timeout (45s)");
-        }
-        throw error;
-      }
-    });
+      },
+      {
+        budget: this.budget,
+        maxAttempts: 3,
+        maxTimeoutRetries: 1,
+      },
+    );
     if (!response.ok) {
       throw new Error(`PNCP search HTTP ${response.status}`);
     }

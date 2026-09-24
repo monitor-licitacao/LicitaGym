@@ -265,8 +265,9 @@ Deno.serve(async (req) => {
     );
   }
 
-  const consulta = new PncpConsultaClient().withBudget(createRequestBudget());
-  const search = new PncpSearchClient();
+  const requestBudget = createRequestBudget();
+  const consulta = new PncpConsultaClient().withBudget(requestBudget);
+  const search = new PncpSearchClient().withBudget(requestBudget);
 
   // Smoke / period check: probes in parallel; do not start annual load.
   if (body.somente_verificacao) {
@@ -372,7 +373,21 @@ Deno.serve(async (req) => {
   }
 
   // Heavy load path: health-check first.
-  const health = await consulta.probePncpHealth();
+  let health;
+  try {
+    health = await consulta.probePncpHealth();
+  } catch (error) {
+    if (
+      error instanceof BudgetExhaustedError ||
+      (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+    ) {
+      return jsonResponse({
+        status: "BUDGET_EXHAUSTED",
+        error: "BUDGET_EXHAUSTED",
+      }, 503);
+    }
+    throw error;
+  }
   if (health.status === "PNCP_DEGRADADO") {
     return jsonResponse({
       status: "PNCP_DEGRADADO",
@@ -397,6 +412,16 @@ Deno.serve(async (req) => {
         total_registros: probe.total_registros,
       });
     } catch (error) {
+      if (
+        error instanceof BudgetExhaustedError ||
+        (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+      ) {
+        return jsonResponse({
+          status: "BUDGET_EXHAUSTED",
+          error: "BUDGET_EXHAUSTED",
+          codigos_classificacao: codigosClassificacao,
+        }, 503);
+      }
       scopedProbeError = error instanceof Error ? error.message : String(error);
       break;
     }
@@ -418,6 +443,15 @@ Deno.serve(async (req) => {
   try {
     periodSummary = await search.summarizePcaPeriod(ano);
   } catch (error) {
+    if (
+      error instanceof BudgetExhaustedError ||
+      (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+    ) {
+      return jsonResponse({
+        status: "BUDGET_EXHAUSTED",
+        error: "BUDGET_EXHAUSTED",
+      }, 503);
+    }
     searchProbeError = error instanceof Error ? error.message : String(error);
   }
 

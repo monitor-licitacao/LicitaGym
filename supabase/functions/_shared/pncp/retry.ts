@@ -155,9 +155,15 @@ export async function fetchWithTimeout(
     );
   }, timeoutMs);
   try {
-    return await fetch(input, {
+    const response = await fetch(input, {
       ...init,
       signal: controller.signal,
+    });
+    const body = response.body ? await response.arrayBuffer() : null;
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
     });
   } finally {
     clearTimeout(timer);

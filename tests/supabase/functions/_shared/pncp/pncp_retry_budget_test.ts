@@ -19,6 +19,7 @@ import {
   retryDelayWithJitter,
   withRetry,
 } from "../../../../../supabase/functions/_shared/pncp/retry.ts";
+import { PncpSearchClient } from "../../../../../supabase/functions/_shared/pncp/search-client.ts";
 
 function hangingFetchOnAbort(): typeof fetch {
   return ((_input, init) =>
@@ -180,6 +181,34 @@ Deno.test("fetchWithTimeout clears timer on abort timeout (no leak)", async () =
   }
 });
 
+Deno.test("fetchWithTimeout mantém timeout até consumir body", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (_input, init) => {
+    const signal = init?.signal;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("{"));
+        signal?.addEventListener("abort", () => {
+          controller.error(
+            signal.reason instanceof Error
+              ? signal.reason
+              : new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+          );
+        }, { once: true });
+      },
+    });
+    return new Response(stream, { status: 200 });
+  }) as typeof fetch;
+  try {
+    await assertRejects(
+      () => fetchWithTimeout("https://example.test/", {}, 30),
+      DOMException,
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 Deno.test("consulta: HTTP 204 is valid empty", async () => {
   const original = globalThis.fetch;
   globalThis.fetch =
@@ -256,6 +285,34 @@ Deno.test("EmptyBodyAnomalyError is retryable once via withRetry", async () => {
     "after retry",
   );
   assertEquals(attempts, 2);
+});
+
+Deno.test("withRetry overload numérico preserva tentativas explícitas", async () => {
+  let attempts = 0;
+  await assertRejects(
+    () =>
+      withRetry(async () => {
+        attempts += 1;
+        throw new DOMException("timeout", "TimeoutError");
+      }, 6, 1),
+    DOMException,
+  );
+  assertEquals(attempts, 6);
+});
+
+Deno.test("search client respeita budget compartilhado", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = hangingFetchOnAbort();
+  try {
+    const budget = createRequestBudget(8_000);
+    const client = new PncpSearchClient("https://example.test/search").withBudget(budget);
+    await assertRejects(
+      () => client.summarizePcaPeriod(2026),
+      BudgetExhaustedError,
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 Deno.test("consulta: HTTP 422 does not retry", async () => {
