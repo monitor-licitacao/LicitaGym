@@ -12,7 +12,10 @@ Deno.test("SEC-EDGE-004 legislacao signed_url gated by requireUserAuth", async (
   if (!src.includes("signed_url")) {
     throw new Error("expected signed_url branch");
   }
+  // Call site (not import): requireUserAuth(req) must precede createSignedUrl.
   const authIdx = src.indexOf("requireUserAuth(req)");
+  const signedIdx = src.indexOf("createSignedUrl");
+  if (authIdx < 0 || signedIdx < 0 || authIdx > signedIdx) {
     throw new Error("requireUserAuth must precede createSignedUrl");
   }
   // Must not use prefix-only Bearer fallback anywhere
