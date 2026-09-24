@@ -199,7 +199,7 @@ function resolveOptions(
     return {
       maxAttempts: maxAttemptsOrOptions,
       baseDelayMs,
-      maxTimeoutRetries: 1,
+      maxTimeoutRetries: Math.max(0, maxAttemptsOrOptions - 1),
       maxEmptyBodyRetries: 1,
     };
   }
