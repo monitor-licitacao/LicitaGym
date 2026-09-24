@@ -31,7 +31,7 @@ type SyncBody = {
   ano?: number;
   /** Um código CATMAT/CATSER (legado). */
   codigo_classificacao_superior?: string;
-  /** Subconjunto explícito. Vazio: classes da política transitória (7830 e 7220). */
+  /** Subconjunto explícito. Vazio: default PCA = só 7830 (7220 só se passar no body/env). */
   codigos_classificacao?: string[];
   pagina_inicial?: number;
   /** Limita páginas por código (útil em cron parcial ou smoke test). */

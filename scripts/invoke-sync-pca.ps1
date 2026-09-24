@@ -1,5 +1,5 @@
-# Carga / smoke do sync PCA. Sem -CodigosClassificacao a Edge aplica a policy inteira.
-# Uma classe especifica continua valida: -CodigosClassificacao 7220
+# Carga / smoke do sync PCA. Sem -CodigosClassificacao o default e so 7830.
+# 7220 so entra com parametro explicito: -CodigosClassificacao 7220 (ou 7830,7220).
 param(
   [int]$Ano = (Get-Date).Year,
   [int]$MaxPaginas = 100,
