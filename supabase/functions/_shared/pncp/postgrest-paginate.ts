@@ -10,9 +10,10 @@ export type PageResult<T> = {
 /**
  * Fetch all rows via repeated `.range(from, to)` until a short page.
  * Avoids silent truncation at the PostgREST max-rows default (1000).
+ * Accepts PromiseLike so Supabase PostgrestFilterBuilder (Thenable) works.
  */
 export async function fetchAllByRange<T>(
-  fetchPage: (from: number, to: number) => Promise<PageResult<T>>,
+  fetchPage: (from: number, to: number) => PromiseLike<PageResult<T>>,
   pageSize = POSTGREST_PAGE_SIZE,
 ): Promise<{ rows: T[]; pages: number }> {
   const rows: T[] = [];

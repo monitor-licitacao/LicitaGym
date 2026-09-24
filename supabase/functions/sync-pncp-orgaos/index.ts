@@ -44,8 +44,8 @@ Deno.serve(async (req) => {
     const classCodes = orgSyncClasses().map((classe) => Number(classe));
     const { rows: itemRows, pages: itemPages } = await fetchAllByRange<{
       pca_plano_id: string;
-    }>((from, to) =>
-      client
+    }>(async (from, to) =>
+      await client
         .from("pca_itens")
         .select("pca_plano_id")
         .in("codigo_classe_catmat", classCodes)
@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
     const cnpjsSet = new Set<string>();
     for (const idChunk of chunkValues(planIds, POSTGREST_PAGE_SIZE)) {
       const { rows: planRows } = await fetchAllByRange<{ orgao_cnpj: string }>(
-        (from, to) =>
-          client
+        async (from, to) =>
+          await client
             .from("pca_planos")
             .select("orgao_cnpj")
             .in("id", idChunk)

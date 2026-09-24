@@ -76,7 +76,10 @@ type QueryResult<T> = { data: T[] | null; error: QueryError | null };
 
 /** Builder must support `.range()` so callers can page past PostgREST max-rows. */
 export type CatmatScopeFilterBuilder = {
-  range(from: number, to: number): Promise<QueryResult<Record<string, unknown>>>;
+  range(
+    from: number,
+    to: number,
+  ): PromiseLike<QueryResult<Record<string, unknown>>>;
 };
 
 export type CatmatScopeReadClient = {
@@ -180,8 +183,8 @@ export async function loadEffectiveMaterialItems(
   policy: readonly ScopeClassRule[] = TRANSITIONAL_FITNESS_SCOPE,
 ): Promise<EffectiveMaterialItem[]> {
   const classes = effectiveClasses(policy).map((rule) => Number(rule.classe));
-  const { rows: pdmRows } = await fetchAllByRange((from, to) =>
-    client
+  const { rows: pdmRows } = await fetchAllByRange(async (from, to) =>
+    await client
       .from("catmat_pdms")
       .select("codigo_pdm, codigo_grupo, codigo_classe, status")
       .in("codigo_classe", classes)
@@ -201,8 +204,8 @@ export async function loadEffectiveMaterialItems(
     scopedPdms.map((pdm) => pdm.codigo_pdm),
     POSTGREST_PAGE_SIZE,
   )) {
-    const { rows: itemRows } = await fetchAllByRange((from, to) =>
-      client
+    const { rows: itemRows } = await fetchAllByRange(async (from, to) =>
+      await client
         .from("catmat_itens")
         .select("codigo_item, codigo_pdm, status_item")
         .in("codigo_pdm", pdmChunk)
