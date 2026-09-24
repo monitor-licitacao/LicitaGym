@@ -4,6 +4,9 @@ export {
   PncpConsultaClient,
 } from "../../../../../supabase/functions/_shared/pncp/consulta-client.ts";
 export {
+  BudgetExhaustedError,
+  createRequestBudget,
+  EDGE_REQUEST_DEADLINE_MS,
   MAX_RETRY_AFTER_MS,
   parseRetryAfterMs,
   PermanentHttpError,

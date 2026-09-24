@@ -1,12 +1,20 @@
 import {
+  BudgetExhaustedError,
+  createRequestBudget,
+  DEFAULT_FETCH_TIMEOUT_MS,
+  EmptyBodyAnomalyError,
   fetchWithTimeout,
   parseRetryAfterMs,
   PermanentHttpError,
+  type RequestBudget,
   RetryableHttpError,
   withRetry,
 } from "./retry.ts";
 
 const DEFAULT_BASE = "https://pncp.gov.br/api/consulta/v1";
+
+/** Health probe considered degraded above this latency. */
+export const PNCP_HEALTH_SLOW_MS = 15_000;
 
 /** Limites documentados em contract-matrix.md, schemas-consultas-pncp.md (probe 2026-09-19). */
 export const CONSULTA_PAGE_SIZE = {
@@ -25,6 +33,10 @@ export type ConsultaPage<T> = {
   raw: unknown;
 };
 
+export type ConsultaGetOptions = {
+  budget?: RequestBudget;
+};
+
 export function clampConsultaPageSize(
   kind: keyof typeof CONSULTA_PAGE_SIZE,
   tamanhoPagina?: number,
@@ -35,9 +47,27 @@ export function clampConsultaPageSize(
 }
 
 export class PncpConsultaClient {
-  constructor(private baseUrl = Deno.env.get("PNCP_CONSULTA_BASE") ?? DEFAULT_BASE) {}
+  private budget: RequestBudget | undefined;
 
-  private buildUrl(path: string, params: Record<string, string | number | undefined>): string {
+  constructor(
+    private baseUrl = Deno.env.get("PNCP_CONSULTA_BASE") ?? DEFAULT_BASE,
+  ) {}
+
+  /** Bind a request-scoped Edge deadline for all subsequent calls. */
+  withBudget(budget: RequestBudget): this {
+    this.budget = budget;
+    return this;
+  }
+
+  clearBudget(): this {
+    this.budget = undefined;
+    return this;
+  }
+
+  private buildUrl(
+    path: string,
+    params: Record<string, string | number | undefined>,
+  ): string {
     const url = new URL(`${this.baseUrl.replace(/\/+$/, "")}${path}`);
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null && v !== "") {
@@ -47,44 +77,85 @@ export class PncpConsultaClient {
     return url.toString();
   }
 
+  /**
+   * 204 → empty válido.
+   * 200 + corpo vazio → EmptyBodyAnomalyError (retry once; never treat as empty).
+   */
   private async parseBody<T>(response: Response): Promise<T> {
-    // PNCP devolve 204 sem corpo quando não há resultados (statuslicitacoes.com.br/api-pncp).
     if (response.status === 204) return {} as T;
     const text = await response.text();
-    if (!text.trim()) return {} as T;
+    if (!text.trim()) {
+      if (response.status === 200) {
+        throw new EmptyBodyAnomalyError();
+      }
+      return {} as T;
+    }
     return JSON.parse(text) as T;
   }
 
   async getJson<T = unknown>(
     path: string,
     params: Record<string, string | number | undefined> = {},
+    options: ConsultaGetOptions = {},
   ): Promise<{ status: number; body: T; elapsedMs: number }> {
     const url = this.buildUrl(path, params);
     const started = Date.now();
-    const response = await withRetry(async () => {
-      try {
-        const res = await fetchWithTimeout(url, {
-          headers: { Accept: "application/json" },
-        });
-        if (res.status === 429 || res.status >= 500) {
-          const retryAfterMs = res.status === 429
-            ? parseRetryAfterMs(res.headers.get("Retry-After"))
-            : null;
-          throw new RetryableHttpError(`PNCP consulta HTTP ${res.status}`, retryAfterMs);
+    const budget = options.budget ?? this.budget;
+
+    const { status, body } = await withRetry(
+      async () => {
+        const timeoutMs = budget
+          ? budget.attemptTimeoutMs(DEFAULT_FETCH_TIMEOUT_MS)
+          : DEFAULT_FETCH_TIMEOUT_MS;
+        if (timeoutMs <= 0) throw new BudgetExhaustedError();
+        try {
+          const res = await fetchWithTimeout(url, {
+            headers: { Accept: "application/json" },
+          }, timeoutMs);
+          if (res.status === 429 || res.status >= 500) {
+            const retryAfterMs = res.status === 429
+              ? parseRetryAfterMs(res.headers.get("Retry-After"))
+              : null;
+            throw new RetryableHttpError(
+              `PNCP consulta HTTP ${res.status}`,
+              retryAfterMs,
+            );
+          }
+          if (res.status >= 400) {
+            throw new PermanentHttpError(`PNCP consulta HTTP ${res.status}`);
+          }
+          const parsed = await this.parseBody<T>(res);
+          return { status: res.status, body: parsed };
+        } catch (error) {
+          if (error instanceof BudgetExhaustedError) throw error;
+          if (
+            error instanceof PermanentHttpError ||
+            error instanceof RetryableHttpError
+          ) {
+            throw error;
+          }
+          if (
+            (error instanceof DOMException &&
+              (error.name === "TimeoutError" || error.name === "AbortError")) ||
+            (error instanceof Error && /timeout/i.test(error.message))
+          ) {
+            throw new RetryableHttpError(
+              `PNCP consulta timeout (${timeoutMs}ms)`,
+              null,
+            );
+          }
+          throw error;
         }
-        if (res.status >= 400) {
-          throw new PermanentHttpError(`PNCP consulta HTTP ${res.status}`);
-        }
-        return res;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "TimeoutError") {
-          throw new Error("PNCP consulta timeout (45s)");
-        }
-        throw error;
-      }
-    });
-    const body = await this.parseBody<T>(response);
-    return { status: response.status, body, elapsedMs: Date.now() - started };
+      },
+      {
+        budget,
+        maxAttempts: 3,
+        maxTimeoutRetries: 1,
+        maxEmptyBodyRetries: 1,
+      },
+    );
+
+    return { status, body, elapsedMs: Date.now() - started };
   }
 
   extractList(body: unknown): unknown[] {
@@ -98,8 +169,14 @@ export class PncpConsultaClient {
     return [];
   }
 
-  extractPagination(body: unknown, pagina: number): Omit<ConsultaPage<unknown>, "data" | "raw"> {
-    const obj = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  extractPagination(
+    body: unknown,
+    pagina: number,
+  ): Omit<ConsultaPage<unknown>, "data" | "raw"> {
+    const obj = (body && typeof body === "object" ? body : {}) as Record<
+      string,
+      unknown
+    >;
     return {
       pagina: Number(obj.numeroPagina ?? obj.pagina ?? pagina),
       paginasRestantes: Number(obj.paginasRestantes ?? 0),
@@ -122,7 +199,10 @@ export class PncpConsultaClient {
   }
 
   /** Probe barato: totalRegistros no escopo da classe (Fase 2 do plano PCA). */
-  async probePcaClassificacao(anoPca: number, codigoClassificacaoSuperior: string) {
+  async probePcaClassificacao(
+    anoPca: number,
+    codigoClassificacaoSuperior: string,
+  ) {
     const tamanhoPagina = clampConsultaPageSize("pca", 20);
     const result = await this.getJson("/pca/", {
       anoPca,
@@ -136,6 +216,46 @@ export class PncpConsultaClient {
       total_registros: pagination.totalRegistros,
       paginas_restantes: pagination.paginasRestantes,
     };
+  }
+
+  /**
+   * Health-check leve antes de carga pesada.
+   * GET /v1/atas janela 1 dia, tamanhoPagina=10.
+   */
+  async probePncpHealth(options: ConsultaGetOptions = {}): Promise<{
+    status: "ok" | "PNCP_DEGRADADO";
+    elapsedMs: number;
+    detalhe?: string;
+  }> {
+    const end = new Date();
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 1);
+    const started = Date.now();
+    try {
+      const result = await this.getJson("/atas", {
+        dataInicial: formatPncpDate(start),
+        dataFinal: formatPncpDate(end),
+        pagina: 1,
+        tamanhoPagina: 10,
+      }, options);
+      const elapsedMs = Date.now() - started;
+      if (result.status >= 400 || elapsedMs > PNCP_HEALTH_SLOW_MS) {
+        return {
+          status: "PNCP_DEGRADADO",
+          elapsedMs,
+          detalhe: result.status >= 400
+            ? `HTTP ${result.status}`
+            : `slow ${elapsedMs}ms`,
+        };
+      }
+      return { status: "ok", elapsedMs };
+    } catch (error) {
+      return {
+        status: "PNCP_DEGRADADO",
+        elapsedMs: Date.now() - started,
+        detalhe: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   async fetchContratacoesPublicacao(params: {
@@ -188,7 +308,10 @@ export class PncpConsultaClient {
     const { tamanhoPagina, ...rest } = params;
     return this.getJson("/instrumentoscobranca/inclusao", {
       ...rest,
-      tamanhoPagina: clampConsultaPageSize("instrumentosCobranca", tamanhoPagina),
+      tamanhoPagina: clampConsultaPageSize(
+        "instrumentosCobranca",
+        tamanhoPagina,
+      ),
     });
   }
 
@@ -266,3 +389,5 @@ export function formatPncpDate(d: Date): string {
   const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}${m}${day}`;
 }
+
+export { BudgetExhaustedError, createRequestBudget };
