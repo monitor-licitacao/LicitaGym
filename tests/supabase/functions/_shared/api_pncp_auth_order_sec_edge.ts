@@ -19,22 +19,30 @@ Deno.test("SEC-EDGE-004 legislacao signed_url gated by requireUserAuth", async (
     throw new Error("requireUserAuth must precede createSignedUrl");
   }
   // Must not use prefix-only Bearer fallback anywhere
-  if (src.includes('startsWith("Bearer ")') || src.includes("startsWith('Bearer ')")) {
+  if (
+    src.includes('startsWith("Bearer ")') ||
+    src.includes("startsWith('Bearer ')")
+  ) {
     throw new Error("Bearer prefix fallback must be removed");
   }
 });
 
 Deno.test("SEC-EDGE-002 api-pncp POST auth before idempotency", async () => {
-  for (const name of [
-    "api-pncp-pca/index.ts",
-    "api-pncp-contratacoes/index.ts",
-    "api-pncp-legislacao/index.ts",
-  ]) {
+  for (
+    const name of [
+      "api-pncp-pca/index.ts",
+      "api-pncp-contratacoes/index.ts",
+      "api-pncp-legislacao/index.ts",
+    ]
+  ) {
     const src = await readSync(name);
     if (!src.includes("requireCronAuth")) {
       throw new Error(`${name} must use requireCronAuth`);
     }
-    if (src.includes('startsWith("Bearer ")') || src.includes("startsWith('Bearer ')")) {
+    if (
+      src.includes('startsWith("Bearer ")') ||
+      src.includes("startsWith('Bearer ')")
+    ) {
       throw new Error(`${name} still has Bearer prefix fallback`);
     }
     const authIdx = src.indexOf("requireCronAuth");

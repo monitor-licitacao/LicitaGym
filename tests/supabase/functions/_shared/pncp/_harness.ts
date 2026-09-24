@@ -1,6 +1,6 @@
 export {
-  CONSULTA_PAGE_SIZE,
   clampConsultaPageSize,
+  CONSULTA_PAGE_SIZE,
   PncpConsultaClient,
 } from "../../../../../supabase/functions/_shared/pncp/consulta-client.ts";
 export {
@@ -24,10 +24,17 @@ export const SYNC_DIR = new URL(
   import.meta.url,
 );
 
-export function jsonResponse(status: number, body: unknown, headers?: HeadersInit): Response {
+export function jsonResponse(
+  status: number,
+  body: unknown,
+  headers?: HeadersInit,
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...Object.fromEntries(new Headers(headers)) },
+    headers: {
+      "Content-Type": "application/json",
+      ...Object.fromEntries(new Headers(headers)),
+    },
   });
 }
 

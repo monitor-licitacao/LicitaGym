@@ -55,7 +55,10 @@ export async function fetchAllByRange<T>(
 }
 
 /** Chunk an `.in(...)` filter list so URL/body size stays bounded. */
-export function chunkValues<T>(values: readonly T[], size = POSTGREST_PAGE_SIZE): T[][] {
+export function chunkValues<T>(
+  values: readonly T[],
+  size = POSTGREST_PAGE_SIZE,
+): T[][] {
   if (values.length === 0) return [];
   const chunks: T[][] = [];
   for (let i = 0; i < values.length; i += size) {

@@ -19,7 +19,10 @@ Deno.test("fetchAllByRange walks until short page", async () => {
           error: null,
         };
       }
-      return { data: [POSTGREST_PAGE_SIZE, POSTGREST_PAGE_SIZE + 1], error: null };
+      return {
+        data: [POSTGREST_PAGE_SIZE, POSTGREST_PAGE_SIZE + 1],
+        error: null,
+      };
     },
     { orderBy: "id" },
   );
