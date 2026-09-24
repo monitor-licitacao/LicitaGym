@@ -43,18 +43,31 @@ Deno.test("chunkValues splits large .in() lists", () => {
   assertEquals(chunks[2].length, 500);
 });
 
-Deno.test("orgaos sync source uses fetchAllByRange", async () => {
+Deno.test("orgaos sync source uses fetchAllByRange with stable order", async () => {
   const src = await Deno.readTextFile(
     "supabase/functions/sync-pncp-orgaos/index.ts",
   );
   assertEquals(src.includes("fetchAllByRange"), true);
   assertEquals(src.includes("pca_itens_lidos"), true);
+  assertEquals(src.includes('.order("id")'), true);
+  assertEquals(src.includes("async (from, to)"), false);
 });
 
-Deno.test("catmat-scope-resolver pages loadEffectiveMaterialItems", async () => {
+Deno.test("catmat-scope-resolver pages with stable order keys", async () => {
   const src = await Deno.readTextFile(
     "supabase/functions/_shared/pncp/catmat-scope-resolver.ts",
   );
   assertEquals(src.includes("fetchAllByRange"), true);
+  assertEquals(src.includes('.order("codigo_pdm")'), true);
+  assertEquals(src.includes('.order("codigo_item")'), true);
   assertEquals(src.includes(".range(from, to)"), true);
+  assertEquals(src.includes("async (from, to)"), false);
+});
+
+Deno.test("fetchAllByRange documents mandatory .order() before .range()", async () => {
+  const src = await Deno.readTextFile(
+    "supabase/functions/_shared/pncp/postgrest-paginate.ts",
+  );
+  assertEquals(src.includes("MUST apply `.order("), true);
+  assertEquals(src.includes("PromiseLike<PageResult<T>>"), true);
 });

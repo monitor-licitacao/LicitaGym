@@ -74,12 +74,20 @@ export type PcaItemScope = "IN_SCOPE" | "OUT_OF_SCOPE";
 type QueryError = { message: string };
 type QueryResult<T> = { data: T[] | null; error: QueryError | null };
 
-/** Builder must support `.range()` so callers can page past PostgREST max-rows. */
-export type CatmatScopeFilterBuilder = {
+/** Builder after `.order()` — `.range()` pages past PostgREST max-rows. */
+export type CatmatScopeOrderedBuilder = {
   range(
     from: number,
     to: number,
   ): PromiseLike<QueryResult<Record<string, unknown>>>;
+};
+
+/** Builder after `.in()` — must `.order(uniqueCol)` before `.range()`. */
+export type CatmatScopeFilterBuilder = {
+  order(
+    column: string,
+    options?: { ascending?: boolean },
+  ): CatmatScopeOrderedBuilder;
 };
 
 export type CatmatScopeReadClient = {
@@ -183,11 +191,12 @@ export async function loadEffectiveMaterialItems(
   policy: readonly ScopeClassRule[] = TRANSITIONAL_FITNESS_SCOPE,
 ): Promise<EffectiveMaterialItem[]> {
   const classes = effectiveClasses(policy).map((rule) => Number(rule.classe));
-  const { rows: pdmRows } = await fetchAllByRange(async (from, to) =>
-    await client
+  const { rows: pdmRows } = await fetchAllByRange((from, to) =>
+    client
       .from("catmat_pdms")
       .select("codigo_pdm, codigo_grupo, codigo_classe, status")
       .in("codigo_classe", classes)
+      .order("codigo_pdm")
       .range(from, to)
   );
   const pdms = pdmRows.map((row) => ({
@@ -204,11 +213,12 @@ export async function loadEffectiveMaterialItems(
     scopedPdms.map((pdm) => pdm.codigo_pdm),
     POSTGREST_PAGE_SIZE,
   )) {
-    const { rows: itemRows } = await fetchAllByRange(async (from, to) =>
-      await client
+    const { rows: itemRows } = await fetchAllByRange((from, to) =>
+      client
         .from("catmat_itens")
         .select("codigo_item, codigo_pdm, status_item")
         .in("codigo_pdm", pdmChunk)
+        .order("codigo_item")
         .range(from, to)
     );
     for (const row of itemRows) {

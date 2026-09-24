@@ -10,7 +10,13 @@ export type PageResult<T> = {
 /**
  * Fetch all rows via repeated `.range(from, to)` until a short page.
  * Avoids silent truncation at the PostgREST max-rows default (1000).
- * Accepts PromiseLike so Supabase PostgrestFilterBuilder (Thenable) works.
+ *
+ * Accepts PromiseLike so Supabase PostgrestFilterBuilder (Thenable) works
+ * without wrapping the builder in `async` / `await`.
+ *
+ * Caller MUST apply `.order(<unique stable column>)` before `.range(...)`.
+ * Without a deterministic order, offset pages can skip/duplicate rows.
+ * Prefer PK / unique natural keys (e.g. `id`, `codigo_pdm`, `codigo_item`).
  */
 export async function fetchAllByRange<T>(
   fetchPage: (from: number, to: number) => PromiseLike<PageResult<T>>,
