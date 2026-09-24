@@ -117,16 +117,26 @@ Deno.serve(async (req) => {
       });
       runs.push({ http_status: response.status, ...(await response.json()) });
     }
-const failed = runs.some((run) =>
+    const nonTerminal = runs.some((run) =>
+      run.status === "already_running" ||
+      run.status === "blocked" ||
+      run.status === "executando" ||
+      run.status === "pendente" ||
+      run.status === "incompleta"
+    );
+    const failed = runs.some((run) =>
       run.http_status >= 400 || Number(run.erros ?? 0) > 0 ||
       run.status === "falhou" || run.status === "concluida_com_erros"
     );
+    const aggregateStatus = (failed || nonTerminal)
+      ? "concluida_com_erros"
+      : "concluida";
     return jsonResponse({
-      status: failed ? "concluida_com_erros" : "concluida",
+      status: aggregateStatus,
       scope: "transitional_fitness_scope",
       classes: resolved.pairs.map((pair) => String(pair.classe)),
       runs,
-    }, failed ? 500 : 200);
+    }, aggregateStatus === "concluida" ? 200 : 500);
   }
   return await ingestOneCatmatClass({
     ...body,
