@@ -35,5 +35,13 @@ BEGIN
 END
 $$;
 
-COMMENT ON FUNCTION public.refresh_catmat_item_completo() IS
-  'SEC-R1: REFRESH read-model matview only; EXECUTE restricted to service_role.';
+DO $$
+BEGIN
+  IF to_regprocedure('public.refresh_catmat_item_completo()') IS NOT NULL THEN
+    EXECUTE $comment$
+      COMMENT ON FUNCTION public.refresh_catmat_item_completo() IS
+        'SEC-R1: REFRESH read-model matview only; EXECUTE restricted to service_role.'
+    $comment$;
+  END IF;
+END
+$$;
