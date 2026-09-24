@@ -1,7 +1,17 @@
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import {
+  DateSlice,
+  pendingFromPriorRun,
+  resolveContinuationChainId,
+} from "./pagination-budget.ts";
 
 /** Edge timeout / cliente cancelado — libera lock preso em `executando`. */
 const STALE_LOCK_MS = 3 * 60 * 1000;
+
+export type PendingContinuation = {
+  slices: DateSlice[];
+  chainId: string;
+};
 
 export async function acquireSyncLock(
   client: SupabaseClient,
@@ -42,6 +52,49 @@ export async function acquireSyncLock(
 
   if (error) throw error;
   return { runId: data.id as string, alreadyRunning: false };
+}
+
+export async function loadPendingSlices(
+  client: SupabaseClient,
+  lockKey: string,
+  currentRunId: string,
+): Promise<PendingContinuation | null> {
+  const selectPrior = () =>
+    client.schema("private")
+      .from("pncp_sync_run")
+      .select("id, status, parametros")
+      .eq("lock_key", lockKey)
+      .neq("id", currentRunId);
+
+  const toContinuation = (
+    prior: { id: string; status: string; parametros: unknown } | null,
+  ): PendingContinuation | null => {
+    const slices = pendingFromPriorRun(prior);
+    if (!slices || !prior) return null;
+    return {
+      slices,
+      chainId: resolveContinuationChainId(prior, currentRunId),
+    };
+  };
+
+  const { data: latest, error } = await selectPrior()
+    .order("iniciada_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!latest) return null;
+  if (latest.status === "concluida" || latest.status === "concluida_com_erros") {
+    return null;
+  }
+  if (latest.status === "incompleta") return toContinuation(latest);
+
+  const { data: incomplete, error: incompleteError } = await selectPrior()
+    .eq("status", "incompleta")
+    .order("iniciada_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (incompleteError) throw incompleteError;
+  return toContinuation(incomplete);
 }
 
 export async function resolveIdempotency(

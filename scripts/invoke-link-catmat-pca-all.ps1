@@ -1,6 +1,7 @@
-# Pagina link-catmat-pca ate esgotar pca_itens da classe (offset estavel por id)
+# Pagina link-catmat-pca. Sem -ClasseCatmat a Edge aplica a policy inteira.
+# Uma classe especifica: -ClasseCatmat 7830
 param(
-  [string]$ClasseCatmat = "7830",
+  [string]$ClasseCatmat = "",
   [double]$LimiarSimilaridade = 0.55,
   [int]$Limite = 500,
   [int]$OffsetInicial = 0,
@@ -33,11 +34,11 @@ do {
   }
 
   $body = @{
-    classe_catmat       = $ClasseCatmat
     limiar_similaridade = $LimiarSimilaridade
     limite              = $Limite
     offset              = $offset
   }
+  if ($ClasseCatmat) { $body.classe_catmat = $ClasseCatmat }
 
   $response = Invoke-WebRequest `
     -Method POST `
@@ -48,18 +49,35 @@ do {
     -UseBasicParsing
 
   $json = $response.Content | ConvertFrom-Json
-  $analisados = [int]$json.analisados
-  $novos = [int]$json.vinculos_novos
-  $atualizados = if ($null -ne $json.vinculos_atualizados) { [int]$json.vinculos_atualizados } else { 0 }
-  $totNovos += $novos
-  $totAtualizados += $atualizados
-
-  Write-Host ("Rodada {0} offset={1} analisados={2} novos={3} atualizados={4} tem_mais={5}" -f `
-      $rodada, $offset, $analisados, $novos, $atualizados, $json.tem_mais) -ForegroundColor Green
-
-  if (-not $json.tem_mais -or $analisados -le 0) { break }
-  $offset = [int]$json.proximo_offset
+  if ($json.error -or ($json.status -eq "blocked")) {
+    Write-Host "link BLOCKED: $($json.error) $($json.reason)" -ForegroundColor Red
+    exit 1
+  }
+  $batches = @()
+  if ($json.resultados) { $batches = @($json.resultados) } else { $batches = @($json) }
+  $anyMore = $false
+  $nextOffset = $offset
+  foreach ($batch in $batches) {
+    $analisados = if ($null -ne $batch.analisados) { [int]$batch.analisados } else { 0 }
+    $novos = if ($null -ne $batch.vinculos_novos) { [int]$batch.vinculos_novos } else { 0 }
+    $atualizados = if ($null -ne $batch.vinculos_atualizados) { [int]$batch.vinculos_atualizados } else { 0 }
+    $totNovos += $novos
+    $totAtualizados += $atualizados
+    Write-Host ("classe={0} rodada={1} offset={2} analisados={3} novos={4} atualizados={5} tem_mais={6}" -f `
+        $batch.classe_catmat, $rodada, $offset, $analisados, $novos, $atualizados, $batch.tem_mais) -ForegroundColor Green
+    if ($batch.tem_mais) {
+      $anyMore = $true
+      $cand = [int]$batch.proximo_offset
+      if ($cand -gt $nextOffset) { $nextOffset = $cand }
+    }
+  }
+  if ($rodada -eq 1 -and -not $ClasseCatmat -and -not $json.resultados) {
+    Write-Host "AVISO: resposta plana de uma classe. Confira se a funcao implantada resolve a policy completa." -ForegroundColor Yellow
+  }
+  if (-not $anyMore) { break }
+  $offset = $nextOffset
   Start-Sleep -Seconds 2
 } while ($true)
 
-Write-Host "Total vinculos_novos=$totNovos atualizados=$totAtualizados (classe $ClasseCatmat)" -ForegroundColor Cyan
+$alvo = if ($ClasseCatmat) { $ClasseCatmat } else { "policy da Edge" }
+Write-Host "Total vinculos_novos=$totNovos atualizados=$totAtualizados ($alvo)" -ForegroundColor Cyan

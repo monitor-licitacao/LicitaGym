@@ -42,14 +42,62 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
   };
 
-  const selectColumns = options?.historyTable ? "*" : "id, payload_hash";
-  let query = client.from(table).select(selectColumns).limit(1);
+  if (options?.historyTable) {
+    let historyQuery = client.from(table).select("*").limit(1);
+    for (const [k, v] of Object.entries(uniqueKey)) {
+      historyQuery = historyQuery.eq(k, v);
+    }
+    const { data: existingHistory, error: historyReadError } = await historyQuery.maybeSingle();
+    if (historyReadError) throw historyReadError;
+    return await upsertExistingRow(
+      client,
+      table,
+      row,
+      uniqueKey,
+      fullRow,
+      payloadHash,
+      now,
+      options,
+      existingHistory as Record<string, unknown> | null,
+    );
+  }
+
+  let query = client.from(table).select("id, payload_hash").limit(1);
   for (const [k, v] of Object.entries(uniqueKey)) {
     query = query.eq(k, v);
   }
   const { data: existing, error: readError } = await query.maybeSingle();
   if (readError) throw readError;
 
+  return await upsertExistingRow(
+    client,
+    table,
+    row,
+    uniqueKey,
+    fullRow,
+    payloadHash,
+    now,
+    options,
+    existing as Record<string, unknown> | null,
+  );
+}
+
+async function upsertExistingRow<T extends Record<string, unknown>>(
+  client: SupabaseClient,
+  table: string,
+  _row: T,
+  _uniqueKey: Record<string, unknown>,
+  fullRow: Record<string, unknown>,
+  payloadHash: string,
+  now: string,
+  options: {
+    historyTable?: string;
+    historyFields?: HistoryFieldsOption;
+    syncRunId?: string;
+    lastSeenSyncId?: string;
+  } | undefined,
+  existing: Record<string, unknown> | null,
+): Promise<UpsertResult> {
   if (!existing) {
     const { data: inserted, error } = await client.from(table).insert(fullRow)
       .select("id").single();
@@ -66,8 +114,8 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     return "novo";
   }
 
-  const existingId = existing.id as string;
-  const existingPayloadHash = existing.payload_hash as string;
+  const existingId = String(existing.id);
+  const existingPayloadHash = String(existing.payload_hash);
 
   if (existingPayloadHash === payloadHash) {
     await client.from(table).update({

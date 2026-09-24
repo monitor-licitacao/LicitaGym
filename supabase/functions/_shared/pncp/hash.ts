@@ -8,8 +8,11 @@ const VOLATILE_KEYS = new Set([
 ]);
 
 export async function sha256Hex(input: string | Uint8Array): Promise<string> {
-  const data = typeof input === "string" ? new TextEncoder().encode(input) : input;
-  const hash = await crypto.subtle.digest("SHA-256", data);
+  // ArrayBuffer is a BufferSource. A Uint8Array view may be ArrayBufferLike and fail TS2345.
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  const hash = await crypto.subtle.digest("SHA-256", buffer);
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");

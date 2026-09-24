@@ -4,7 +4,8 @@ import {
   corsHeaders,
   jsonResponse,
   parseQueryInt,
-  validateCronAuth,
+  requireCronAuth,
+  requireUserAuth,
 } from "../_shared/http.ts";
 import { beginIdempotency, finishIdempotency } from "../_shared/pncp/idempotency.ts";
 
@@ -23,13 +24,14 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   if (req.method === "GET") {
-    const client = getUserClient(req);
-    const page = parseQueryInt(url, "page", 1);
-    const limit = Math.min(parseQueryInt(url, "limit", 20), 100);
-    const offset = (page - 1) * limit;
     const documentoId = url.searchParams.get("documento_id");
 
     if (documentoId && url.searchParams.get("signed_url") === "true") {
+      // SEC-EDGE-004: auth before service_role / createSignedUrl
+      // MVP single-tenant: any authenticated Supabase user (matches RLS SELECT).
+      const denied = await requireUserAuth(req);
+      if (denied) return denied;
+
       const serviceUrl = Deno.env.get("SUPABASE_URL");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (!serviceUrl || !serviceKey) {
@@ -52,15 +54,23 @@ Deno.serve(async (req) => {
       if (!versao?.storage_path) {
         return jsonResponse({ error: "Arquivo não encontrado" }, 404);
       }
-      if (versao.storage_path.includes('..')) {
+      if (versao.storage_path.includes("..")) {
         throw new Error("Invalid path");
       }
       const { data: signed, error } = await admin.storage
         .from("pncp-legislation")
         .createSignedUrl(versao.storage_path, 3600);
       if (error) return jsonResponse({ error: error.message }, 400);
-      return jsonResponse({ signed_url: signed.signedUrl, expires_in: 3600 });
+      return jsonResponse({
+        signed_url: signed.signedUrl,
+        expires_in: 3600,
+      });
     }
+
+    const client = getUserClient(req);
+    const page = parseQueryInt(url, "page", 1);
+    const limit = Math.min(parseQueryInt(url, "limit", 20), 100);
+    const offset = (page - 1) * limit;
 
     const { data, error, count } = await client
       .from("legislacao_documentos")
@@ -74,6 +84,9 @@ Deno.serve(async (req) => {
   }
 
   if (req.method === "POST") {
+    const denied = requireCronAuth(req);
+    if (denied) return denied;
+
     const idempotencyKey = req.headers.get("Idempotency-Key");
     if (!idempotencyKey) {
       return jsonResponse({ error: "Header Idempotency-Key obrigatório" }, 400);
@@ -94,14 +107,10 @@ Deno.serve(async (req) => {
     const begin = await beginIdempotency(admin, idempotencyKey, rota, body);
     if (begin.skip) return jsonResponse(begin.resposta);
 
-    if (!validateCronAuth(req)) {
-      const auth = req.headers.get("Authorization");
-      if (!auth?.startsWith("Bearer ")) {
-        return jsonResponse({ error: "Unauthorized" }, 401);
-      }
-    }
-
     const secret = Deno.env.get("SYNC_CRON_SECRET");
+    if (!secret) {
+      return jsonResponse({ error: "Sync não configurado" }, 500);
+    }
     const res = await fetch(`${serviceUrl}/functions/v1/sync-pncp-legislation`, {
       method: "POST",
       headers: {

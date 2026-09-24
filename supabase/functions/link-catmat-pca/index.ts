@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
+import { linkTargetClasses } from "../_shared/pncp/catmat-scope-resolver.ts";
 import { createServiceClient } from "../_shared/pncp/supabase-admin.ts";
 
 type LinkBody = {
@@ -35,19 +36,16 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : inter / union;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
-  if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+type LinkClient = ReturnType<typeof createServiceClient>;
 
-  const body = (await req.json().catch(() => ({}))) as LinkBody;
-  const classeCatmat = body.classe_catmat ?? "7830";
-  const limite = Math.min(Math.max(body.limite ?? 500, 1), 1000);
-  const offset = Math.max(body.offset ?? 0, 0);
-  const limiar = body.limiar_similaridade ?? 0.55;
+async function linkOneClass(
+  client: LinkClient,
+  classeCatmat: string,
+  limite: number,
+  offset: number,
+  limiar: number,
+) {
   const rangeEnd = offset + limite - 1;
-
-  const client = createServiceClient();
 
   const { data: pcaItens, error: pcaError } = await client
     .from("pca_itens")
@@ -56,14 +54,15 @@ Deno.serve(async (req) => {
     .eq("classe_material_servico", classeCatmat)
     .order("id", { ascending: true })
     .range(offset, rangeEnd);
-  if (pcaError) return jsonResponse({ error: pcaError.message }, 500);
+  if (pcaError) throw new Error(pcaError.message);
 
+  // Pool de texto desta classe. Não é whitelist de pertencimento ao escopo.
   const { data: catalogoItens, error: catError } = await client
     .from("catalogo_itens")
     .select("id, codigo_catmat, codigo_pdm, descricao, classe_catmat, ativo")
     .eq("ativo", true)
     .eq("classe_catmat", classeCatmat);
-  if (catError) return jsonResponse({ error: catError.message }, 500);
+  if (catError) throw new Error(catError.message);
 
   const catalogoIndex = (catalogoItens ?? []).map((item) => ({
     ...item,
@@ -146,7 +145,7 @@ Deno.serve(async (req) => {
   const batchSize = pcaItens?.length ?? 0;
   const proximoOffset = offset + batchSize;
 
-  return jsonResponse({
+  return {
     status: "concluida",
     classe_catmat: classeCatmat,
     limiar_similaridade: limiar,
@@ -155,5 +154,43 @@ Deno.serve(async (req) => {
     proximo_offset: proximoOffset,
     tem_mais: batchSize >= limite,
     ...stats,
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
+  if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const parsedBody: unknown = await req.json().catch(() => null);
+  if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return jsonResponse({ error: "Corpo JSON inválido" }, 400);
+  }
+  const body = parsedBody as LinkBody;
+  if (!targets.ok) {
+    return jsonResponse({ status: "blocked", reason: targets.reason }, 423);
+  }
+  const limite = Math.min(Math.max(body.limite ?? 500, 1), 1000);
+  const offset = Math.max(body.offset ?? 0, 0);
+  const limiar = body.limiar_similaridade ?? 0.55;
+  const client = createServiceClient();
+
+  const resultados = [];
+  try {
+    for (const classe of targets.classes) {
+      resultados.push(await linkOneClass(client, classe, limite, offset, limiar));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return jsonResponse({ error: message }, 500);
+  }
+  if (resultados.length === 1) {
+    return jsonResponse(resultados[0]);
+  }
+  return jsonResponse({
+    status: "concluida",
+    scope: "transitional_fitness_scope",
+    classes: targets.classes,
+    resultados,
   });
 });

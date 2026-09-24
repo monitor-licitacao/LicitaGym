@@ -5,7 +5,15 @@ import {
   formatPncpDate,
   PncpConsultaClient,
 } from "../_shared/pncp/consulta-client.ts";
-import { acquireSyncLock } from "../_shared/pncp/lock.ts";
+import { acquireSyncLock, loadPendingSlices } from "../_shared/pncp/lock.ts";
+import {
+  mayInactivateNotSeen,
+  PAGE_HARD_CAP,
+  PageFetchError,
+  rootSlices,
+  runCappedDateSync,
+  syncTerminalStatus,
+} from "../_shared/pncp/pagination-budget.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
 import { normalizeEdital } from "../_shared/pncp/normalize.ts";
 import {
@@ -62,43 +70,63 @@ Deno.serve(async (req) => {
 
   const stats = { novos: 0, alterados: 0, inalterados: 0, erros: 0, recebidos: 0 };
   const tamanhoPagina = clampConsultaPageSize("contratacoes");
+  let chainId = runId;
 
   try {
-    for (const modalidade of modalidades) {
-      let pagina = 1;
-      let paginasRestantes = 1;
-
-      while (paginasRestantes > 0 && pagina <= 200) {
-        const fetchFn = body.usar_atualizacao
-          ? () => consulta.fetchContratacoesAtualizacao({
-            dataInicial,
-            dataFinal,
+    const prior = await loadPendingSlices(client, lockKey, runId);
+    const slices = prior?.slices ?? rootSlices(dataInicial, dataFinal, modalidades);
+    chainId = prior?.chainId ?? runId;
+    const result = await runCappedDateSync({
+      cap: PAGE_HARD_CAP,
+      slices,
+      fetchPage: async (slice, pagina) => {
+        const modalidade = slice.modalidade;
+        if (modalidade === undefined) {
+          throw new Error("fatia de edital sem modalidade");
+        }
+        const fetched = body.usar_atualizacao
+          ? await consulta.fetchContratacoesAtualizacao({
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
             codigoModalidadeContratacao: modalidade,
             pagina,
             tamanhoPagina,
           })
-          : () => consulta.fetchContratacoesPublicacao({
-            dataInicial,
-            dataFinal,
+          : await consulta.fetchContratacoesPublicacao({
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
             codigoModalidadeContratacao: modalidade,
             pagina,
             tamanhoPagina,
           });
-
+        const pagination = consulta.extractPagination(fetched.body, pagina);
+        return {
+          paginasRestantes: pagination.paginasRestantes,
+          status: fetched.status,
+          elapsedMs: fetched.elapsedMs,
+          body: fetched.body,
+        };
+      },
+      onPage: async (slice, pagina, page) => {
+        const modalidade = slice.modalidade;
         const endpoint = body.usar_atualizacao
           ? `/contratacoes/atualizacao?modalidade=${modalidade}&pagina=${pagina}`
           : `/contratacoes/publicacao?modalidade=${modalidade}&pagina=${pagina}`;
-
-        const { status, body: responseBody, elapsedMs } = await fetchFn();
-        const respostaHash = await sha256Hex(JSON.stringify(responseBody));
+        const respostaHash = await sha256Hex(JSON.stringify(page.body));
 
         await logSyncRequest(client, {
           syncRunId: runId,
           endpoint,
-          parametros: { dataInicial, dataFinal, modalidade, pagina, tamanhoPagina },
+          parametros: {
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
+            modalidade,
+            pagina,
+            tamanhoPagina,
+          },
           pagina,
-          statusHttp: status,
-          tempoRespostaMs: elapsedMs,
+          statusHttp: page.status,
+          tempoRespostaMs: page.elapsedMs,
           respostaHash,
         });
 
@@ -106,58 +134,88 @@ Deno.serve(async (req) => {
           syncRunId: runId,
           resourceType: "contratacoes_editais",
           endpoint,
-          requestHash: await hashPayload({ dataInicial, dataFinal, modalidade, pagina }),
+          requestHash: await hashPayload({
+            dataInicial: slice.dataInicial,
+            dataFinal: slice.dataFinal,
+            modalidade,
+            pagina,
+          }),
           contentHash: respostaHash,
-          payload: responseBody,
+          payload: page.body,
         });
 
-        const list = consulta.extractList(responseBody);
-        const pagination = consulta.extractPagination(responseBody, pagina);
-        paginasRestantes = pagination.paginasRestantes;
-
+        const list = consulta.extractList(page.body);
         for (const raw of list) {
-          const item = raw as Record<string, unknown>;
-          const row = normalizeEdital(item);
+          const row = normalizeEdital(raw as Record<string, unknown>);
           if (!row.orgao_cnpj || !row.ano || !row.sequencial) continue;
           stats.recebidos++;
 
-          const result = await upsertByHash(
+          const upsert = await upsertByHash(
             client,
             "contratacoes_editais",
             { orgao_cnpj: row.orgao_cnpj, ano: row.ano, sequencial: row.sequencial },
             row,
-            { syncRunId: runId, lastSeenSyncId: runId },
+            { syncRunId: runId, lastSeenSyncId: chainId },
           );
-          if (result === "novo") stats.novos++;
-          else if (result === "alterado") stats.alterados++;
-          else if (result === "inalterado") stats.inalterados++;
+          if (upsert === "novo") stats.novos++;
+          else if (upsert === "alterado") stats.alterados++;
+          else if (upsert === "inalterado") stats.inalterados++;
           else stats.erros++;
         }
+      },
+    });
 
-        if (paginasRestantes <= 0) break;
-        pagina++;
-      }
-    }
-
-    if (body.modo === "completo") {
-      await inactivateNotSeen(client, "contratacoes_editais", runId);
+    const status = syncTerminalStatus(result.pending, stats.erros);
+    if (mayInactivateNotSeen(body.modo, status)) {
+      await inactivateNotSeen(client, "contratacoes_editais", chainId);
     }
 
     await finishSyncRun(client, runId, {
-      status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+      status,
       totalRecebidos: stats.recebidos,
       totalNovos: stats.novos,
       totalAtualizados: stats.alterados,
       totalInalterados: stats.inalterados,
       totalErros: stats.erros,
+      erroPrincipal: status === "incompleta"
+        ? `checkpoint: ${result.pending.length} fatias pendentes`
+        : undefined,
+      paginaAtual: result.pending[0]?.nextPage,
+      parametros: {
+        ...body,
+        continuation: {
+          pending: result.pending,
+          pagesFetched: result.pagesFetched,
+          chain_id: chainId,
+        },
+      },
     });
 
-    return jsonResponse({ sync_id: runId, status: "concluida", ...stats });
-  } catch (error) {
-    await finishSyncRun(client, runId, {
-      status: "falhou",
-      erroPrincipal: error instanceof Error ? error.message : String(error),
+    return jsonResponse({
+      sync_id: runId,
+      chain_id: chainId,
+      status,
+      paginas_buscadas: result.pagesFetched,
+      fatias_pendentes: result.pending.length,
+      ...stats,
     });
-    return jsonResponse({ error: String(error), sync_id: runId }, 500);
+  } catch (error) {
+    const pending = error instanceof PageFetchError ? error.pending : null;
+    const status = pending && pending.length > 0 ? "incompleta" : "falhou";
+    const message = error instanceof Error ? error.message : String(error);
+    await finishSyncRun(client, runId, {
+      status,
+      erroPrincipal: message,
+      totalRecebidos: stats.recebidos,
+      totalNovos: stats.novos,
+      totalAtualizados: stats.alterados,
+      totalInalterados: stats.inalterados,
+      totalErros: stats.erros,
+      paginaAtual: pending?.[0]?.nextPage,
+      parametros: pending
+        ? { ...body, continuation: { pending, chain_id: chainId } }
+        : undefined,
+    });
+    return jsonResponse({ error: message, sync_id: runId, status }, 500);
   }
 });

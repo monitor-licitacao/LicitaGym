@@ -1,12 +1,11 @@
 import { jsonResponse } from "../http.ts";
+import { effectiveClassCodes, effectiveClasses } from "./catmat-scope-resolver.ts";
 import {
   defaultPcaClassificacoes,
   isCatalogoCatmatClasseAllowed,
-  LICITAGYM_CATMAT_CLASSE,
-  LICITAGYM_CATMAT_GRUPO,
 } from "./licitagym-catmat.ts";
 
-/** Escopo v1: CATMAT/PCA classe 7830 + link. Syncs nacionais exigem override explícito. */
+/** Escopo transitório: classes da política única. Syncs nacionais exigem override explícito. */
 export function isStrictLicitagymScope(): boolean {
   return Deno.env.get("LICITAGYM_SCOPE_GATE") !== "off";
 }
@@ -26,10 +25,8 @@ export function assertPcaClassificacoesInScope(codigos: string[]): string | null
 export function assertCatmatClasseInScope(codigoGrupo: number, codigoClasse: number): string | null {
   if (!isStrictLicitagymScope()) return null;
   if (isCatalogoCatmatClasseAllowed(codigoGrupo, codigoClasse)) return null;
-  return (
-    `CATMAT fora do escopo do catálogo (${LICITAGYM_CATMAT_GRUPO}/${LICITAGYM_CATMAT_CLASSE} fitness, ` +
-    `72/7220 piso): ${codigoGrupo}/${codigoClasse}`
-  );
+  const pares = effectiveClasses().map((rule) => `${rule.grupo}/${rule.classe}`).join(", ");
+  return `CATMAT fora do escopo LicitaGym (${pares}): ${codigoGrupo}/${codigoClasse}`;
 }
 
 export function nationalPncpSyncGate(resource: string) {
@@ -37,13 +34,16 @@ export function nationalPncpSyncGate(resource: string) {
     {
       status: "blocked",
       reason:
-        `Sync nacional "${resource}" fora do escopo LicitaGym (classe ${LICITAGYM_CATMAT_CLASSE})`,
+        `Sync nacional "${resource}" fora do escopo LicitaGym (classes ${effectiveClassCodes().join(", ")})`,
       hint:
         "Pipeline escopo: sync-compras-catmat → sync-pncp-pca → link-catmat-pca. Override: PNCP_NATIONAL_SYNC_ENABLED=true",
       scope: {
-        catmat_grupo: "78",
-        catmat_classe: LICITAGYM_CATMAT_CLASSE,
-        pca_classificacao: LICITAGYM_CATMAT_CLASSE,
+        catmat_classes: effectiveClasses().map((rule) => ({
+          grupo: rule.grupo,
+          classe: rule.classe,
+          priority: rule.priority,
+        })),
+        pca_classificacoes: effectiveClassCodes(),
       },
     },
     423,

@@ -4,7 +4,7 @@ import {
   corsHeaders,
   jsonResponse,
   parseQueryInt,
-  validateCronAuth,
+  requireCronAuth,
 } from "../_shared/http.ts";
 import { beginIdempotency, finishIdempotency } from "../_shared/pncp/idempotency.ts";
 
@@ -58,6 +58,10 @@ Deno.serve(async (req) => {
   }
 
   if (req.method === "POST") {
+    // AUTH → AUTHORIZE before any privileged state (idempotency / sync)
+    const denied = requireCronAuth(req);
+    if (denied) return denied;
+
     const idempotencyKey = req.headers.get("Idempotency-Key");
     if (!idempotencyKey) {
       return jsonResponse({ error: "Header Idempotency-Key obrigatório" }, 400);
@@ -77,13 +81,6 @@ Deno.serve(async (req) => {
     const rota = "POST /api/pca/sync";
     const begin = await beginIdempotency(admin, idempotencyKey, rota, body);
     if (begin.skip) return jsonResponse(begin.resposta);
-
-    if (!validateCronAuth(req)) {
-      const auth = req.headers.get("Authorization");
-      if (!auth?.startsWith("Bearer ")) {
-        return jsonResponse({ error: "Unauthorized" }, 401);
-      }
-    }
 
     const result = await triggerSync(body);
     await finishIdempotency(admin, idempotencyKey, rota, result.body, result.status);

@@ -1,4 +1,9 @@
-import { fetchWithTimeout, withRetry } from "./retry.ts";
+import {
+  fetchWithTimeout,
+  parseRetryAfterMs,
+  RetryableHttpError,
+  withRetry,
+} from "./retry.ts";
 
 const DEFAULT_SEARCH_BASE = "https://pncp.gov.br/api/search";
 
@@ -64,7 +69,10 @@ export class PncpSearchClient {
           headers: { Accept: "application/json" },
         });
         if (res.status === 429 || res.status >= 500) {
-          throw new Error(`PNCP search HTTP ${res.status}`);
+          const retryAfterMs = res.status === 429
+            ? parseRetryAfterMs(res.headers.get("Retry-After"))
+            : null;
+          throw new RetryableHttpError(`PNCP search HTTP ${res.status}`, retryAfterMs);
         }
         return res;
       } catch (error) {

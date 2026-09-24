@@ -8,6 +8,13 @@ import {
   logSyncRequest,
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
+import { orgSyncClasses } from "../_shared/pncp/catmat-scope-resolver.ts";
+import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
+import {
+  chunkValues,
+  fetchAllByRange,
+  POSTGREST_PAGE_SIZE,
+} from "../_shared/pncp/postgrest-paginate.ts";
 import { upsertByHash } from "../_shared/pncp/upsert.ts";
 
 Deno.serve(async (req) => {
@@ -24,25 +31,57 @@ Deno.serve(async (req) => {
     return jsonResponse({ status: "already_running", sync_id: runId });
   }
 
-  const stats = { entidades_inseridas: 0, orgaos_inseridas: 0, unidades_inseridas: 0, erros: 0 };
+  const stats = {
+    entidades_inseridas: 0,
+    orgaos_inseridas: 0,
+    unidades_inseridas: 0,
+    erros: 0,
+    pca_itens_lidos: 0,
+    pca_planos_lidos: 0,
+  };
 
   try {
-    // Ler CNPJs distintos de pca_planos (recorte fitness 7830)
-    const cnpjsResult = await client
-      .from("pca_planos")
-      .select("orgao_cnpj")
-      .eq("classe_catmat", "7830")
-      .order("orgao_cnpj", { ascending: true });
+    const classCodes = orgSyncClasses().map((classe) => Number(classe));
+    const { rows: itemRows, pages: itemPages } = await fetchAllByRange<{
+      pca_plano_id: string;
+    }>(
+      (from, to) =>
+        client
+          .from("pca_itens")
+          .select("pca_plano_id")
+          .in("codigo_classe_catmat", classCodes)
+          .order("id")
+          .range(from, to),
+      { orderBy: "id" },
+    );
+    stats.pca_itens_lidos = itemRows.length;
 
-    if (cnpjsResult.error) {
-      throw new Error(`Erro ao ler pca_planos: ${cnpjsResult.error.message}`);
-    }
+    const planIds = [
+      ...new Set(
+        itemRows
+          .map((row) => row.pca_plano_id as string)
+          .filter((id) => typeof id === "string" && id.length > 0),
+      ),
+    ];
 
     const cnpjsSet = new Set<string>();
-    (cnpjsResult.data ?? []).forEach((row: Record<string, unknown>) => {
-      const cnpj = String(row.orgao_cnpj ?? "").trim();
-      if (cnpj && cnpj.length > 0) cnpjsSet.add(cnpj);
-    });
+    for (const idChunk of chunkValues(planIds, POSTGREST_PAGE_SIZE)) {
+      const { rows: planRows } = await fetchAllByRange<{ orgao_cnpj: string }>(
+        (from, to) =>
+          client
+            .from("pca_planos")
+            .select("orgao_cnpj")
+            .in("id", idChunk)
+            .order("id")
+            .range(from, to),
+        { orderBy: "id" },
+      );
+      stats.pca_planos_lidos += planRows.length;
+      for (const row of planRows) {
+        const cnpj = String(row.orgao_cnpj ?? "").trim();
+        if (cnpj.length > 0) cnpjsSet.add(cnpj);
+      }
+    }
 
     const cnpjs = Array.from(cnpjsSet);
     for (const cnpj of cnpjs) {
@@ -50,14 +89,18 @@ Deno.serve(async (req) => {
         const orgaoData = await integracao.getOrgao(cnpj);
         const payload = orgaoData as Record<string, unknown>;
 
+        const endpoint = `/orgaos/${cnpj}`;
+        const requestHash = await hashPayload({ cnpj });
+        const contentHash = await sha256Hex(JSON.stringify(payload));
         await storeSourceRecord(client, {
           syncRunId: runId,
-          endpoint: `/orgaos/${cnpj}`,
-          chave_natural: cnpj,
+          resourceType: "orgaos",
+          endpoint,
+          requestHash,
+          contentHash,
           payload,
         });
 
-        // Upsert entidade via chave natural (codigo_pncp)
         const entidadeResult = await upsertByHash(
           client,
           "entidades",
@@ -73,7 +116,6 @@ Deno.serve(async (req) => {
 
         if (entidadeResult !== "erro") stats.entidades_inseridas++;
 
-        // Obter ID da entidade para FK
         const entidadeIdResult = await client
           .from("entidades")
           .select("id")
@@ -83,7 +125,6 @@ Deno.serve(async (req) => {
         if (entidadeIdResult.data && entidadeIdResult.data.id) {
           const entidadeId = entidadeIdResult.data.id;
 
-          // Upsert orgao via FK entidade_id
           const orgaoResult = await upsertByHash(
             client,
             "orgaos",
@@ -109,14 +150,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    await finishSyncRun(client, runId, stats);
-    return jsonResponse({ status: "ok", stats, cnpjs_processados: cnpjs.length });
+    await finishSyncRun(client, runId, {
+      status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+      totalRecebidos: cnpjs.length,
+      totalErros: stats.erros,
+      parametros: {
+        ...stats,
+        pca_itens_pages: itemPages,
+        plan_id_count: planIds.length,
+      },
+    });
+    return jsonResponse({
+      status: stats.erros > 0 ? "concluida_com_erros" : "ok",
+      stats,
+      cnpjs_processados: cnpjs.length,
+    }, stats.erros > 0 ? 500 : 200);
   } catch (error) {
-    await finishSyncRun(
-      client,
-      runId,
-      { ...stats, erro: error instanceof Error ? error.message : String(error) },
-    );
+    await finishSyncRun(client, runId, {
+      status: "falhou",
+      totalErros: stats.erros + 1,
+      erroPrincipal: error instanceof Error ? error.message : String(error),
+      parametros: stats,
+    });
     return jsonResponse(
       { status: "error", erro: error instanceof Error ? error.message : String(error) },
       500,

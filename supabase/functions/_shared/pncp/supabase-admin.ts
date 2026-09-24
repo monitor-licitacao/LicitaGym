@@ -50,9 +50,11 @@ export async function finishSyncRun(
     totalErros?: number;
     erroPrincipal?: string;
     paginaAtual?: number;
+    totalPaginas?: number;
+    parametros?: Record<string, unknown>;
   },
 ) {
-  const { error } = await client.schema("private").from("pncp_sync_run").update({
+  const patch: Record<string, unknown> = {
     status: stats.status,
     total_recebidos: stats.totalRecebidos,
     total_novos: stats.totalNovos,
@@ -62,7 +64,10 @@ export async function finishSyncRun(
     erro_principal: stats.erroPrincipal ?? null,
     pagina_atual: stats.paginaAtual,
     finalizada_em: new Date().toISOString(),
-  }).eq("id", runId);
+  };
+  if (stats.totalPaginas !== undefined) patch.total_paginas = stats.totalPaginas;
+  if (stats.parametros !== undefined) patch.parametros = stats.parametros;
+  const { error } = await client.schema("private").from("pncp_sync_run").update(patch).eq("id", runId);
   if (error) throw error;
 }
 

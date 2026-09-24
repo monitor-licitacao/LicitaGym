@@ -22,10 +22,7 @@ import type {
 import { corsHeaders, jsonResponse, validateCronAuth } from "../_shared/http.ts";
 import { acquireSyncLock } from "../_shared/pncp/lock.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
-import {
-  LICITAGYM_CATMAT_CLASSE,
-  LICITAGYM_CATMAT_GRUPO,
-} from "../_shared/pncp/licitagym-catmat.ts";
+import { resolveCatmatIngestTargets } from "../_shared/pncp/catmat-scope-resolver.ts";
 import { assertCatmatClasseInScope } from "../_shared/pncp/licitagym-scope-gate.ts";
 import {
   createServiceClient,
@@ -106,8 +103,54 @@ Deno.serve(async (req) => {
   if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;
-  const codigoGrupo = body.codigo_grupo ?? Number(LICITAGYM_CATMAT_GRUPO);
-  const codigoClasse = body.codigo_classe ?? Number(LICITAGYM_CATMAT_CLASSE);
+  const resolved = resolveCatmatIngestTargets(body);
+  if (!resolved.ok) {
+    return jsonResponse({ status: "blocked", reason: resolved.reason }, 423);
+  }
+  if (resolved.pairs.length !== 1) {
+    const runs = [];
+    for (const pair of resolved.pairs) {
+      const response = await ingestOneCatmatClass({
+        ...body,
+        codigo_grupo: pair.grupo,
+        codigo_classe: pair.classe,
+      });
+      runs.push({ http_status: response.status, ...(await response.json()) });
+    }
+    const nonTerminal = runs.some((run) =>
+      run.status === "already_running" ||
+      run.status === "blocked" ||
+      run.status === "executando" ||
+      run.status === "pendente" ||
+      run.status === "incompleta"
+    );
+    const failed = runs.some((run) =>
+      run.http_status >= 400 || Number(run.erros ?? 0) > 0 ||
+      run.status === "falhou" || run.status === "concluida_com_erros"
+    );
+    const aggregateStatus = (failed || nonTerminal)
+      ? "concluida_com_erros"
+      : "concluida";
+    return jsonResponse({
+      status: aggregateStatus,
+      scope: "transitional_fitness_scope",
+      classes: resolved.pairs.map((pair) => String(pair.classe)),
+      runs,
+    }, aggregateStatus === "concluida" ? 200 : 500);
+  }
+  return await ingestOneCatmatClass({
+    ...body,
+    codigo_grupo: resolved.pairs[0].grupo,
+    codigo_classe: resolved.pairs[0].classe,
+  });
+});
+
+async function ingestOneCatmatClass(body: SyncBody): Promise<Response> {
+  const codigoGrupo = body.codigo_grupo;
+  const codigoClasse = body.codigo_classe;
+  if (codigoGrupo == null || codigoClasse == null) {
+    return jsonResponse({ status: "blocked", reason: "par grupo/classe ausente" }, 500);
+  }
   const scopeErr = assertCatmatClasseInScope(codigoGrupo, codigoClasse);
   if (scopeErr) {
     return jsonResponse({ status: "blocked", reason: scopeErr }, 423);
@@ -292,8 +335,9 @@ Deno.serve(async (req) => {
     }
 
     if (!incluirCaracteristicas) {
+      const terminalStatus = stats.erros > 0 ? "concluida_com_erros" : "concluida";
       await finishSyncRun(client, runId, {
-        status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
+        status: terminalStatus,
         totalRecebidos: stats.recebidos,
         totalNovos: stats.novos,
         totalAtualizados: stats.alterados,
@@ -303,14 +347,14 @@ Deno.serve(async (req) => {
 
       return jsonResponse({
         sync_id: runId,
-        status: "concluida",
+        status: terminalStatus,
         codigo_grupo: codigoGrupo,
         codigo_classe: codigoClasse,
         somente_caracteristicas: somenteCaracteristicas,
         incluir_caracteristicas: false,
         proximo_offset_caracteristicas: 0,
         ...stats,
-      });
+      }, stats.erros > 0 ? 500 : 200);
     }
 
     const { data: itensParaCaracteristicas, error: itensError } = await client
@@ -372,9 +416,10 @@ Deno.serve(async (req) => {
       totalErros: stats.erros,
     });
 
+    const terminalStatus = stats.erros > 0 ? "concluida_com_erros" : "concluida";
     return jsonResponse({
       sync_id: runId,
-      status: "concluida",
+      status: terminalStatus,
       codigo_grupo: codigoGrupo,
       codigo_classe: codigoClasse,
       somente_caracteristicas: somenteCaracteristicas,
@@ -383,7 +428,7 @@ Deno.serve(async (req) => {
       caracteristicas_processadas: processados,
       proximo_offset_caracteristicas: proximoOffset,
       ...stats,
-    });
+    }, stats.erros > 0 ? 500 : 200);
   } catch (error) {
     const detalhe = error instanceof Error
       ? error.message
@@ -399,4 +444,4 @@ Deno.serve(async (req) => {
       sync_id: runId,
     }, 500);
   }
-});
+}
