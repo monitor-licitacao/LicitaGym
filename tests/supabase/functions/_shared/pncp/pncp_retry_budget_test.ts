@@ -93,7 +93,7 @@ Deno.test("timeouts: at most one retry then stop before deadline", async () => {
           },
         },
       ),
-    BudgetExhaustedError,
+    DOMException,
   );
 
   assertEquals(attempts, 2);
@@ -163,6 +163,7 @@ Deno.test("fetchWithTimeout clears timer on success (no leak)", async () => {
   try {
     const res = await fetchWithTimeout("https://example.test/", {}, 5_000);
     assertEquals(res.status, 200);
+    await res.text();
   } finally {
     globalThis.fetch = original;
   }
@@ -200,8 +201,9 @@ Deno.test("fetchWithTimeout mantém timeout até consumir body", async () => {
     return new Response(stream, { status: 200 });
   }) as typeof fetch;
   try {
+    const res = await fetchWithTimeout("https://example.test/", {}, 30);
     await assertRejects(
-      () => fetchWithTimeout("https://example.test/", {}, 30),
+      () => res.text(),
       DOMException,
     );
   } finally {

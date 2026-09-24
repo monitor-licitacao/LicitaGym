@@ -113,6 +113,7 @@ export class PncpConsultaClient {
             headers: { Accept: "application/json" },
           }, timeoutMs);
           if (res.status === 429 || res.status >= 500) {
+            await res.body?.cancel();
             const retryAfterMs = res.status === 429
               ? parseRetryAfterMs(res.headers.get("Retry-After"))
               : null;
@@ -122,6 +123,7 @@ export class PncpConsultaClient {
             );
           }
           if (res.status >= 400) {
+            await res.body?.cancel();
             throw new PermanentHttpError(`PNCP consulta HTTP ${res.status}`);
           }
           const parsed = await this.parseBody<T>(res);

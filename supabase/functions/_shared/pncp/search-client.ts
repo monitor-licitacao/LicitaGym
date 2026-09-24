@@ -87,6 +87,7 @@ export class PncpSearchClient {
             headers: { Accept: "application/json" },
           }, timeoutMs);
           if (res.status === 429 || res.status >= 500) {
+            await res.body?.cancel();
             const retryAfterMs = res.status === 429
               ? parseRetryAfterMs(res.headers.get("Retry-After"))
               : null;
@@ -97,8 +98,15 @@ export class PncpSearchClient {
           }
           return res;
         } catch (error) {
-          if (error instanceof DOMException && error.name === "TimeoutError") {
-            throw new Error(`PNCP search timeout (${timeoutMs}ms)`);
+          if (
+            (error instanceof DOMException &&
+              (error.name === "TimeoutError" || error.name === "AbortError")) ||
+            (error instanceof Error && /timeout/i.test(error.message))
+          ) {
+            throw new RetryableHttpError(
+              `PNCP search timeout (${timeoutMs}ms)`,
+              null,
+            );
           }
           throw error;
         }

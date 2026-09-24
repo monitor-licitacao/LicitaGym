@@ -149,6 +149,13 @@ export async function fetchWithTimeout(
     }
     external.addEventListener("abort", onExternalAbort, { once: true });
   }
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    clearTimeout(timer);
+    external?.removeEventListener("abort", onExternalAbort);
+  };
   const timer = setTimeout(() => {
     controller.abort(
       new DOMException("The operation was aborted due to timeout", "TimeoutError"),
@@ -159,15 +166,73 @@ export async function fetchWithTimeout(
       ...init,
       signal: controller.signal,
     });
-    const body = response.body ? await response.arrayBuffer() : null;
-    return new Response(body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
-  } finally {
-    clearTimeout(timer);
-    external?.removeEventListener("abort", onExternalAbort);
+    if (!response.body) {
+      cleanup();
+      return response;
+    }
+
+    const wrap = <T>(reader: () => Promise<T>) =>
+      async (): Promise<T> => {
+        try {
+          return await reader();
+        } finally {
+          cleanup();
+        }
+      };
+
+    const text = wrap(() => response.text());
+    const json = wrap(() => response.json());
+    const arrayBuffer = wrap(() => response.arrayBuffer());
+    const blob = wrap(() => response.blob());
+    const formData = wrap(() => response.formData());
+
+    let wrappedBody: ReadableStream<Uint8Array> | null | undefined;
+    const getWrappedBody = () => {
+      if (wrappedBody !== undefined) return wrappedBody;
+      const body = response.body;
+      if (!body) {
+        cleanup();
+        wrappedBody = null;
+        return wrappedBody;
+      }
+      const reader = body.getReader();
+      wrappedBody = new ReadableStream<Uint8Array>({
+        async pull(streamController) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) {
+              cleanup();
+              streamController.close();
+              return;
+            }
+            streamController.enqueue(value);
+          } catch (error) {
+            cleanup();
+            streamController.error(error);
+          }
+        },
+        async cancel(reason) {
+          cleanup();
+          await reader.cancel(reason);
+        },
+      });
+      return wrappedBody;
+    };
+
+    return new Proxy(response, {
+      get(target, prop, receiver) {
+        if (prop === "text") return text;
+        if (prop === "json") return json;
+        if (prop === "arrayBuffer") return arrayBuffer;
+        if (prop === "blob") return blob;
+        if (prop === "formData") return formData;
+        if (prop === "body") return getWrappedBody();
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Response;
+  } catch (error) {
+    cleanup();
+    throw error;
   }
 }
 
@@ -256,7 +321,6 @@ export async function withRetry<T>(
 
       if (timedOut) {
         if (timeoutRetries >= maxTimeoutRetries) {
-          if (budget) throw new BudgetExhaustedError();
           throw lastError;
         }
         timeoutRetries += 1;
@@ -275,7 +339,6 @@ export async function withRetry<T>(
             "PNCP consulta empty body anomaly (HTTP 200) after retry",
           );
         }
-        if (timedOut && budget) throw new BudgetExhaustedError();
         throw lastError;
       }
 

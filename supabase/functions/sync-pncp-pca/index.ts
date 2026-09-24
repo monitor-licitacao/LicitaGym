@@ -269,37 +269,30 @@ Deno.serve(async (req) => {
   const consulta = new PncpConsultaClient().withBudget(requestBudget);
   const search = new PncpSearchClient().withBudget(requestBudget);
 
-  // Smoke / period check: probes in parallel; do not start annual load.
+  // Smoke / period check: probes sequenciais para consumo previsível do budget compartilhado.
   if (body.somente_verificacao) {
     const probesPendentes: string[] = [];
     const scopedProbes: PcaScopedProbe[] = [];
     let searchProbeError: string | null = null;
     let periodSummary = null;
 
-    const classResults = await Promise.allSettled(
-      codigosClassificacao.map(async (codigo) => {
+    for (let i = 0; i < codigosClassificacao.length; i++) {
+      const codigo = codigosClassificacao[i];
+      try {
         const probe = await consulta.probePcaClassificacao(ano, codigo);
         if (probe.status >= 400) throw new Error(`HTTP ${probe.status}`);
-        return {
+        scopedProbes.push({
           codigo_classificacao: codigo,
           total_registros: probe.total_registros,
-        } satisfies PcaScopedProbe;
-      }),
-    );
-
-    for (let i = 0; i < classResults.length; i++) {
-      const result = classResults[i];
-      const codigo = codigosClassificacao[i];
-      if (result.status === "fulfilled") {
-        scopedProbes.push(result.value);
-      } else {
-        const reason = result.reason instanceof Error
-          ? result.reason.message
-          : String(result.reason);
+        });
+      } catch (error) {
+        const reason = error instanceof Error
+          ? error.message
+          : String(error);
         probesPendentes.push(codigo);
         if (
           reason.includes("BUDGET_EXHAUSTED") ||
-          result.reason instanceof BudgetExhaustedError
+          error instanceof BudgetExhaustedError
         ) {
           // leave remaining codes as pending too
           for (let j = i + 1; j < codigosClassificacao.length; j++) {
