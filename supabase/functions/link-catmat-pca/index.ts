@@ -162,8 +162,11 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
   if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
 
-  const body = (await req.json().catch(() => ({}))) as LinkBody;
-  const targets = linkTargetClasses(body);
+  const parsedBody: unknown = await req.json().catch(() => null);
+  if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return jsonResponse({ error: "Corpo JSON inválido" }, 400);
+  }
+  const body = parsedBody as LinkBody;
   if (!targets.ok) {
     return jsonResponse({ status: "blocked", reason: targets.reason }, 423);
   }
