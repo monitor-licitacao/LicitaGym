@@ -117,7 +117,10 @@ Deno.serve(async (req) => {
       });
       runs.push({ http_status: response.status, ...(await response.json()) });
     }
-    const failed = runs.some((run) => run.http_status >= 400);
+const failed = runs.some((run) =>
+      run.http_status >= 400 || Number(run.erros ?? 0) > 0 ||
+      run.status === "falhou" || run.status === "concluida_com_erros"
+    );
     return jsonResponse({
       status: failed ? "concluida_com_erros" : "concluida",
       scope: "transitional_fitness_scope",
