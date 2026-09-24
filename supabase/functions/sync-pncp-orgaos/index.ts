@@ -10,6 +10,11 @@ import {
 } from "../_shared/pncp/supabase-admin.ts";
 import { orgSyncClasses } from "../_shared/pncp/catmat-scope-resolver.ts";
 import { hashPayload, sha256Hex } from "../_shared/pncp/hash.ts";
+import {
+  chunkValues,
+  fetchAllByRange,
+  POSTGREST_PAGE_SIZE,
+} from "../_shared/pncp/postgrest-paginate.ts";
 import { upsertByHash } from "../_shared/pncp/upsert.ts";
 
 Deno.serve(async (req) => {
@@ -26,43 +31,52 @@ Deno.serve(async (req) => {
     return jsonResponse({ status: "already_running", sync_id: runId });
   }
 
-  const stats = { entidades_inseridas: 0, orgaos_inseridas: 0, unidades_inseridas: 0, erros: 0 };
+  const stats = {
+    entidades_inseridas: 0,
+    orgaos_inseridas: 0,
+    unidades_inseridas: 0,
+    erros: 0,
+    pca_itens_lidos: 0,
+    pca_planos_lidos: 0,
+  };
 
   try {
     const classCodes = orgSyncClasses().map((classe) => Number(classe));
-    const itemsResult = await client
-      .from("pca_itens")
-      .select("pca_plano_id")
-      .in("codigo_classe_catmat", classCodes);
-
-    if (itemsResult.error) {
-      throw new Error(`Erro ao ler pca_itens: ${itemsResult.error.message}`);
-    }
+    const { rows: itemRows, pages: itemPages } = await fetchAllByRange<{
+      pca_plano_id: string;
+    }>((from, to) =>
+      client
+        .from("pca_itens")
+        .select("pca_plano_id")
+        .in("codigo_classe_catmat", classCodes)
+        .range(from, to)
+    );
+    stats.pca_itens_lidos = itemRows.length;
 
     const planIds = [
       ...new Set(
-        (itemsResult.data ?? [])
+        itemRows
           .map((row) => row.pca_plano_id as string)
-          .filter((id) => id.length > 0),
+          .filter((id) => typeof id === "string" && id.length > 0),
       ),
     ];
 
     const cnpjsSet = new Set<string>();
-    if (planIds.length > 0) {
-      const cnpjsResult = await client
-        .from("pca_planos")
-        .select("orgao_cnpj")
-        .in("id", planIds)
-        .order("orgao_cnpj", { ascending: true });
-
-      if (cnpjsResult.error) {
-        throw new Error(`Erro ao ler pca_planos: ${cnpjsResult.error.message}`);
-      }
-
-      (cnpjsResult.data ?? []).forEach((row: Record<string, unknown>) => {
+    for (const idChunk of chunkValues(planIds, POSTGREST_PAGE_SIZE)) {
+      const { rows: planRows } = await fetchAllByRange<{ orgao_cnpj: string }>(
+        (from, to) =>
+          client
+            .from("pca_planos")
+            .select("orgao_cnpj")
+            .in("id", idChunk)
+            .order("orgao_cnpj", { ascending: true })
+            .range(from, to),
+      );
+      stats.pca_planos_lidos += planRows.length;
+      for (const row of planRows) {
         const cnpj = String(row.orgao_cnpj ?? "").trim();
         if (cnpj.length > 0) cnpjsSet.add(cnpj);
-      });
+      }
     }
 
     const cnpjs = Array.from(cnpjsSet);
@@ -83,7 +97,6 @@ Deno.serve(async (req) => {
           payload,
         });
 
-        // Upsert entidade via chave natural (codigo_pncp)
         const entidadeResult = await upsertByHash(
           client,
           "entidades",
@@ -99,7 +112,6 @@ Deno.serve(async (req) => {
 
         if (entidadeResult !== "erro") stats.entidades_inseridas++;
 
-        // Obter ID da entidade para FK
         const entidadeIdResult = await client
           .from("entidades")
           .select("id")
@@ -109,7 +121,6 @@ Deno.serve(async (req) => {
         if (entidadeIdResult.data && entidadeIdResult.data.id) {
           const entidadeId = entidadeIdResult.data.id;
 
-          // Upsert orgao via FK entidade_id
           const orgaoResult = await upsertByHash(
             client,
             "orgaos",
@@ -139,9 +150,17 @@ Deno.serve(async (req) => {
       status: stats.erros > 0 ? "concluida_com_erros" : "concluida",
       totalRecebidos: cnpjs.length,
       totalErros: stats.erros,
-      parametros: stats,
+      parametros: {
+        ...stats,
+        pca_itens_pages: itemPages,
+        plan_id_count: planIds.length,
+      },
     });
-    return jsonResponse({ status: "ok", stats, cnpjs_processados: cnpjs.length });
+    return jsonResponse({
+      status: stats.erros > 0 ? "concluida_com_erros" : "ok",
+      stats,
+      cnpjs_processados: cnpjs.length,
+    }, stats.erros > 0 ? 500 : 200);
   } catch (error) {
     await finishSyncRun(client, runId, {
       status: "falhou",

@@ -5,6 +5,12 @@
  * Persistir isso em tabela administrativa fica para um passo posterior.
  */
 
+import {
+  chunkValues,
+  fetchAllByRange,
+  POSTGREST_PAGE_SIZE,
+} from "./postgrest-paginate.ts";
+
 export const SCOPE_CONFIG_STATUS = "TRANSITIONAL" as const;
 
 export type ScopePriority = "CORE" | "CURATED_EXTENSION";
@@ -68,13 +74,18 @@ export type PcaItemScope = "IN_SCOPE" | "OUT_OF_SCOPE";
 type QueryError = { message: string };
 type QueryResult<T> = { data: T[] | null; error: QueryError | null };
 
+/** Builder must support `.range()` so callers can page past PostgREST max-rows. */
+export type CatmatScopeFilterBuilder = {
+  range(from: number, to: number): Promise<QueryResult<Record<string, unknown>>>;
+};
+
 export type CatmatScopeReadClient = {
   from(table: "catmat_pdms" | "catmat_itens"): {
     select(columns: string): {
       in(
         column: string,
         values: readonly (string | number)[],
-      ): Promise<QueryResult<Record<string, unknown>>>;
+      ): CatmatScopeFilterBuilder;
     };
   };
 };
@@ -162,20 +173,21 @@ export function effectiveMaterialItems(
 /**
  * Lê catmat_pdms e catmat_itens. O filtro de classe vai no PDM.
  * A select de item não pede codigo_classe.
+ * Pages with `.range()` — PostgREST silently caps at ~1000 rows otherwise.
  */
 export async function loadEffectiveMaterialItems(
   client: CatmatScopeReadClient,
   policy: readonly ScopeClassRule[] = TRANSITIONAL_FITNESS_SCOPE,
 ): Promise<EffectiveMaterialItem[]> {
   const classes = effectiveClasses(policy).map((rule) => Number(rule.classe));
-  const pdmQuery = await client
-    .from("catmat_pdms")
-    .select("codigo_pdm, codigo_grupo, codigo_classe, status")
-    .in("codigo_classe", classes);
-  if (pdmQuery.error) {
-    throw new Error(pdmQuery.error.message);
-  }
-  const pdms = (pdmQuery.data ?? []).map((row) => ({
+  const { rows: pdmRows } = await fetchAllByRange((from, to) =>
+    client
+      .from("catmat_pdms")
+      .select("codigo_pdm, codigo_grupo, codigo_classe, status")
+      .in("codigo_classe", classes)
+      .range(from, to)
+  );
+  const pdms = pdmRows.map((row) => ({
     codigo_pdm: row.codigo_pdm as number | string,
     codigo_grupo: row.codigo_grupo as number | string,
     codigo_classe: row.codigo_classe as number | string,
@@ -183,18 +195,27 @@ export async function loadEffectiveMaterialItems(
   }));
   const scopedPdms = effectivePdms(pdms, policy);
   if (scopedPdms.length === 0) return [];
-  const itemQuery = await client
-    .from("catmat_itens")
-    .select("codigo_item, codigo_pdm, status_item")
-    .in("codigo_pdm", scopedPdms.map((pdm) => pdm.codigo_pdm));
-  if (itemQuery.error) {
-    throw new Error(itemQuery.error.message);
+
+  const itens: ItemRecord[] = [];
+  for (const pdmChunk of chunkValues(
+    scopedPdms.map((pdm) => pdm.codigo_pdm),
+    POSTGREST_PAGE_SIZE,
+  )) {
+    const { rows: itemRows } = await fetchAllByRange((from, to) =>
+      client
+        .from("catmat_itens")
+        .select("codigo_item, codigo_pdm, status_item")
+        .in("codigo_pdm", pdmChunk)
+        .range(from, to)
+    );
+    for (const row of itemRows) {
+      itens.push({
+        codigo_item: row.codigo_item as number | string | null,
+        codigo_pdm: row.codigo_pdm as number | string | null,
+        status_item: row.status_item as boolean | null | undefined,
+      });
+    }
   }
-  const itens = (itemQuery.data ?? []).map((row) => ({
-    codigo_item: row.codigo_item as number | string | null,
-    codigo_pdm: row.codigo_pdm as number | string | null,
-    status_item: row.status_item as boolean | null | undefined,
-  }));
   return effectiveMaterialItems(pdms, itens, policy);
 }
 
