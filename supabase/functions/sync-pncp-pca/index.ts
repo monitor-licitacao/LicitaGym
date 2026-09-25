@@ -1,9 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { corsHeaders, errorDetail, jsonResponse, validateCronAuth } from "../_shared/http.ts";
+import {
+  corsHeaders,
+  errorDetail,
+  jsonResponse,
+  validateCronAuth,
+} from "../_shared/http.ts";
 import {
   clampConsultaPageSize,
+  createRequestBudget,
   PncpConsultaClient,
 } from "../_shared/pncp/consulta-client.ts";
+import { BudgetExhaustedError } from "../_shared/pncp/retry.ts";
 import { resolvePcaClassificacoes } from "../_shared/pncp/licitagym-catmat.ts";
 import { assertPcaClassificacoesInScope } from "../_shared/pncp/licitagym-scope-gate.ts";
 import {
@@ -23,7 +30,10 @@ import {
   logSyncRequest,
   storeSourceRecord,
 } from "../_shared/pncp/supabase-admin.ts";
-import { normalizePcaItem, normalizePcaPlano } from "../_shared/pncp/normalize.ts";
+import {
+  normalizePcaItem,
+  normalizePcaPlano,
+} from "../_shared/pncp/normalize.ts";
 import { linkPcaItemOrigemCodes } from "../_shared/pncp/pca-origem-link.ts";
 import { inactivateNotSeen, upsertByHash } from "../_shared/pncp/upsert.ts";
 
@@ -75,7 +85,10 @@ async function syncClassificacao(params: {
   paginaInicial: number;
   maxPaginas: number;
   tamanhoPagina: number;
-}): Promise<{ stats: SyncStats; ultimaPagina: number; paginasRestantes: number }> {
+  onCheckpoint?: (nextPage: number) => void;
+}): Promise<
+  { stats: SyncStats; ultimaPagina: number; paginasRestantes: number }
+> {
   const {
     client,
     consulta,
@@ -94,12 +107,13 @@ async function syncClassificacao(params: {
   while (paginasRestantes >= 0 && pagina < paginaInicial + maxPaginas) {
     const endpoint =
       `/pca/?anoPca=${ano}&codigoClassificacaoSuperior=${codigoClassificacao}&pagina=${pagina}`;
-    const { status, body: responseBody, elapsedMs } = await consulta.fetchPcaPage(
-      ano,
-      pagina,
-      codigoClassificacao,
-      tamanhoPagina,
-    );
+    const { status, body: responseBody, elapsedMs } = await consulta
+      .fetchPcaPage(
+        ano,
+        pagina,
+        codigoClassificacao,
+        tamanhoPagina,
+      );
     const respostaHash = await sha256Hex(JSON.stringify(responseBody));
     await logSyncRequest(client, {
       syncRunId: runId,
@@ -165,7 +179,10 @@ async function syncClassificacao(params: {
 
       const itens = Array.isArray(plan.itens) ? plan.itens : [];
       for (const rawItem of itens) {
-        const itemRow = normalizePcaItem(rawItem as Record<string, unknown>, plan);
+        const itemRow = normalizePcaItem(
+          rawItem as Record<string, unknown>,
+          plan,
+        );
         if (!itemRow.numero_item) continue;
 
         stats.recebidos++;
@@ -205,17 +222,25 @@ async function syncClassificacao(params: {
       }
     }
 
-    if (pagination.paginasRestantes <= 0) break;
+    if (pagination.paginasRestantes <= 0) {
+      params.onCheckpoint?.(pagina + 1);
+      break;
+    }
     pagina++;
+    params.onCheckpoint?.(pagina);
   }
 
   return { stats, ultimaPagina: pagina, paginasRestantes };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") return jsonResponse({ error: "Use POST" }, 405);
-  if (!validateCronAuth(req)) return jsonResponse({ error: "Unauthorized" }, 401);
+  if (!validateCronAuth(req)) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;
   const ano = body.ano ?? new Date().getUTCFullYear();
@@ -245,7 +270,128 @@ Deno.serve(async (req) => {
     );
   }
 
-  const consulta = new PncpConsultaClient();
+  const requestBudget = createRequestBudget();
+  const consulta = new PncpConsultaClient().withBudget(requestBudget);
+  const search = new PncpSearchClient().withBudget(requestBudget);
+
+  // Smoke / period check: probes sequenciais para consumo previsível do budget compartilhado.
+  if (body.somente_verificacao) {
+    const probesPendentes: string[] = [];
+    const scopedProbes: PcaScopedProbe[] = [];
+    let searchProbeError: string | null = null;
+    let periodSummary = null;
+
+    for (let i = 0; i < codigosClassificacao.length; i++) {
+      const codigo = codigosClassificacao[i];
+      try {
+        const probe = await consulta.probePcaClassificacao(ano, codigo);
+        if (probe.status >= 400) throw new Error(`HTTP ${probe.status}`);
+        scopedProbes.push({
+          codigo_classificacao: codigo,
+          total_registros: probe.total_registros,
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        probesPendentes.push(codigo);
+        if (
+          reason.includes("BUDGET_EXHAUSTED") ||
+          error instanceof BudgetExhaustedError
+        ) {
+          // leave remaining codes as pending too
+          for (let j = i + 1; j < codigosClassificacao.length; j++) {
+            if (!probesPendentes.includes(codigosClassificacao[j])) {
+              probesPendentes.push(codigosClassificacao[j]);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    try {
+      periodSummary = await search.summarizePcaPeriod(ano);
+    } catch (error) {
+      // Any Search failure → incomplete verification (never upsert null lastro).
+      searchProbeError = error instanceof Error ? error.message : String(error);
+      if (!probesPendentes.includes("search:pcaorgao")) {
+        probesPendentes.push("search:pcaorgao");
+      }
+    }
+
+    if (probesPendentes.length > 0) {
+      return jsonResponse({
+        status: "verificacao_incompleta",
+        ano,
+        probes_ok: scopedProbes,
+        probes_pendentes: probesPendentes,
+        search_indisponivel: searchProbeError,
+        periodo: periodSummary,
+      }, 200);
+    }
+
+    const probeMetadata = {
+      origem: "sync-pncp-pca",
+      total_registros_classe: buildTotalRegistrosClasseMap(scopedProbes),
+      ...(searchProbeError ? { search_indisponivel: searchProbeError } : {}),
+    };
+
+    let periodAnchor;
+    try {
+      periodAnchor = await getPeriodAnchor(client, ano);
+      await upsertPeriodProbe(client, periodSummary, probeMetadata, ano);
+    } catch (error) {
+      return jsonResponse(
+        {
+          error: "Falha ao ler/gravar lastro em private.pncp_period_anchor",
+          detalhe: errorDetail(error),
+        },
+        500,
+      );
+    }
+
+    const decisao = shouldSkipAnnualLoad(
+      periodAnchor,
+      periodSummary,
+      scopedProbes,
+    );
+    return jsonResponse({
+      status: "verificacao",
+      ano,
+      periodo: periodSummary,
+      probe_segmentado: scopedProbes,
+      search_indisponivel: searchProbeError,
+      anchor: periodAnchor,
+      carga_necessaria: !decisao.skip,
+      motivo: decisao.reason,
+    });
+  }
+
+  // Heavy load path: health-check first.
+  let health;
+  try {
+    health = await consulta.probePncpHealth();
+  } catch (error) {
+    if (
+      error instanceof BudgetExhaustedError ||
+      (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+    ) {
+      return jsonResponse({
+        status: "BUDGET_EXHAUSTED",
+        error: "BUDGET_EXHAUSTED",
+      }, 503);
+    }
+    throw error;
+  }
+  if (health.status === "PNCP_DEGRADADO") {
+    return jsonResponse({
+      status: "PNCP_DEGRADADO",
+      detalhe: health.detalhe,
+      elapsed_ms: health.elapsedMs,
+      mensagem:
+        "PNCP lento ou falhando no probe /v1/atas — carga não iniciada.",
+    }, 503);
+  }
+
   const scopedProbes: PcaScopedProbe[] = [];
   let scopedProbeError: string | null = null;
 
@@ -260,6 +406,16 @@ Deno.serve(async (req) => {
         total_registros: probe.total_registros,
       });
     } catch (error) {
+      if (
+        error instanceof BudgetExhaustedError ||
+        (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+      ) {
+        return jsonResponse({
+          status: "BUDGET_EXHAUSTED",
+          error: "BUDGET_EXHAUSTED",
+          codigos_classificacao: codigosClassificacao,
+        }, 503);
+      }
       scopedProbeError = error instanceof Error ? error.message : String(error);
       break;
     }
@@ -276,12 +432,20 @@ Deno.serve(async (req) => {
     );
   }
 
-  const search = new PncpSearchClient();
   let periodSummary = null;
   let searchProbeError: string | null = null;
   try {
     periodSummary = await search.summarizePcaPeriod(ano);
   } catch (error) {
+    if (
+      error instanceof BudgetExhaustedError ||
+      (error instanceof Error && error.message.includes("BUDGET_EXHAUSTED"))
+    ) {
+      return jsonResponse({
+        status: "BUDGET_EXHAUSTED",
+        error: "BUDGET_EXHAUSTED",
+      }, 503);
+    }
     searchProbeError = error instanceof Error ? error.message : String(error);
   }
 
@@ -307,22 +471,12 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (body.somente_verificacao) {
-    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary, scopedProbes);
-    return jsonResponse({
-      status: "verificacao",
-      ano,
-      periodo: periodSummary,
-      probe_segmentado: scopedProbes,
-      search_indisponivel: searchProbeError,
-      anchor: periodAnchor,
-      carga_necessaria: !decisao.skip,
-      motivo: decisao.reason,
-    });
-  }
-
   if (verificarPeriodo && !body.forcar) {
-    const decisao = shouldSkipAnnualLoad(periodAnchor, periodSummary, scopedProbes);
+    const decisao = shouldSkipAnnualLoad(
+      periodAnchor,
+      periodSummary,
+      scopedProbes,
+    );
     if (decisao.skip) {
       return jsonResponse({
         status: "ignorado",
@@ -338,7 +492,12 @@ Deno.serve(async (req) => {
     }
   }
 
-  const { runId, alreadyRunning } = await acquireSyncLock(client, lockKey, "pca", body);
+  const { runId, alreadyRunning } = await acquireSyncLock(
+    client,
+    lockKey,
+    "pca",
+    body,
+  );
 
   if (alreadyRunning) {
     return jsonResponse({ status: "already_running", sync_id: runId });
@@ -349,9 +508,16 @@ Deno.serve(async (req) => {
     string,
     SyncStats & { ultima_pagina: number; paginas_restantes: number }
   > = {};
+  const paginaPendentePorCodigo: Record<string, number> = {};
+  let currentCodigoIndex = 0;
 
   try {
-    for (const codigoClassificacao of codigosClassificacao) {
+    for (
+      currentCodigoIndex = 0;
+      currentCodigoIndex < codigosClassificacao.length;
+      currentCodigoIndex++
+    ) {
+      const codigoClassificacao = codigosClassificacao[currentCodigoIndex];
       const result = await syncClassificacao({
         client,
         consulta,
@@ -361,6 +527,9 @@ Deno.serve(async (req) => {
         paginaInicial,
         maxPaginas,
         tamanhoPagina,
+        onCheckpoint: (nextPage) => {
+          paginaPendentePorCodigo[codigoClassificacao] = nextPage;
+        },
       });
       porCodigo[codigoClassificacao] = {
         ...result.stats,
@@ -369,16 +538,21 @@ Deno.serve(async (req) => {
       };
       mergeStats(stats, result.stats);
     }
+    currentCodigoIndex = codigosClassificacao.length;
 
     if (body.modo === "completo") {
-      await inactivateNotSeen(client, "pca_planos", runId, { ano_exercicio: ano });
+      await inactivateNotSeen(client, "pca_planos", runId, {
+        ano_exercicio: ano,
+      });
       const { data: planosVistos } = await client
         .from("pca_planos")
         .select("id")
         .eq("last_seen_sync_id", runId);
       if (planosVistos?.length) {
         for (const plano of planosVistos) {
-          await inactivateNotSeen(client, "pca_itens", runId, { pca_plano_id: plano.id });
+          await inactivateNotSeen(client, "pca_itens", runId, {
+            pca_plano_id: plano.id,
+          });
         }
       }
     }
@@ -394,7 +568,10 @@ Deno.serve(async (req) => {
       totalAtualizados: stats.alterados,
       totalInalterados: stats.inalterados,
       totalErros: stats.erros,
-      paginaAtual: Math.max(...Object.values(porCodigo).map((c) => c.ultima_pagina), 0),
+      paginaAtual: Math.max(
+        ...Object.values(porCodigo).map((c) => c.ultima_pagina),
+        0,
+      ),
     });
 
     return jsonResponse({
@@ -407,10 +584,60 @@ Deno.serve(async (req) => {
       ...stats,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isBudget = error instanceof BudgetExhaustedError ||
+      message.includes("BUDGET_EXHAUSTED");
+    const pendingCodigos =
+      isBudget && currentCodigoIndex < codigosClassificacao.length
+        ? codigosClassificacao.slice(currentCodigoIndex)
+        : [];
+    const paginaPorCodigoPendente = Object.fromEntries(
+      pendingCodigos.map((codigo, index) => [
+        codigo,
+        index === 0
+          ? (paginaPendentePorCodigo[codigo] ?? paginaInicial)
+          : paginaInicial,
+      ]),
+    );
+    const continuation = pendingCodigos.length > 0
+      ? {
+        pending_codigos_classificacao: pendingCodigos,
+        pagina_inicial: paginaPorCodigoPendente[pendingCodigos[0]] ??
+          paginaInicial,
+        pagina_por_codigo_pendente: paginaPorCodigoPendente,
+        max_paginas: maxPaginas,
+        tamanho_pagina: tamanhoPagina,
+      }
+      : undefined;
+    const runStatus = isBudget ? "incompleta" : "falhou";
     await finishSyncRun(client, runId, {
-      status: "falhou",
-      erroPrincipal: error instanceof Error ? error.message : String(error),
+      status: runStatus,
+      erroPrincipal: message,
+      totalRecebidos: stats.recebidos,
+      totalNovos: stats.novos,
+      totalAtualizados: stats.alterados,
+      totalInalterados: stats.inalterados,
+      totalErros: stats.erros,
+      paginaAtual: Math.max(
+        ...Object.values(porCodigo).map((c) => c.ultima_pagina),
+        0,
+      ),
+      parametros: continuation
+        ? {
+          ...body,
+          codigos_classificacao: pendingCodigos,
+          pagina_inicial: paginaPorCodigoPendente[pendingCodigos[0]] ??
+            paginaInicial,
+          continuation,
+        }
+        : undefined,
     });
-    return jsonResponse({ error: String(error), sync_id: runId }, 500);
+    return jsonResponse({
+      error: message,
+      sync_id: runId,
+      status: isBudget ? "BUDGET_EXHAUSTED" : "falhou",
+      run_status: runStatus,
+      continuation,
+    }, isBudget ? 503 : 500);
   }
 });
