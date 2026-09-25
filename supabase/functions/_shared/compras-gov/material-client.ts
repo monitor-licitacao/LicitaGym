@@ -41,11 +41,13 @@ async function fetchPage<T>(path: string, params: MaterialListParams): Promise<{
         throw new Error(`Compras.gov HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""}`);
       }
       if (res.status >= 400 && res.status < 500) {
+        await res.body?.cancel();
         throw new PermanentHttpError(
           `Compras.gov HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""}`,
         );
       }
       if (!res.ok) {
+        await res.body?.cancel();
         throw new Error(`Compras.gov HTTP ${res.status}`);
       }
       return res;
