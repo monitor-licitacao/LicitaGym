@@ -436,6 +436,26 @@ Deno.test("consulta: HTTP 422 does not retry", async () => {
   }
 });
 
+Deno.test("search: HTTP 422 is permanent — no retry", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response("bad", { status: 422 });
+  }) as typeof fetch;
+  try {
+    const client = new PncpSearchClient("https://example.test/search");
+    await assertRejects(
+      () => client.summarizePcaPeriod(2026),
+      PermanentHttpError,
+      "HTTP 422",
+    );
+    assertEquals(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 Deno.test("probePncpHealth: BudgetExhaustedError is not PNCP_DEGRADADO", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = hangingFetchOnAbort();

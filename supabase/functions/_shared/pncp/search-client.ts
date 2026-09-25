@@ -3,6 +3,7 @@ import {
   DEFAULT_FETCH_TIMEOUT_MS,
   fetchWithTimeout,
   parseRetryAfterMs,
+  PermanentHttpError,
   type RequestBudget,
   RetryableHttpError,
   withRetry,
@@ -100,8 +101,7 @@ export class PncpSearchClient {
             );
           }
           if (!res.ok) {
-            // Body already buffered by fetchWithTimeout; no dangling timer.
-            throw new Error(`PNCP search HTTP ${res.status}`);
+            throw new PermanentHttpError(`PNCP search HTTP ${res.status}`);
           }
           const body = await res.json() as {
             items?: PcaOrgaoSearchItem[];
@@ -113,6 +113,7 @@ export class PncpSearchClient {
           };
         } catch (error) {
           if (error instanceof BudgetExhaustedError) throw error;
+          if (error instanceof PermanentHttpError) throw error;
           if (error instanceof RetryableHttpError) throw error;
           if (
             (error instanceof DOMException &&
