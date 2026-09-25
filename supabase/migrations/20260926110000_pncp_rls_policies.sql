@@ -8,7 +8,33 @@
 -- taxonomia_mapa_caracteristica é curadoria editável: leitura authenticated; escrita só admin
 -- (app_metadata.licitagym_role = 'admin', gravável apenas com service_role via Admin API).
 --
+-- ACL: RLS filtra linhas; GRANT concede acesso à tabela. Projetos novos não concedem DML por
+-- padrão, e produção herdou ALL para anon/authenticated (inclusive TRUNCATE, que ignora RLS).
+-- Os GRANTs abaixo tornam o modelo explícito nos dois casos (precedente: 20260919233512).
+--
 -- Idempotente. Não altera dados.
+
+revoke all on table
+  public.licitacoes_externas, public.licitacao_documentos, public.licitacao_chunks,
+  public.licitacao_itens, public.licitacao_resultados, public.catmat_itens,
+  public.oportunidades_borracha, public.catmat_itens_taxonomia,
+  public.taxonomia_mapa_caracteristica
+from anon, authenticated;
+
+grant select on table
+  public.licitacoes_externas, public.licitacao_documentos, public.licitacao_chunks,
+  public.licitacao_itens, public.licitacao_resultados, public.catmat_itens,
+  public.oportunidades_borracha, public.catmat_itens_taxonomia
+to authenticated;
+
+grant select, insert, update, delete on table public.taxonomia_mapa_caracteristica to authenticated;
+
+grant all on table
+  public.licitacoes_externas, public.licitacao_documentos, public.licitacao_chunks,
+  public.licitacao_itens, public.licitacao_resultados, public.catmat_itens,
+  public.oportunidades_borracha, public.catmat_itens_taxonomia,
+  public.taxonomia_mapa_caracteristica
+to service_role;
 
 comment on table public.licitacoes_externas is
   'Licitações de portais públicos (PNCP, Paradigma). RLS: SELECT authenticated; escrita só service_role.';
