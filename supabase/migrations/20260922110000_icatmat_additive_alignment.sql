@@ -50,3 +50,14 @@ ALTER TABLE icatmat_unidade_fornecimento
 
 CREATE INDEX IF NOT EXISTS idx_icatmat_unidade_pdm_sigla
   ON icatmat_unidade_fornecimento (codigo_pdm, sigla_unidade, codigo_unidade);
+
+-- 4. ACL do staging icatmat_*: só service_role (upsert_icatmat_consolidado). RLS ligado e sem
+-- policies; anon/authenticated sem acesso. Projetos novos não concedem DML por padrão.
+REVOKE ALL ON TABLE
+  icatmat_grupo_material, icatmat_classe_material, icatmat_pdm_material, icatmat_item_material,
+  icatmat_natureza_despesa, icatmat_unidade_fornecimento, icatmat_caracteristica_material
+FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  icatmat_grupo_material, icatmat_classe_material, icatmat_pdm_material, icatmat_item_material,
+  icatmat_natureza_despesa, icatmat_unidade_fornecimento, icatmat_caracteristica_material
+TO service_role;
