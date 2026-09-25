@@ -50,10 +50,22 @@ def test_table_on_conflict_mapping_completeness():
         "icatmat_item_material": "codigo_grupo,codigo_classe,codigo_pdm,codigo_item",
         "icatmat_natureza_despesa": "codigo_grupo,codigo_classe,codigo_item,codigo_natureza",
         "icatmat_unidade_fornecimento": "codigo_grupo,codigo_classe,codigo_item,codigo_unidade",
-        "icatmat_caracteristica_material": "codigo_grupo,codigo_classe,codigo_item,codigo_caracteristica",
+        "icatmat_caracteristica_material": "codigo_item,codigo_caracteristica,codigo_valor_caracteristica",
     }
     for table, conflict_cols in expected.items():
         assert TABLE_ON_CONFLICT.get(table) == conflict_cols
+
+
+MIGRATION_E7 = "supabase/migrations/20260922110000_icatmat_additive_alignment.sql"
+
+
+def test_e7_on_conflict_matches_nulls_not_distinct_constraint():
+    with open(MIGRATION_E7, "r", encoding="utf-8") as f:
+        sql = f.read()
+    cols = TABLE_ON_CONFLICT["icatmat_caracteristica_material"].replace(",", ", ")
+    assert f"UNIQUE NULLS NOT DISTINCT ({cols})" in sql
+    assert "DEFAULT '0'" not in sql
+    assert "DROP CONSTRAINT IF EXISTS unique_caracteristica;" in sql
 
 
 def test_upsert_table_passes_on_conflict_to_supabase(monkeypatch):
@@ -204,8 +216,51 @@ def test_load_resultado_unwraps_dictionary_and_envelope(tmp_path):
     assert records_e1[0]["codigoGrupo"] == 72
 
 
-def test_enrich_e7_null_sentinel_policy():
-    """CATMAT-P0-004 & CATMAT-P1-001: enrich_e7 handles missing/empty/null codigoValorCaracteristica."""
+def _e7_records():
+    return [
+        {"codigoGrupo": 78, "codigoClasse": 7830, "codigoPdm": 2640, "codigoItem": 374066,
+         "codigoCaracteristica": 10, "codigoValorCaracteristica": "123", "nomeValorCaracteristica": "PRETO"},
+        {"codigoGrupo": 78, "codigoClasse": 7830, "codigoPdm": 2640, "codigoItem": 374066,
+         "codigoCaracteristica": 10, "codigoValorCaracteristica": "456", "nomeValorCaracteristica": "BRANCO"},
+        {"codigoGrupo": 78, "codigoClasse": 7830, "codigoPdm": 2640, "codigoItem": 374066,
+         "codigoCaracteristica": 20, "codigoValorCaracteristica": None, "nomeValorCaracteristica": "ACO"},
+    ]
+
+
+class FakeUniqueTable:
+    """Emula ON CONFLICT sobre UNIQUE NULLS NOT DISTINCT: None é um valor de chave comparável."""
+
+    def __init__(self, conflict_cols):
+        self.cols = conflict_cols.split(",")
+        self.rows = {}
+
+    def upsert(self, records):
+        for r in records:
+            self.rows[tuple(r[c] for c in self.cols)] = dict(r)
+
+
+def test_e7_reprocessing_with_null_is_idempotent_and_keeps_multivalue():
+    table = FakeUniqueTable(TABLE_ON_CONFLICT["icatmat_caracteristica_material"])
+    table.upsert(enrich_e7(_e7_records()))
+    first = {k: v["payload_hash"] for k, v in table.rows.items()}
+    table.upsert(enrich_e7(_e7_records()))
+
+    assert len(table.rows) == 3
+    assert {k: v["payload_hash"] for k, v in table.rows.items()} == first
+    assert (374066, 20, None) in table.rows
+    assert table.rows[(374066, 20, None)]["codigo_valor_caracteristica"] is None
+    assert {(374066, 10, "123"), (374066, 10, "456")} <= set(table.rows)
+
+
+def test_enrich_e7_has_no_sentinel_parameter():
+    import inspect
+    assert list(inspect.signature(enrich_e7).parameters) == ["records"]
+    with open("scripts/upsert_icatmat_consolidado.py", "r", encoding="utf-8") as f:
+        assert "null_sentinel" not in f.read()
+
+
+def test_enrich_e7_preserves_null():
+    """CATMAT-P0-004 & CATMAT-P1-001: NULL continua NULL; nenhum sentinel é gravado."""
     records = [
         {
             "codigoGrupo": 78,
@@ -239,20 +294,63 @@ def test_enrich_e7_null_sentinel_policy():
         },
     ]
 
-    # Padrão: sentinel "0"
     enriched = enrich_e7(records)
     assert len(enriched) == 3
     assert enriched[0]["codigo_valor_caracteristica"] == "123"
     assert enriched[0]["nome_valor_caracteristica"] == "PRETO"
-    assert enriched[1]["codigo_valor_caracteristica"] == "0"
+    assert enriched[1]["codigo_valor_caracteristica"] is None
     assert enriched[1]["nome_valor_caracteristica"] == "ACO"
-    assert enriched[2]["codigo_valor_caracteristica"] == "0"
+    assert enriched[2]["codigo_valor_caracteristica"] is None
     assert enriched[2]["nome_valor_caracteristica"] == "10KG"
+    assert all(e["codigo_valor_caracteristica"] not in ("0", "", "N/A", "NULL") for e in enriched)
 
-    # Modo nullable explícito: null_sentinel=None
-    enriched_null = enrich_e7(records, null_sentinel=None)
-    assert enriched_null[1]["codigo_valor_caracteristica"] is None
-    assert enriched_null[2]["codigo_valor_caracteristica"] is None
+
+def test_load_resultado_missing_file_raises(tmp_path):
+    with pytest.raises(consolidado.ResultadoLoadError):
+        consolidado.load_resultado("E7", base_dir=tmp_path)
+
+
+def test_load_resultado_invalid_json_raises(tmp_path):
+    (tmp_path / "collector_caracteristica_material_resultado.json").write_text("{broken", encoding="utf-8")
+    with pytest.raises(consolidado.ResultadoLoadError):
+        consolidado.load_resultado("E7", base_dir=tmp_path)
+
+
+def test_load_resultado_unknown_envelope_raises(tmp_path):
+    (tmp_path / "collector_caracteristica_material_resultado.json").write_text(
+        json.dumps({"erro": "timeout"}), encoding="utf-8"
+    )
+    with pytest.raises(consolidado.ResultadoLoadError):
+        consolidado.load_resultado("E7", base_dir=tmp_path)
+
+
+def test_load_resultado_valid_empty_returns_empty(tmp_path):
+    (tmp_path / "collector_caracteristica_material_resultado.json").write_text(
+        json.dumps({"resultado": []}), encoding="utf-8"
+    )
+    assert consolidado.load_resultado("E7", base_dir=tmp_path) == []
+
+
+def test_upsert_table_error_raises_instead_of_zero(monkeypatch):
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.upsert.return_value.execute.side_effect = RuntimeError("503")
+    monkeypatch.setattr(consolidado, "supabase", mock_supabase)
+    with pytest.raises(consolidado.UpsertError):
+        upsert_table("icatmat_caracteristica_material", [{"codigo_item": 1}])
+
+
+def test_upsert_table_empty_input_returns_zero_without_call(monkeypatch):
+    mock_supabase = MagicMock()
+    monkeypatch.setattr(consolidado, "supabase", mock_supabase)
+    assert upsert_table("icatmat_caracteristica_material", []) == 0
+    assert not mock_supabase.table.called
+
+
+def test_main_returns_1_when_resultado_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(consolidado, "supabase", MagicMock())
+    monkeypatch.setattr(consolidado, "COLLECTORS_DIR", tmp_path)
+    monkeypatch.chdir(tmp_path)
+    assert consolidado.main() == 1
 
 
 def test_enrich_e5_e6_flexible_field_mapping():

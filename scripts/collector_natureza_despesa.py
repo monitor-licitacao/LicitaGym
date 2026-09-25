@@ -9,6 +9,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from scripts.lib.catmat_pdm_source import extract_resultado, resolve_pdms
 from scripts.lib.http_fetch import fetch_json, HttpFetchError
 from scripts.lib.sync_state import SyncStateManager, is_sync_resume_enabled
 
@@ -28,10 +29,12 @@ def fetch_naturezas(
     codigo_item: Optional[int] = None,
     codigo_natureza: Optional[int] = None,
     pagina: int = 1,
-    tamanho_pagina: int = 500
+    tamanho_pagina: int = 500,
+    max_retries: int = 3,
 ) -> Dict[str, Any]:
     """Consulta Naturezas de Despesa.
     Conforme schema Compras.gov (schemas-consultas.md §1.5), E5 aceita codigoPdm.
+    Timeout, 429/5xx esgotados e JSON inválido levantam HttpFetchError.
     """
     url = f"{BASE_URL}{ENDPOINT}"
 
@@ -57,76 +60,10 @@ def fetch_naturezas(
     return fetch_json(
         url,
         timeout=TIMEOUT,
+        max_retries=max_retries,
         user_agent="LicitaGym/Collector",
         raise_for_status=True,
-        legacy_empty_envelope_key="resultado",
     )
-
-def load_pdms_for_collector(codigo_grupo: int, codigo_classe: int) -> List[int]:
-    """Carrega lista de PDMs para o grupo/classe a partir de arquivos gerados por E3, E4, seed ou fallback."""
-    pdms: List[int] = []
-
-    # 1. Tentar E3 (pdm_material)
-    for path in [Path("collector_pdm_material_resultado.json"), Path("scripts/collector_pdm_material_resultado.json")]:
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    e3_data = json.load(f)
-                key = f"grupo_{codigo_grupo}"
-                raw_list = e3_data.get("data", {}).get(key, []) if isinstance(e3_data, dict) else []
-                for p in raw_list:
-                    if p.get("codigoPdm"):
-                        pdms.append(int(p["codigoPdm"]))
-                if pdms:
-                    logger.info(f"Carregados {len(pdms)} PDMs de {path} para G{codigo_grupo}")
-                    return sorted(list(set(pdms)))
-            except Exception as e:
-                logger.warning(f"Erro ao ler {path}: {e}")
-
-    # 2. Tentar E4 (item_material)
-    for path in [Path("collector_item_material_resultado.json"), Path("scripts/collector_item_material_resultado.json")]:
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    e4_data = json.load(f)
-                key = f"grupo_{codigo_grupo}"
-                raw_list = e4_data.get("data", {}).get(key, []) if isinstance(e4_data, dict) else []
-                for item in raw_list:
-                    if item.get("codigoPdm"):
-                        pdms.append(int(item["codigoPdm"]))
-                if pdms:
-                    logger.info(f"Carregados {len(pdms)} PDMs de {path} para G{codigo_grupo}")
-                    return sorted(list(set(pdms)))
-            except Exception as e:
-                logger.warning(f"Erro ao ler {path}: {e}")
-
-    # 3. Tentar seed curadoria para G78
-    if codigo_grupo == 78:
-        for seed_path in [Path("supabase/seeds/licitagym-curadoria-catmat.json")]:
-            if seed_path.exists():
-                try:
-                    with open(seed_path, "r", encoding="utf-8") as f:
-                        curadoria = json.load(f)
-                    cur_pdms = curadoria.get("curadoriaInicialPorCodigoPdm", {})
-                    for p_str in cur_pdms.keys():
-                        try:
-                            pdms.append(int(p_str))
-                        except ValueError:
-                            pass
-                    if pdms:
-                        logger.info(f"Carregados {len(pdms)} PDMs de seed curadoria para G78")
-                        return sorted(list(set(pdms)))
-                except Exception as e:
-                    logger.warning(f"Erro ao ler {seed_path}: {e}")
-
-    # 4. Fallback canônico conhecido
-    fallback_map = {
-        72: [17743],
-        78: [2640],
-    }
-    fb = fallback_map.get(codigo_grupo, [])
-    logger.info(f"Usando fallback de PDMs para G{codigo_grupo}: {fb}")
-    return fb
 
 
 def collect_naturezas_por_pdm(
@@ -176,7 +113,7 @@ def collect_naturezas_por_pdm(
             sync_manager.save_accumulated_data(todas_naturezas)
             raise
 
-        naturezas = resp.get("resultado", [])
+        naturezas = extract_resultado(resp, f"E5 pdm={codigo_pdm} pagina={pagina}")
         if not naturezas:
             break
 
@@ -228,20 +165,13 @@ def collect_naturezas_por_grupo_classe(
             should_iterate_pdm = True
 
     if should_iterate_pdm:
-        if codigo_pdm is not None:
-            lista_pdms = [codigo_pdm]
-        elif pdms is not None:
-            lista_pdms = pdms
-        else:
-            lista_pdms = load_pdms_for_collector(codigo_grupo, codigo_classe)
-
-        if lista_pdms:
-            logger.info(f"Iterando {len(lista_pdms)} PDM(s) para G{codigo_grupo}/C{codigo_classe}...")
-            todas: List[Dict] = []
-            for pdm in lista_pdms:
-                nats = collect_naturezas_por_pdm(pdm, max_pages=max_pages, resume=resume, sync_manager=sync_manager if len(lista_pdms) == 1 else None)
-                todas.extend(nats)
-            return todas
+        lista_pdms = resolve_pdms(codigo_grupo, codigo_pdm=codigo_pdm, pdms=pdms)
+        logger.info(f"Iterando {len(lista_pdms)} PDM(s) para G{codigo_grupo}/C{codigo_classe}...")
+        todas: List[Dict] = []
+        for pdm in lista_pdms:
+            nats = collect_naturezas_por_pdm(pdm, max_pages=max_pages, resume=resume, sync_manager=sync_manager if len(lista_pdms) == 1 else None)
+            todas.extend(nats)
+        return todas
 
     if sync_manager is None:
         endpoint_key = f"5_consultarMaterialNaturezaDespesa_G{codigo_grupo}_C{codigo_classe}"
@@ -296,7 +226,7 @@ def collect_naturezas_por_grupo_classe(
             sync_manager.save_accumulated_data(todas_naturezas)
             raise
 
-        naturezas = resp.get("resultado", [])
+        naturezas = extract_resultado(resp, f"E5 G{codigo_grupo}/C{codigo_classe} pagina={pagina}")
 
         logger.info(f"  Página {pagina}: {len(naturezas)} naturezas")
         todas_naturezas.extend(naturezas)

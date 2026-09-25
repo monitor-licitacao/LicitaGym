@@ -60,9 +60,16 @@ O LicitaGym opera uma separação arquitetural explícita entre ingestão explor
 Conforme `schemas-consultas.md §1.7` e o modelo relacional de produção `catmat_item_caracteristicas`, a chave natural de características inclui o valor:
 - Em Dados Abertos, determinadas características podem omitir ou retornar nulo para `codigoValorCaracteristica`.
 - No enriquecimento `enrich_e7`:
-  - Se `codigoValorCaracteristica` for omitido, vazio ou nulo, o campo é normalizado para o sentinel `'0'` (por padrão) para assegurar integridade em chaves primárias/índices compostos.
-  - A função aceita o parâmetro configurável `null_sentinel=None` caso o destino seja uma coluna estritamente nullable.
-  - A migração aditiva `202609221100_icatmat_additive_alignment.sql` suporta tanto `codigo_valor_caracteristica` (default `'0'`) quanto `nome_valor_caracteristica`.
+  - `NULL` continua `NULL`. Nenhum sentinel (`'0'`, `''`, `'N/A'`) é gravado. String só de espaços vira `NULL`.
+  - A migração `20260922110000_icatmat_additive_alignment.sql` cria `codigo_valor_caracteristica` sem `DEFAULT` e a constraint `unique_caracteristica_valor UNIQUE NULLS NOT DISTINCT (codigo_item, codigo_caracteristica, codigo_valor_caracteristica)`.
+  - O upsert usa `on_conflict=codigo_item,codigo_caracteristica,codigo_valor_caracteristica`: reprocessar o mesmo item com valor `NULL` atualiza a mesma linha.
+
+### Erro ≠ vazio
+
+- E5/E6: timeout, 429/5xx esgotados e JSON inválido levantam `HttpFetchError`; resposta 200 sem lista `resultado` levanta `InvalidEnvelopeError`. `{"resultado": []}` é o único vazio válido.
+- E5/E6: PDMs vêm só dos resultados E3/E4. Sem esses arquivos, ou com arquivo corrompido, a coleta falha (`PdmSourceError`). Não há lista fixa de PDMs nem seed de curadoria como substituto.
+- `load_resultado`: arquivo ausente, JSON inválido ou envelope desconhecido levantam `ResultadoLoadError`.
+- `upsert_table`: falha de persistência levanta `UpsertError`; `main()` retorna 1.
 
 ## Deduplicação
 
@@ -84,7 +91,8 @@ export SUPABASE_SERVICE_ROLE_KEY="sua_chave_service_role"
 
 - **"supabase-py não instalado"** → `pip install supabase`
 - **FK constraint violation** → E5-E7 referencia items que não existem em E4 (verificar collectors E4)
-- **Sem arquivos JSON** → collectors não foram rodados ou resultados salvos em outro lugar
+- **`ResultadoLoadError: nenhum arquivo encontrado`** → collectors não foram rodados ou resultados salvos em outro lugar
+- **`PdmSourceError`** → rodar E3/E4 antes de E5/E6
 
 ---
 
