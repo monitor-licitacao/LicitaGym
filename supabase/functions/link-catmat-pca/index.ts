@@ -167,6 +167,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Corpo JSON inválido" }, 400);
   }
   const body = parsedBody as LinkBody;
+  const targets = linkTargetClasses(body);
   if (!targets.ok) {
     return jsonResponse({ status: "blocked", reason: targets.reason }, 423);
   }
