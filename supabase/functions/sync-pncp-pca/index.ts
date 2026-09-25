@@ -85,6 +85,7 @@ async function syncClassificacao(params: {
   paginaInicial: number;
   maxPaginas: number;
   tamanhoPagina: number;
+  onCheckpoint?: (nextPage: number) => void;
 }): Promise<
   { stats: SyncStats; ultimaPagina: number; paginasRestantes: number }
 > {
@@ -221,8 +222,12 @@ async function syncClassificacao(params: {
       }
     }
 
-    if (pagination.paginasRestantes <= 0) break;
+    if (pagination.paginasRestantes <= 0) {
+      params.onCheckpoint?.(pagina + 1);
+      break;
+    }
     pagina++;
+    params.onCheckpoint?.(pagina);
   }
 
   return { stats, ultimaPagina: pagina, paginasRestantes };
@@ -503,6 +508,7 @@ Deno.serve(async (req) => {
     string,
     SyncStats & { ultima_pagina: number; paginas_restantes: number }
   > = {};
+  const paginaPendentePorCodigo: Record<string, number> = {};
   let currentCodigoIndex = 0;
 
   try {
@@ -521,6 +527,9 @@ Deno.serve(async (req) => {
         paginaInicial,
         maxPaginas,
         tamanhoPagina,
+        onCheckpoint: (nextPage) => {
+          paginaPendentePorCodigo[codigoClassificacao] = nextPage;
+        },
       });
       porCodigo[codigoClassificacao] = {
         ...result.stats,
@@ -582,10 +591,20 @@ Deno.serve(async (req) => {
       isBudget && currentCodigoIndex < codigosClassificacao.length
         ? codigosClassificacao.slice(currentCodigoIndex)
         : [];
+    const paginaPorCodigoPendente = Object.fromEntries(
+      pendingCodigos.map((codigo, index) => [
+        codigo,
+        index === 0
+          ? (paginaPendentePorCodigo[codigo] ?? paginaInicial)
+          : paginaInicial,
+      ]),
+    );
     const continuation = pendingCodigos.length > 0
       ? {
         pending_codigos_classificacao: pendingCodigos,
-        pagina_inicial: paginaInicial,
+        pagina_inicial: paginaPorCodigoPendente[pendingCodigos[0]] ??
+          paginaInicial,
+        pagina_por_codigo_pendente: paginaPorCodigoPendente,
         max_paginas: maxPaginas,
         tamanho_pagina: tamanhoPagina,
       }
@@ -607,7 +626,8 @@ Deno.serve(async (req) => {
         ? {
           ...body,
           codigos_classificacao: pendingCodigos,
-          pagina_inicial: paginaInicial,
+          pagina_inicial: paginaPorCodigoPendente[pendingCodigos[0]] ??
+            paginaInicial,
           continuation,
         }
         : undefined,

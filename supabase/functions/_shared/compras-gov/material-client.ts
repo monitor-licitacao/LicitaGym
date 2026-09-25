@@ -38,7 +38,7 @@ async function fetchPage<T>(path: string, params: MaterialListParams): Promise<{
       }, 60_000);
       if (res.status === 429 || res.status >= 500) {
         await res.body?.cancel();
-        throw new Error(`Compras.gov HTTP ${res.status}`);
+        throw new Error(`Compras.gov HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""}`);
       }
       if (res.status >= 400 && res.status < 500) {
         throw new PermanentHttpError(
