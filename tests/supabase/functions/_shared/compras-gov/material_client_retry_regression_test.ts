@@ -5,6 +5,7 @@
  */
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { withRetry } from "../../../../../supabase/functions/_shared/pncp/retry.ts";
+import { ComprasGovMaterialClient } from "../../../../../supabase/functions/_shared/compras-gov/material-client.ts";
 
 Deno.test(
   "material-client numeric overload withRetry(fn, 6, delay) allows 6 timeouts",
@@ -55,5 +56,31 @@ Deno.test(
     );
     assertEquals(attempts, 6);
     assertEquals(sleeps.length, 5);
+  },
+);
+
+Deno.test(
+  "material-client: HTTP 4xx permanente não faz retry e preserva detalhe via statusText",
+  async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response("erro detalhado", {
+        status: 400,
+        statusText: "Bad Request",
+      });
+    }) as typeof fetch;
+    try {
+      const client = new ComprasGovMaterialClient();
+      await assertRejects(
+        () => client.consultarGrupoMaterial({}),
+        Error,
+        "Compras.gov HTTP 400 Bad Request",
+      );
+      assertEquals(calls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   },
 );

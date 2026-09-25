@@ -503,9 +503,15 @@ Deno.serve(async (req) => {
     string,
     SyncStats & { ultima_pagina: number; paginas_restantes: number }
   > = {};
+  let currentCodigoIndex = 0;
 
   try {
-    for (const codigoClassificacao of codigosClassificacao) {
+    for (
+      currentCodigoIndex = 0;
+      currentCodigoIndex < codigosClassificacao.length;
+      currentCodigoIndex++
+    ) {
+      const codigoClassificacao = codigosClassificacao[currentCodigoIndex];
       const result = await syncClassificacao({
         client,
         consulta,
@@ -523,6 +529,7 @@ Deno.serve(async (req) => {
       };
       mergeStats(stats, result.stats);
     }
+    currentCodigoIndex = codigosClassificacao.length;
 
     if (body.modo === "completo") {
       await inactivateNotSeen(client, "pca_planos", runId, {
@@ -569,16 +576,48 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await finishSyncRun(client, runId, {
-      status: "falhou",
-      erroPrincipal: message,
-    });
     const isBudget = error instanceof BudgetExhaustedError ||
       message.includes("BUDGET_EXHAUSTED");
+    const pendingCodigos =
+      isBudget && currentCodigoIndex < codigosClassificacao.length
+        ? codigosClassificacao.slice(currentCodigoIndex)
+        : [];
+    const continuation = pendingCodigos.length > 0
+      ? {
+        pending_codigos_classificacao: pendingCodigos,
+        pagina_inicial: paginaInicial,
+        max_paginas: maxPaginas,
+        tamanho_pagina: tamanhoPagina,
+      }
+      : undefined;
+    const runStatus = continuation ? "incompleta" : "falhou";
+    await finishSyncRun(client, runId, {
+      status: runStatus,
+      erroPrincipal: message,
+      totalRecebidos: stats.recebidos,
+      totalNovos: stats.novos,
+      totalAtualizados: stats.alterados,
+      totalInalterados: stats.inalterados,
+      totalErros: stats.erros,
+      paginaAtual: Math.max(
+        ...Object.values(porCodigo).map((c) => c.ultima_pagina),
+        0,
+      ),
+      parametros: continuation
+        ? {
+          ...body,
+          codigos_classificacao: pendingCodigos,
+          pagina_inicial: paginaInicial,
+          continuation,
+        }
+        : undefined,
+    });
     return jsonResponse({
       error: message,
       sync_id: runId,
       status: isBudget ? "BUDGET_EXHAUSTED" : "falhou",
+      run_status: runStatus,
+      continuation,
     }, isBudget ? 503 : 500);
   }
 });

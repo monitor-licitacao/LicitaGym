@@ -1,4 +1,4 @@
-import { fetchWithTimeout, withRetry } from "../pncp/retry.ts";
+import { fetchWithTimeout, PermanentHttpError, withRetry } from "../pncp/retry.ts";
 import type { ComprasGovPage } from "./material-types.ts";
 
 const BASE_URL = "https://dadosabertos.compras.gov.br";
@@ -41,8 +41,9 @@ async function fetchPage<T>(path: string, params: MaterialListParams): Promise<{
         throw new Error(`Compras.gov HTTP ${res.status}`);
       }
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Compras.gov HTTP ${res.status}: ${text.slice(0, 200)}`);
+        throw new PermanentHttpError(
+          `Compras.gov HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""}`,
+        );
       }
       return res;
     } catch (error) {
