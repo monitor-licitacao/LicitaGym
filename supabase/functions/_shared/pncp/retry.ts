@@ -166,9 +166,15 @@ export async function fetchWithTimeout(
       ...init,
       signal: controller.signal,
     });
-    // Keep timer alive through body read (headers-ok / body-hang case).
+    // Keep timer alive through body consumption (headers-ok / body-hang).
+    // Error statuses: cancel (don't buffer) so callers get headers promptly.
+    // Success / empty-anomaly paths: buffer under the same abort timer.
     let bodyInit: BodyInit | null = null;
-    if (response.status !== 204 && response.body) {
+    if (response.status === 204 || !response.body) {
+      // nothing to read
+    } else if (!response.ok) {
+      await response.body.cancel().catch(() => {});
+    } else {
       bodyInit = await response.arrayBuffer();
     }
     return new Response(bodyInit, {

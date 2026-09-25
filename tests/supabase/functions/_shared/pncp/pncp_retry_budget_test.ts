@@ -403,10 +403,10 @@ Deno.test(
 
       assertEquals(status, "verificacao_incompleta");
       assertEquals(probesPendentes.includes("search:pcaorgao"), true);
+      assertEquals(searchProbeError != null, true);
       assertEquals(
-        searchProbeError?.includes("BUDGET_EXHAUSTED") ||
-          searchProbeError?.includes("timeout") ||
-          true,
+        searchProbeError!.includes("BUDGET_EXHAUSTED") ||
+          /timeout/i.test(searchProbeError!),
         true,
       );
       assertEquals(Date.now() - wallStart < 110_000, true);
