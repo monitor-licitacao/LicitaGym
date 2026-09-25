@@ -590,7 +590,7 @@ Deno.serve(async (req) => {
         tamanho_pagina: tamanhoPagina,
       }
       : undefined;
-    const runStatus = continuation ? "incompleta" : "falhou";
+    const runStatus = isBudget ? "incompleta" : "falhou";
     await finishSyncRun(client, runId, {
       status: runStatus,
       erroPrincipal: message,
