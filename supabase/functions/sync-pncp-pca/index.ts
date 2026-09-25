@@ -286,9 +286,7 @@ Deno.serve(async (req) => {
           total_registros: probe.total_registros,
         });
       } catch (error) {
-        const reason = error instanceof Error
-          ? error.message
-          : String(error);
+        const reason = error instanceof Error ? error.message : String(error);
         probesPendentes.push(codigo);
         if (
           reason.includes("BUDGET_EXHAUSTED") ||
@@ -308,11 +306,9 @@ Deno.serve(async (req) => {
     try {
       periodSummary = await search.summarizePcaPeriod(ano);
     } catch (error) {
+      // Any Search failure → incomplete verification (never upsert null lastro).
       searchProbeError = error instanceof Error ? error.message : String(error);
-      if (
-        searchProbeError.includes("BUDGET_EXHAUSTED") ||
-        error instanceof BudgetExhaustedError
-      ) {
+      if (!probesPendentes.includes("search:pcaorgao")) {
         probesPendentes.push("search:pcaorgao");
       }
     }

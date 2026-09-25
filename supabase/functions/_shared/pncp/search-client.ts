@@ -1,4 +1,5 @@
 import {
+  BudgetExhaustedError,
   DEFAULT_FETCH_TIMEOUT_MS,
   fetchWithTimeout,
   parseRetryAfterMs,
@@ -52,7 +53,9 @@ function parseTs(value: string | undefined): number | null {
 export class PncpSearchClient {
   private budget: RequestBudget | undefined;
 
-  constructor(private baseUrl = Deno.env.get("PNCP_SEARCH_BASE") ?? DEFAULT_SEARCH_BASE) {}
+  constructor(
+    private baseUrl = Deno.env.get("PNCP_SEARCH_BASE") ?? DEFAULT_SEARCH_BASE,
+  ) {}
 
   withBudget(budget: RequestBudget): this {
     this.budget = budget;
@@ -77,17 +80,17 @@ export class PncpSearchClient {
     url.searchParams.set("ordenacao", "-data");
     if (params.ano) url.searchParams.set("anos", String(params.ano));
 
-    const response = await withRetry(
+    return await withRetry(
       async () => {
         const timeoutMs = this.budget
           ? this.budget.attemptTimeoutMs(DEFAULT_FETCH_TIMEOUT_MS)
           : DEFAULT_FETCH_TIMEOUT_MS;
+        if (timeoutMs <= 0) throw new BudgetExhaustedError();
         try {
           const res = await fetchWithTimeout(url, {
             headers: { Accept: "application/json" },
           }, timeoutMs);
           if (res.status === 429 || res.status >= 500) {
-            await res.body?.cancel();
             const retryAfterMs = res.status === 429
               ? parseRetryAfterMs(res.headers.get("Retry-After"))
               : null;
@@ -96,8 +99,21 @@ export class PncpSearchClient {
               retryAfterMs,
             );
           }
-          return res;
+          if (!res.ok) {
+            // Body already buffered by fetchWithTimeout; no dangling timer.
+            throw new Error(`PNCP search HTTP ${res.status}`);
+          }
+          const body = await res.json() as {
+            items?: PcaOrgaoSearchItem[];
+            total?: number;
+          };
+          return {
+            items: body.items ?? [],
+            total: Number(body.total ?? 0),
+          };
         } catch (error) {
+          if (error instanceof BudgetExhaustedError) throw error;
+          if (error instanceof RetryableHttpError) throw error;
           if (
             (error instanceof DOMException &&
               (error.name === "TimeoutError" || error.name === "AbortError")) ||
@@ -114,21 +130,17 @@ export class PncpSearchClient {
       {
         budget: this.budget,
         maxAttempts: 3,
-        maxTimeoutRetries: 1,
+        // Timeout ≤ 1 retry only when a request budget is bound.
+        maxTimeoutRetries: this.budget ? 1 : undefined,
       },
     );
-    if (!response.ok) {
-      throw new Error(`PNCP search HTTP ${response.status}`);
-    }
-    const body = await response.json() as { items?: PcaOrgaoSearchItem[]; total?: number };
-    return {
-      items: body.items ?? [],
-      total: Number(body.total ?? 0),
-    };
   }
 
   /** Resume datas do índice Search — barato, ideal para decidir se roda carga anual. */
-  async summarizePcaPeriod(ano: number, tamPagina = 50): Promise<PcaSearchPeriodSummary> {
+  async summarizePcaPeriod(
+    ano: number,
+    tamPagina = 50,
+  ): Promise<PcaSearchPeriodSummary> {
     const { items, total } = await this.fetchPcaOrgaoPage({ ano, tamPagina });
 
     let maxAtualizacao: string | null = null;
