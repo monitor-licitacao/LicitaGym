@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import re
 import sys
 import threading
@@ -35,6 +36,10 @@ from .portal import cnpj_ou_none
 
 log = logging.getLogger("pncp")
 BASE = "https://pncp.gov.br"
+
+# Detalhe da compra e atalho (o edital e a fonte principal): nao gastar 10 min nele.
+DETALHE_TIMEOUT = int(os.environ.get("PNCP_DETALHE_TIMEOUT", "20"))
+DETALHE_TENTATIVAS = int(os.environ.get("PNCP_DETALHE_TENTATIVAS", "2"))
 
 # Termos padrão: prioriza o interesse comercial (grama/borracha) e o núcleo fitness
 TERMOS_PADRAO = [
@@ -59,12 +64,12 @@ class PNCP:
             self._local.s.headers["User-Agent"] = "LicitaGym-Coletor/1.0 (pesquisa de licitações públicas)"
         return self._local.s
 
-    def _get(self, caminho: str, **params):
+    def _get(self, caminho: str, *, _timeout=None, _tentativas=None, **params):
         url = caminho if caminho.startswith("http") else BASE + caminho
         ultimo = None
-        for tentativa in range(self.tentativas):
+        for tentativa in range(_tentativas or self.tentativas):
             try:
-                r = self.s.get(url, params=params or None, timeout=self.timeout)
+                r = self.s.get(url, params=params or None, timeout=_timeout or self.timeout)
                 time.sleep(self.delay)
                 if r.status_code == 204:
                     return []
@@ -96,7 +101,7 @@ class PNCP:
     def compra(self, c: dict) -> dict:
         """Detalhe da compra: traz o número do PROCESSO ADMINISTRATIVO ('processo'),
         que a busca não devolve. É ele (com o CNPJ do órgão) que identifica o certame fora do PNCP."""
-        r = self._get(self.detalhe_compra(c))
+        r = self._get(self.detalhe_compra(c), _timeout=DETALHE_TIMEOUT, _tentativas=DETALHE_TENTATIVAS)
         # PNCP devolve erro de rota como JSON {status, message} com HTTP 200.
         if isinstance(r, dict) and str(r.get("status", "")).startswith(("3", "4", "5")) and "message" in r:
             raise RuntimeError(f"PNCP detalhe: {r.get('status')} {r.get('message')}")
