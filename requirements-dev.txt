@@ -1,2 +1,6 @@
-# Development dependencies for Python collectors & tests
+﻿# Development dependencies for Python collectors & tests
 pytest>=7.0.0
+# coletor/ (tests/test_pncp.py, tests/test_processo_edital.py, tests/test_indexador.py)
+requests>=2.31
+pypdf>=4.0
+reportlab>=4.0

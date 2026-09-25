@@ -35,6 +35,24 @@ from .portal import cnpj_ou_none
 
 log = logging.getLogger("pncp")
 BASE = "https://pncp.gov.br"
+MAX_RETRY_AFTER_S = 60
+
+
+class RespostaInvalida(RuntimeError):
+    """HTTP 200 cujo corpo não é o JSON esperado (HTML, JSON inválido, tipo errado)."""
+
+
+class ConsultaFalhou(RuntimeError):
+    """Consulta ao PNCP falhou (timeout, 429/5xx esgotados, resposta inválida).
+    Diferente de resposta válida sem o dado: quem recebe não deve gravar nada."""
+
+
+def _retry_after_s(r) -> float | None:
+    try:
+        v = float((r.headers or {}).get("Retry-After", ""))
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return max(0.0, min(v, MAX_RETRY_AFTER_S))
 
 # Termos padrão: prioriza o interesse comercial (grama/borracha) e o núcleo fitness
 TERMOS_PADRAO = [
@@ -70,18 +88,36 @@ class PNCP:
                     return []
                 if r.status_code in (429, 500, 502, 503, 504):
                     ultimo = requests.HTTPError(f"{r.status_code} do PNCP", response=r)
-                    time.sleep(min(60, 5 * 2 ** tentativa))
+                    espera = _retry_after_s(r) if r.status_code == 429 else None
+                    time.sleep(espera if espera is not None else min(60, 5 * 2 ** tentativa))
                     continue
                 r.raise_for_status()
-                return r.json() if "json" in (r.headers.get("content-type") or "") else r
+                if "json" not in (r.headers.get("content-type") or ""):
+                    raise RespostaInvalida(f"PNCP {url}: HTTP {r.status_code} sem JSON "
+                                           f"({r.headers.get('content-type')})")
+                try:
+                    return r.json()
+                except ValueError as e:
+                    raise RespostaInvalida(f"PNCP {url}: JSON inválido: {e}") from e
             except (requests.ConnectionError, requests.Timeout) as e:
                 ultimo = e
                 time.sleep(min(60, 5 * 2 ** tentativa))
         raise ultimo or RuntimeError("PNCP sem resposta")
 
+    def _lista(self, caminho: str, **params) -> list:
+        r = self._get(caminho, **params)
+        if not isinstance(r, list):
+            raise RespostaInvalida(f"PNCP {caminho}: esperava lista, veio {type(r).__name__}")
+        return r
+
     def buscar(self, termo: str, status: str = "todos", pagina: int = 1, tam: int = 100) -> dict:
-        return self._get("/api/search/", q=f'"{termo}"', tipos_documento="edital", ordenacao="-data",
-                         pagina=pagina, tam_pagina=tam, status=status) or {}
+        r = self._get("/api/search/", q=f'"{termo}"', tipos_documento="edital", ordenacao="-data",
+                      pagina=pagina, tam_pagina=tam, status=status)
+        if r == []:
+            return {"items": [], "total": 0}
+        if not isinstance(r, dict) or not isinstance(r.get("items", []), list):
+            raise RespostaInvalida(f"PNCP busca: envelope inesperado ({type(r).__name__})")
+        return r
 
     @staticmethod
     def base_compra(c: dict) -> str:
@@ -100,22 +136,24 @@ class PNCP:
         # PNCP devolve erro de rota como JSON {status, message} com HTTP 200.
         if isinstance(r, dict) and str(r.get("status", "")).startswith(("3", "4", "5")) and "message" in r:
             raise RuntimeError(f"PNCP detalhe: {r.get('status')} {r.get('message')}")
-        return r if isinstance(r, dict) else {}
+        if not isinstance(r, dict):
+            raise RespostaInvalida(f"PNCP detalhe: esperava objeto, veio {type(r).__name__}")
+        return r
 
     def itens(self, c: dict) -> list[dict]:
         out, pagina = [], 1
         while True:
-            lote = self._get(self.base_compra(c) + "/itens", pagina=pagina, tamanhoPagina=100) or []
+            lote = self._lista(self.base_compra(c) + "/itens", pagina=pagina, tamanhoPagina=100)
             out += lote
             if len(lote) < 100:
                 return out
             pagina += 1
 
     def resultados(self, c: dict, numero_item: int) -> list[dict]:
-        return self._get(self.base_compra(c) + f"/itens/{numero_item}/resultados") or []
+        return self._lista(self.base_compra(c) + f"/itens/{numero_item}/resultados")
 
     def arquivos(self, c: dict) -> list[dict]:
-        return self._get(self.base_compra(c) + "/arquivos") or []
+        return self._lista(self.base_compra(c) + "/arquivos")
 
     def baixar(self, url: str, max_bytes: int) -> tuple[bytes, str | None]:
         with self.s.get(url, stream=True, timeout=(30, 180)) as r:
@@ -275,11 +313,14 @@ def _resultados_relevantes(pncp, c, itens, por_item) -> list[tuple[dict, dict]]:
 def identificacao(pncp, c: dict) -> dict:
     """numero_processo = processo administrativo do órgão (ex.: 00007.20260204/0002-28).
     numero_edital = só rótulo de exibição ('Pregão Eletrônico nº 1/2026' se repete entre órgãos e NÃO identifica nada).
-    Identidade: PNCP -> numero_controle_pncp; fora do PNCP -> (CNPJ do órgão, processo administrativo)."""
+    Identidade: PNCP -> numero_controle_pncp; fora do PNCP -> (CNPJ do órgão, processo administrativo).
+
+    numero_processo None = detalhe respondeu sem processo. Falha da consulta levanta ConsultaFalhou:
+    quem chama não grava identificação (não sobrescreve valor bom com NULL)."""
     try:
         det = pncp.compra(c)
-    except Exception:  # detalhe indisponível: não inventa processo
-        det = {}
+    except Exception as e:
+        raise ConsultaFalhou(f"detalhe da compra {c.get('numero_controle_pncp')}: {e}") from e
     proc = (det.get("processo") or "").strip() or None
     num, ano = det.get("numeroCompra"), det.get("anoCompra") or c.get("ano")
     mod = det.get("modalidadeNome") or c.get("modalidade_licitacao_nome")
@@ -313,9 +354,14 @@ def _processar(pncp, sb, arm, c, termo, com_resultados, baixar_arquivos, max_byt
     log.info("  %-9s%s | %s%s%s", categoria, " ★borracha" if interesse else "", rotulo,
              f" | homologado {data_homologacao.date()}" if data_homologacao else "",
              f" | vencedor(es): {', '.join(vencedores[:3])}" if vencedores else "")
-    ident = identificacao(pncp, c)
-    log.info("            processo %s | %s | órgão %s", ident["numero_processo"] or "?", ident["numero_edital"],
-             c.get("orgao_cnpj"))
+    try:
+        ident = identificacao(pncp, c)
+        log.info("            processo %s | %s | órgão %s", ident["numero_processo"] or "?",
+                 ident["numero_edital"], c.get("orgao_cnpj"))
+    except ConsultaFalhou as e:
+        ident = {}
+        _inc(resumo, "falha_detalhe")
+        log.warning("            detalhe indisponível, identificação não gravada: %s", str(e)[:120])
     if dry_run:
         return
 
@@ -397,8 +443,12 @@ def _processar(pncp, sb, arm, c, termo, com_resultados, baixar_arquivos, max_byt
 
 
 def corrigir_processos(pncp: PNCP, sb: Supabase) -> dict:
-    """Versões até a v12 gravaram o código PNCP em numero_processo. Busca o processo administrativo real."""
-    r = {"lidas": 0, "corrigidas": 0, "sem_processo": 0}
+    """Versões até a v12 gravaram o código PNCP em numero_processo. Busca o processo administrativo real.
+
+    Três desfechos por linha: processo encontrado (corrigidas), detalhe válido sem processo
+    (sem_processo, grava NULL: o valor antigo era o código PNCP) e falha da consulta
+    (falha_consulta, não grava nada)."""
+    r = {"lidas": 0, "corrigidas": 0, "sem_processo": 0, "falha_consulta": 0}
     linhas = sb.selecionar("licitacoes_externas", fonte="eq.pncp", select="id,codigo_externo,orgao_cnpj,numero_edital")
     for ln in linhas:
         r["lidas"] += 1
@@ -407,11 +457,17 @@ def corrigir_processos(pncp: PNCP, sb: Supabase) -> dict:
             continue
         c = {"orgao_cnpj": m.group(1), "numero_sequencial": int(m.group(2)), "ano": int(m.group(3)),
              "numero_controle_pncp": ln["codigo_externo"], "title": ln.get("numero_edital")}
-        ident = identificacao(pncp, c)
-        if not ident["numero_processo"]:
-            r["sem_processo"] += 1   # grava nulo: o valor antigo era o código PNCP, não um processo
+        try:
+            ident = identificacao(pncp, c)
+        except ConsultaFalhou as e:
+            r["falha_consulta"] += 1
+            log.warning("  %s: consulta falhou, nada gravado: %s", ln["codigo_externo"], str(e)[:120])
+            continue
         sb.atualizar("licitacoes_externas", ln["id"], ident)
-        r["corrigidas"] += 1
+        if ident["numero_processo"]:
+            r["corrigidas"] += 1
+        else:
+            r["sem_processo"] += 1
         log.info("  %s -> processo %s | %s", ln["codigo_externo"], ident["numero_processo"], ident["numero_edital"])
     return r
 

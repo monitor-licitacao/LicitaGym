@@ -136,11 +136,17 @@ def _ordem_arquivos(arqs: list[dict]) -> list[dict]:
 
 
 def processo_do_edital(pncp: PNCP, c: dict, atual: str | None, resumo: Counter) -> tuple[str | None, str, str | None]:
-    """Retorna (processo, fonte, arquivo). fonte: 'metadados' | 'edital' | ''."""
+    """Retorna (processo, fonte, arquivo). fonte: 'metadados' | 'edital' | '' | 'falha'.
+
+    'falha': nada encontrado e alguma consulta (detalhe, lista de arquivos ou download) falhou,
+    então "não achou" não é conclusivo. '' = consultas ok e nenhum processo nos documentos."""
+    falhou = False
     _etapa("consultando detalhe da compra no PNCP")
     try:
         det = pncp.compra(c)
-    except Exception:
+    except Exception as e:
+        log.warning("    detalhe indisponível: %s", e)
+        falhou = True
         det = {}
     meta = " \n".join(str(det.get(k) or "") for k in ("objetoCompra", "informacaoComplementar")) + " \n" + (c.get("title") or "")
     p = escolher(candidatos(meta), atual)
@@ -152,7 +158,7 @@ def processo_do_edital(pncp: PNCP, c: dict, atual: str | None, resumo: Counter) 
         arqs = _ordem_arquivos(pncp.arquivos(c))
     except Exception as e:
         log.warning("    arquivos indisponíveis: %s", e)
-        return None, "", None
+        return None, "falha", None
     for a in arqs[:MAX_ARQUIVOS]:
         url, nome = a.get("url") or a.get("uri"), a.get("titulo") or "arquivo"
         _etapa(f"baixando {nome[:60]}")
@@ -161,6 +167,7 @@ def processo_do_edital(pncp: PNCP, c: dict, atual: str | None, resumo: Counter) 
         except Exception as e:
             log.warning("    falha ao baixar %s: %s", nome[:60], e)
             resumo["falha_download"] += 1
+            falhou = True
             continue
         _etapa(f"lendo {nome[:50]} ({len(conteudo) / 1048576:.1f} MB)")
         res = extrair(conteudo, nome)
@@ -175,7 +182,7 @@ def processo_do_edital(pncp: PNCP, c: dict, atual: str | None, resumo: Counter) 
         p = escolher(candidatos("\n".join(texto)), atual)
         if p:
             return p, "edital", nome
-    return None, "", None
+    return None, ("falha" if falhou else ""), None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         alvo = alvo[: a.limite]
     log.info("%d compras PNCP, %d com processo fraco a verificar", len(linhas), len(alvo))
 
-    resumo: Counter = Counter(lidas=0, atualizadas=0, nao_encontrado=0)
+    resumo: Counter = Counter(lidas=0, atualizadas=0, nao_encontrado=0, falha_consulta=0)
     parar = threading.Event()
     threading.Thread(target=_batimento, args=(parar,), daemon=True).start()
     for i, ln in enumerate(alvo, 1):
@@ -207,6 +214,10 @@ def main(argv: list[str] | None = None) -> int:
              "numero_controle_pncp": ln["codigo_externo"], "title": ln.get("numero_edital")}
         atual = ln.get("numero_processo")
         novo, fonte, arquivo = processo_do_edital(pncp, c, atual, resumo)
+        if not novo and fonte == "falha":
+            resumo["falha_consulta"] += 1
+            log.info("  %s: consulta falhou, nada gravado (PNCP=%s)", ln["codigo_externo"], atual)
+            continue
         if not novo or digitos(novo) == digitos(atual):
             resumo["nao_encontrado"] += 1
             log.info("  %s: PNCP=%s -> nada melhor no edital", ln["codigo_externo"], atual)
