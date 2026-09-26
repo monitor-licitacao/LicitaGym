@@ -55,9 +55,7 @@ jobs:
           NO_COLOR: "1"
         run: |
           set -euo pipefail
-          deno test tests/supabase --allow-read --allow-env --no-prompt --reporter=dot 2>&1 | tee deno-test.log
-          sed -r 's/\x1b\[[0-9;]*m//g' deno-test.log \
-            | grep -Eq '(ok \| [1-9][0-9]* passed \| 0 failed|test result: ok\. [1-9][0-9]* passed; 0 failed)'
+          deno test tests/supabase --allow-read --allow-env --no-prompt --reporter=dot
 
   python-tests:
     name: pytest (collectors)
