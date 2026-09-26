@@ -542,7 +542,11 @@ Deno.serve(async (req) => {
     }
     currentCodigoIndex = codigosClassificacao.length;
 
-    if (body.modo === "completo" && stats.erros === 0) {
+    if (
+      body.modo === "completo" &&
+      stats.erros === 0 &&
+      Object.values(porCodigo).every((codigo) => codigo.paginas_restantes <= 0)
+    ) {
       await inactivateNotSeen(client, "pca_planos", runId, {
         ano_exercicio: ano,
       });
