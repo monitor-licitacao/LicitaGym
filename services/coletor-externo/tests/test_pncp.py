@@ -198,3 +198,33 @@ def test_numero_processo_e_o_processo_administrativo_nao_o_codigo_pncp():
 def test_sem_detalhe_nao_inventa_processo():
     p = _pncp([COMPRA]); p.compra.side_effect = RuntimeError("503")
     assert P.identificacao(p, COMPRA) == {"numero_processo": None, "numero_edital": COMPRA["title"]}
+
+def test_compra_usa_consulta_v1_e_nao_pncp_v1(monkeypatch):
+    """Detalhe da compra: /api/consulta/v1; itens/arquivos permanecem em /api/pncp/v1."""
+    cli = P.PNCP(delay=0, tentativas=1)
+    monkeypatch.setattr(P.time, "sleep", lambda s: None)
+    visto = {}
+
+    def fake_get(caminho, **params):
+        visto["caminho"] = caminho
+        return {"processo": "3789/2026", "numeroCompra": "41", "anoCompra": 2026}
+
+    cli._get = fake_get
+    assert cli.compra(COMPRA)["processo"] == "3789/2026"
+    assert visto["caminho"] == (
+        f"/api/consulta/v1/orgaos/{COMPRA['orgao_cnpj']}/compras/{COMPRA['ano']}/{COMPRA['numero_sequencial']}"
+    )
+    assert "/api/pncp/v1/" not in visto["caminho"]
+    assert P.PNCP.base_compra(COMPRA).startswith("/api/pncp/v1/")
+    assert P.PNCP.detalhe_compra(COMPRA).startswith("/api/consulta/v1/")
+
+
+def test_compra_levanta_erro_se_json_status_3xx_com_message(monkeypatch):
+    cli = P.PNCP(delay=0, tentativas=1)
+    monkeypatch.setattr(P.time, "sleep", lambda s: None)
+    cli._get = lambda *a, **k: {"status": 301, "message": "Moved Permanently", "path": "/api/pncp/v1/..."}
+    try:
+        cli.compra(COMPRA)
+        assert False, "deveria falhar"
+    except RuntimeError as e:
+        assert "301" in str(e) and "Moved Permanently" in str(e)
