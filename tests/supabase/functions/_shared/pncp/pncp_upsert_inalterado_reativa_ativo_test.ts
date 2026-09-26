@@ -66,7 +66,7 @@ Deno.test("inalterado: reativa ativo=true e carimba last_seen_sync_id", async ()
 
   const result = await upsertByHash(client, "contratacoes_editais", {
     numero_controle_pncp: row.numero_controle_pncp,
-  }, row, { lastSeenSyncId: "chain-abc" });
+  }, row, { lastSeenSyncId: "chain-abc", reactivateOnUnchanged: true });
 
   assertEquals(result, "inalterado");
   assertEquals(updates.length, 1);
@@ -89,7 +89,7 @@ Deno.test("inalterado: update com erro → 'erro' (não finge sucesso)", async (
 
   const result = await upsertByHash(client, "contratacoes_editais", {
     numero_controle_pncp: row.numero_controle_pncp,
-  }, row, { lastSeenSyncId: "chain-xyz" });
+  }, row, { lastSeenSyncId: "chain-xyz", reactivateOnUnchanged: true });
 
   assertEquals(result, "erro");
   assertEquals(updates.length, 1);

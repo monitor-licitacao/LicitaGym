@@ -30,6 +30,7 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     historyFields?: HistoryFieldsOption;
     syncRunId?: string;
     lastSeenSyncId?: string;
+    reactivateOnUnchanged?: boolean;
   },
 ): Promise<UpsertResult> {
   const now = new Date().toISOString();
@@ -62,7 +63,7 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     );
   }
 
-  let query = client.from(table).select("*").limit(1);
+  let query = client.from(table).select("id, payload_hash").limit(1);
   for (const [k, v] of Object.entries(uniqueKey)) {
     query = query.eq(k, v);
   }
@@ -95,6 +96,7 @@ async function upsertExistingRow<T extends Record<string, unknown>>(
     historyFields?: HistoryFieldsOption;
     syncRunId?: string;
     lastSeenSyncId?: string;
+    reactivateOnUnchanged?: boolean;
   } | undefined,
   existing: Record<string, unknown> | null,
 ): Promise<UpsertResult> {
@@ -122,7 +124,7 @@ async function upsertExistingRow<T extends Record<string, unknown>>(
       last_synced_at: now,
       ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
     };
-    if (Object.prototype.hasOwnProperty.call(existing, "ativo")) {
+    if (options?.reactivateOnUnchanged) {
       touchPayload.ativo = true;
     }
     const { error: touchError } = await client.from(table).update(touchPayload).eq("id", existingId);

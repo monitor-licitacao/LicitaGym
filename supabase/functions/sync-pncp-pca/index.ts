@@ -160,6 +160,7 @@ async function syncClassificacao(params: {
           historyFields: ({ rowId }) => ({ pca_plano_id: rowId }),
           syncRunId: runId,
           lastSeenSyncId: runId,
+          reactivateOnUnchanged: true,
         },
       );
       if (planoResult === "novo") stats.novos++;
@@ -199,6 +200,7 @@ async function syncClassificacao(params: {
             }),
             syncRunId: runId,
             lastSeenSyncId: runId,
+            reactivateOnUnchanged: true,
           },
         );
         if (itemResult === "novo") stats.novos++;
