@@ -294,6 +294,19 @@ export function normalizePcaItem(
   };
 }
 
+/**
+ * Mapper pré-P0: mesmo contrato de `normalizePcaItem`, sem a chave
+ * `classificacao_catalogo_id` (hash antigo da projeção). Só para STALE guard /
+ * reprojeção — sync de produção continua usando `normalizePcaItem`.
+ */
+export function normalizePcaItemLegacy(
+  item: Record<string, unknown>,
+  plan: Record<string, unknown>,
+): Omit<ReturnType<typeof normalizePcaItem>, "classificacao_catalogo_id"> {
+  const { classificacao_catalogo_id: _omit, ...legacy } = normalizePcaItem(item, plan);
+  return legacy;
+}
+
 export function normalizeEdital(item: Record<string, unknown>) {
   const parsedControle = resolveCompraControle(item);
   const orgaoCnpj = readOrgaoCnpj(item) || parsedControle?.cnpj || "";
