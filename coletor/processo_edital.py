@@ -147,8 +147,11 @@ def processo_do_edital(pncp: PNCP, c: dict, atual: str | None, resumo: Counter) 
     except Exception as e:
         log.warning("    detalhe indisponível: %s", e)
         falhou = True
-        det = {}
-    meta = " \n".join(str(det.get(k) or "") for k in ("objetoCompra", "informacaoComplementar")) + " \n" + (c.get("title") or "")
+        det = None
+    meta = " \n".join(filter(None, [
+        " \n".join(str(det.get(k) or "") for k in ("objetoCompra", "informacaoComplementar")) if isinstance(det, dict) else "",
+        c.get("title") or "",
+    ]))
     p = escolher(candidatos(meta), atual)
     if p:
         return p, "metadados", None

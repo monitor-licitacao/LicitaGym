@@ -88,6 +88,7 @@ def test_pessoa_fisica_nao_tem_nome_nem_cpf_gravado():
     P.coletar(p, sb, None, ["x"], "todos", 1, 50, True, False, 10**8, False)
     res = {c.args[0]: c.args[1] for c in sb.upsert.call_args_list}["licitacao_resultados"][0]
     assert res["fornecedor_nome"] is None and res["fornecedor_cnpj"] is None
+    assert "niFornecedor" not in res["raw"] and "nomeRazaoSocialFornecedor" not in res["raw"]
 
 
 from datetime import datetime, timezone

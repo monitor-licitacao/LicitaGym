@@ -328,6 +328,13 @@ def identificacao(pncp, c: dict) -> dict:
     return {"numero_processo": proc, "numero_edital": edital}
 
 
+def _raw_resultado(r: dict) -> dict:
+    campos_sigilosos = {"niFornecedor"}
+    if r.get("tipoPessoa") == "PF":
+        campos_sigilosos.add("nomeRazaoSocialFornecedor")
+    return {k: v for k, v in r.items() if k not in campos_sigilosos}
+
+
 def _processar(pncp, sb, arm, c, termo, com_resultados, baixar_arquivos, max_bytes, dry_run, resumo,
                modo=None, corte_resultado=None):
     itens = pncp.itens(c)
@@ -405,7 +412,7 @@ def _processar(pncp, sb, arm, c, termo, com_resultados, baixar_arquivos, max_byt
         "valor_unitario_homologado": _num(r.get("valorUnitarioHomologado")),
         "valor_total_homologado": _num(r.get("valorTotalHomologado")),
         "situacao": r.get("situacaoCompraItemResultadoNome"), "data_resultado": _data(r.get("dataResultado")),
-        "raw": {k: v for k, v in r.items() if k != "niFornecedor"},
+        "raw": _raw_resultado(r),
     } for it, r in pares]
     if linhas:
         sb.upsert("licitacao_resultados", linhas, "licitacao_id,numero_item,sequencial_resultado")

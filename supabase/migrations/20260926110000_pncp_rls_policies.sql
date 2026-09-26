@@ -1,8 +1,8 @@
 -- RLS das tabelas de licitações externas / PNCP e da taxonomia CATMAT.
 --
--- Decisão (2026-09-25): licitações, itens, resultados e documentos vêm de portais públicos
--- (PNCP, Paradigma/SEST SENAT). São dados públicos; não há modelo de tenant para eles.
---   SELECT: authenticated (anon não tem policy, logo não lê).
+-- Decisão (2026-09-25): licitações, itens e resultados vêm de portais públicos e podem ser
+-- lidos por authenticated. Já documentos/chunks podem carregar texto bruto antes da
+-- sanitização; por isso o SELECT neles fica restrito a admin.
 --   INSERT/UPDATE/DELETE: nenhuma policy para anon/authenticated; só service_role (coletor),
 --   que ignora RLS.
 -- taxonomia_mapa_caracteristica é curadoria editável: leitura authenticated; escrita só admin
@@ -39,9 +39,9 @@ to service_role;
 comment on table public.licitacoes_externas is
   'Licitações de portais públicos (PNCP, Paradigma). RLS: SELECT authenticated; escrita só service_role.';
 comment on table public.licitacao_documentos is
-  'Documentos públicos das licitações. RLS: SELECT authenticated; escrita só service_role.';
+  'Documentos das licitações. RLS: SELECT só admin; escrita só service_role.';
 comment on table public.licitacao_chunks is
-  'Chunks/embeddings de documentos públicos. RLS: SELECT authenticated; escrita só service_role.';
+  'Chunks/embeddings de documentos de licitações. RLS: SELECT só admin; escrita só service_role.';
 comment on table public.licitacao_itens is
   'Itens de contratações públicas. RLS: SELECT authenticated; escrita só service_role.';
 comment on table public.licitacao_resultados is
@@ -50,6 +50,16 @@ comment on table public.taxonomia_mapa_caracteristica is
   'Curadoria característica CATMAT -> bloco. RLS: SELECT authenticated; escrita app_metadata.licitagym_role = admin.';
 
 alter table public.taxonomia_mapa_caracteristica enable row level security;
+
+drop policy if exists licitacao_documentos_select on public.licitacao_documentos;
+create policy licitacao_documentos_select on public.licitacao_documentos
+  for select to authenticated
+  using (((select auth.jwt()) -> 'app_metadata' ->> 'licitagym_role') = 'admin');
+
+drop policy if exists licitacao_chunks_select on public.licitacao_chunks;
+create policy licitacao_chunks_select on public.licitacao_chunks
+  for select to authenticated
+  using (((select auth.jwt()) -> 'app_metadata' ->> 'licitagym_role') = 'admin');
 
 drop policy if exists taxonomia_mapa_admin_insert on public.taxonomia_mapa_caracteristica;
 create policy taxonomia_mapa_admin_insert on public.taxonomia_mapa_caracteristica
