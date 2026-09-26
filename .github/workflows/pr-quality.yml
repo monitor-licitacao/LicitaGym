@@ -77,3 +77,5 @@ jobs:
       # Exit 5 (nenhum teste coletado) também falha.
       - name: Run pytest
         run: pytest tests/ -q --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}/services/coletor-externo
