@@ -84,13 +84,18 @@ export type PcaItemTarget = {
 export type ReprojDecision =
   | {
     kind: "atualizar";
-    matchVersion: "v1" | "v2";
+    matchVersion: "v1" | "v2" | "current";
     hashNovo: string;
     patch: Record<string, unknown>;
     diffs: ColumnDiffCounts;
   }
   | { kind: "ja_atualizado" }
-  | { kind: "STALE_SOURCE_MISMATCH"; hashV1: string; hashV2: string; hashNovo: string }
+  | {
+    kind: "STALE_SOURCE_MISMATCH";
+    hashV1: string;
+    hashV2: string;
+    hashNovo: string;
+  }
   | { kind: "sem_fonte" };
 
 export type ColumnDiffCounts = {
@@ -179,9 +184,9 @@ function extractPlans(payload: unknown): Record<string, unknown>[] {
     const obj = payload as Record<string, unknown>;
     for (const key of ["data", "content", "itens", "resultado"]) {
       if (Array.isArray(obj[key])) {
-        return (obj[key] as unknown[]).filter((x): x is Record<string, unknown> =>
-          !!x && typeof x === "object"
-        );
+        return (obj[key] as unknown[]).filter((
+          x,
+        ): x is Record<string, unknown> => !!x && typeof x === "object");
       }
     }
   }
@@ -251,8 +256,9 @@ export function diffMapperColumns(
     const curVal = current[col as keyof PcaItemTarget];
     const nextVal = next[col];
     if (valuesEqual(curVal, nextVal)) continue;
-    if (col === "classificacao_catalogo_id") counts.classificacao_catalogo_id = 1;
-    else if (col === "pdm_codigo_origem") counts.pdm_codigo_origem = 1;
+    if (col === "classificacao_catalogo_id") {
+      counts.classificacao_catalogo_id = 1;
+    } else if (col === "pdm_codigo_origem") counts.pdm_codigo_origem = 1;
     else if (col === "codigo_item_origem") counts.codigo_item_origem = 1;
     else if (!EXPECTED_DIFF_COLUMNS.has(col)) {
       counts.outros += 1;
@@ -296,8 +302,24 @@ export async function decideReprojection(
   const hashV2 = await hashPayload(v2Row);
   const hashNovo = await hashPayload(newRow);
 
-  if (target.payload_hash === hashNovo) {
+  const diffs = diffMapperColumns(target, newRow);
+  const hasColumnDiffs = diffs.classificacao_catalogo_id > 0 ||
+    diffs.pdm_codigo_origem > 0 ||
+    diffs.codigo_item_origem > 0 ||
+    diffs.outros > 0;
+
+  if (target.payload_hash === hashNovo && !hasColumnDiffs) {
     return { kind: "ja_atualizado" };
+  }
+
+  if (target.payload_hash === hashNovo) {
+    return {
+      kind: "atualizar",
+      matchVersion: "current",
+      hashNovo,
+      patch: buildMapperPatch(newRow, hashNovo),
+      diffs,
+    };
   }
 
   let matchVersion: "v1" | "v2" | null = null;
@@ -312,9 +334,7 @@ export async function decideReprojection(
       hashNovo,
     };
   }
-
   const patch = buildMapperPatch(newRow, hashNovo);
-  const diffs = diffMapperColumns(target, newRow);
   return {
     kind: "atualizar",
     matchVersion,
@@ -398,20 +418,32 @@ export async function writePcaItensSnapshotFile(
     content_sha256: contentSha,
     rows: bodyRows,
   };
-const dir = path.includes("/") || path.includes("\\") ? path.replace(/[/\\][^/\\]+$/, "") || "." : ".";
+  try {
+    await Deno.stat(path);
+    throw new Error(`Snapshot já existe: ${path}`);
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) {
+      throw error;
+    }
+  }
+  const dir = path.includes("/") || path.includes("\\")
+    ? path.replace(/[/\\][^/\\]+$/, "") || "."
+    : ".";
   await Deno.mkdir(dir, { recursive: true });
   await Deno.writeTextFile(path, JSON.stringify(file, null, 2));
   return file;
 }
 
-export async function readPcaItensSnapshotFile(path: string): Promise<SnapshotFile> {
+export async function readPcaItensSnapshotFile(
+  path: string,
+): Promise<SnapshotFile> {
   const raw = await Deno.readTextFile(path);
   const parsed = JSON.parse(raw) as SnapshotFile;
   if (!parsed?.rows || !Array.isArray(parsed.rows)) {
     throw new Error(`Snapshot inválido: ${path}`);
   }
   const recomputed = await sha256Hex(JSON.stringify(parsed.rows));
-if (parsed.content_sha256 !== recomputed) {
+  if (parsed.content_sha256 !== recomputed) {
     throw new Error(
       `Snapshot SHA-256 diverge: file=${parsed.content_sha256} recomputed=${recomputed}`,
     );
@@ -426,6 +458,7 @@ export async function restorePcaItensSnapshotFromFile(
 ): Promise<number> {
   const snap = await readPcaItensSnapshotFile(path);
   let restored = 0;
+  const failures: string[] = [];
   for (const row of snap.rows) {
     const patch: Record<string, unknown> = {
       classificacao_catalogo_id: row.classificacao_catalogo_id,
@@ -443,12 +476,31 @@ export async function restorePcaItensSnapshotFromFile(
       pdm_codigo_origem: row.pdm_codigo_origem,
       codigo_item_origem: row.codigo_item_origem,
     };
-    const { error: upErr } = await client
+    const { data, error: upErr } = await client
       .from("pca_itens")
       .update(patch)
-      .eq("id", row.id);
-    if (upErr) throw upErr;
+      .eq("id", row.id)
+      .select("id");
+    if (upErr) {
+      failures.push(`${row.id}: ${upErr.message}`);
+      continue;
+    }
+    if (!Array.isArray(data) || data.length !== 1) {
+      failures.push(
+        `${row.id}: update afetou ${
+          Array.isArray(data) ? data.length : 0
+        } linhas`,
+      );
+      continue;
+    }
     restored += 1;
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `Rollback incompleto do snapshot ${snap.snapshot_id}: restored=${restored} failed=${failures.length} (${
+        failures.join("; ")
+      })`,
+    );
   }
   return restored;
 }
@@ -458,8 +510,10 @@ export async function restorePcaItensSnapshot(
   client: SupabaseClient,
   snapshotIdOrPath: string,
 ): Promise<number> {
-  if (snapshotIdOrPath.endsWith(".json") || snapshotIdOrPath.includes("/") ||
-    snapshotIdOrPath.includes("\\")) {
+  if (
+    snapshotIdOrPath.endsWith(".json") || snapshotIdOrPath.includes("/") ||
+    snapshotIdOrPath.includes("\\")
+  ) {
     return restorePcaItensSnapshotFromFile(client, snapshotIdOrPath);
   }
   throw new Error(
@@ -507,10 +561,12 @@ function mapItemRow(r: Record<string, unknown>): PcaItemTarget {
     numero_item: Number(r.numero_item),
     id_pca_pncp: String(plano.id_pca_pncp),
     payload_hash: String(r.payload_hash),
-    classificacao_catalogo_id: (r.classificacao_catalogo_id as string | null) ?? null,
+    classificacao_catalogo_id: (r.classificacao_catalogo_id as string | null) ??
+      null,
     descricao: (r.descricao as string | null) ?? null,
     categoria: (r.categoria as string | null) ?? null,
-    classe_material_servico: (r.classe_material_servico as string | null) ?? null,
+    classe_material_servico: (r.classe_material_servico as string | null) ??
+      null,
     codigo_classe_catmat: r.codigo_classe_catmat == null
       ? null
       : Number(r.codigo_classe_catmat),
@@ -522,7 +578,8 @@ function mapItemRow(r: Record<string, unknown>): PcaItemTarget {
     valor_total_estimado: r.valor_total_estimado == null
       ? null
       : Number(r.valor_total_estimado),
-    data_prevista_contratacao: (r.data_prevista_contratacao as string | null) ?? null,
+    data_prevista_contratacao: (r.data_prevista_contratacao as string | null) ??
+      null,
     status: (r.status as string | null) ?? null,
     pdm_codigo_origem: (r.pdm_codigo_origem as string | null) ?? null,
     codigo_item_origem: (r.codigo_item_origem as string | null) ?? null,
@@ -534,7 +591,7 @@ type Writer = {
   updateItem: (
     id: string,
     patch: Record<string, unknown>,
-  ) => Promise<{ error: { message: string } | null }>;
+  ) => Promise<{ error: { message: string } | null; affectedCount: number }>;
 };
 
 export async function loadAllPcaItens(
@@ -571,7 +628,12 @@ export async function loadAllPcaItens(
 
 export async function loadAllSourceRecords(
   client: SupabaseClient,
-): Promise<{ rows: Array<{ id: string; fetched_at: string; payload: unknown }>; countExact: number }> {
+): Promise<
+  {
+    rows: Array<{ id: string; fetched_at: string; payload: unknown }>;
+    countExact: number;
+  }
+> {
   const { count, error: countErr } = await client
     .schema("private")
     .from("source_record")
@@ -594,11 +656,13 @@ export async function loadAllSourceRecords(
         .order("id", { ascending: true })
         .range(from, to);
       return {
-        data: (data as Array<{
-          id: string;
-          fetched_at: string;
-          payload: unknown;
-        }> | null) ?? null,
+        data: (data as
+          | Array<{
+            id: string;
+            fetched_at: string;
+            payload: unknown;
+          }>
+          | null) ?? null,
         error,
       };
     },
@@ -695,7 +759,21 @@ export async function runPcaReprojecaoClassificacao(
     if (options.takeSnapshot !== false && !options.dryRun) {
       const snapId = `pca-pre-p0-${nowIso.replace(/[:.]/g, "-")}`;
       const snapRows = targets.map(targetToSnapshotRow);
-      const file = await writePcaItensSnapshotFile(snapshotPath, snapId, snapRows, nowIso);
+      let file: SnapshotFile;
+      try {
+        file = await readPcaItensSnapshotFile(snapshotPath);
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) {
+          file = await writePcaItensSnapshotFile(
+            snapshotPath,
+            snapId,
+            snapRows,
+            nowIso,
+          );
+        } else {
+          throw error;
+        }
+      }
       report.snapshot_path = snapshotPath;
       report.snapshot_sha256 = file.content_sha256;
     } else if (options.takeSnapshot !== false && options.dryRun) {
@@ -717,13 +795,21 @@ export async function runPcaReprojecaoClassificacao(
 
     const writer: Writer = deps?.writer ?? {
       updateItem: async (id, patch) => {
-        const { error } = await client.from("pca_itens").update(patch).eq("id", id);
-        return { error };
+        const { data, error } = await client
+          .from("pca_itens")
+          .update(patch)
+          .eq("id", id)
+          .select("id");
+        return {
+          error,
+          affectedCount: Array.isArray(data) ? data.length : 0,
+        };
       },
     };
 
     const outrosCols = new Set<string>();
-    const pendingWrites: Array<{ id: string; patch: Record<string, unknown> }> = [];
+    const pendingWrites: Array<{ id: string; patch: Record<string, unknown> }> =
+      [];
 
     for (const target of work) {
       const key = `${target.id_pca_pncp}|${target.numero_item}`;
@@ -751,9 +837,13 @@ export async function runPcaReprojecaoClassificacao(
             report.diff_outros += decision.diffs.outros;
             for (const c of decision.diffs.outros_cols) outrosCols.add(c);
 
-            const classif = decision.patch.classificacao_catalogo_id as string | null;
+            const classif = decision.patch.classificacao_catalogo_id as
+              | string
+              | null;
             countClassificacao(report, classif);
-            report.atualizados += 1;
+            if (options.dryRun) {
+              report.atualizados += 1;
+            }
             pendingWrites.push({ id: target.id, patch: decision.patch });
             break;
           }
@@ -777,8 +867,9 @@ export async function runPcaReprojecaoClassificacao(
       abortOnDiffOutros &&
       report.diff_outros > 0
     ) {
-      const msg =
-        `diff_outros=${report.diff_outros} cols=[${report.diff_outros_cols.join(",")}] — abortar antes de confirmar`;
+      const msg = `diff_outros=${report.diff_outros} cols=[${
+        report.diff_outros_cols.join(",")
+      }] — abortar antes de confirmar`;
       report.erros.push({ motivo: msg });
       report.duracao_s = (Date.now() - started) / 1000;
       await finishSyncRun(client, runId, {
@@ -792,15 +883,29 @@ export async function runPcaReprojecaoClassificacao(
 
     if (!options.dryRun) {
       for (const w of pendingWrites) {
-        const { error: upErr } = await writer.updateItem(w.id, w.patch);
+        const { error: upErr, affectedCount } = await writer.updateItem(
+          w.id,
+          w.patch,
+        );
         if (upErr) {
           report.erros.push({ id: w.id, motivo: upErr.message });
+          continue;
         }
+        if (affectedCount !== 1) {
+          report.erros.push({
+            id: w.id,
+            motivo: `update afetou ${affectedCount} linhas`,
+          });
+          continue;
+        }
+        report.atualizados += 1;
       }
     }
 
     report.duracao_s = (Date.now() - started) / 1000;
-    const status = report.erros.length > 0 ? "concluida_com_erros" : "concluida";
+    const status = report.erros.length > 0
+      ? "concluida_com_erros"
+      : "concluida";
     await finishSyncRun(client, runId, {
       status,
       totalRecebidos: report.alvo,
