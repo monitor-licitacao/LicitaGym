@@ -62,7 +62,7 @@ export async function upsertByHash<T extends Record<string, unknown>>(
     );
   }
 
-  let query = client.from(table).select("id, payload_hash").limit(1);
+  let query = client.from(table).select("*").limit(1);
   for (const [k, v] of Object.entries(uniqueKey)) {
     query = query.eq(k, v);
   }
@@ -118,13 +118,14 @@ async function upsertExistingRow<T extends Record<string, unknown>>(
   const existingPayloadHash = String(existing.payload_hash);
 
   if (existingPayloadHash === payloadHash) {
-    // Reativar linhas inativadas por sync anterior: hash igual ≠ "deixar como está"
-    // se ativo=false (bug pós-inactivateNotSeen em continuation chains).
-    const { error: touchError } = await client.from(table).update({
-      ativo: true,
+    const touchPayload: Record<string, unknown> = {
       last_synced_at: now,
       ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
-    }).eq("id", existingId);
+    };
+    if (Object.prototype.hasOwnProperty.call(existing, "ativo")) {
+      touchPayload.ativo = true;
+    }
+    const { error: touchError } = await client.from(table).update(touchPayload).eq("id", existingId);
     if (touchError) return "erro";
     return "inalterado";
   }

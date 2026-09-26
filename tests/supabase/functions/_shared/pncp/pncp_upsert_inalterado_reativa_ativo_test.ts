@@ -95,3 +95,21 @@ Deno.test("inalterado: update com erro → 'erro' (não finge sucesso)", async (
   assertEquals(updates.length, 1);
   assertEquals(updates[0].payload.ativo, true);
 });
+
+Deno.test("inalterado: tabela sem coluna ativo não envia campo ativo no touch", async () => {
+  const row = { codigo: "n-1", descricao: "natureza" };
+  const payloadHash = await hashPayload(row);
+  const { client, updates } = fakeClient({
+    existing: { id: "row-3", payload_hash: payloadHash },
+  });
+
+  const result = await upsertByHash(client, "catmat_pdm_naturezas_despesa", {
+    codigo: row.codigo,
+  }, row, { lastSeenSyncId: "sync-123" });
+
+  assertEquals(result, "inalterado");
+  assertEquals(updates.length, 1);
+  assertEquals(updates[0].payload.ativo, undefined);
+  assertEquals(updates[0].payload.last_seen_sync_id, "sync-123");
+  assertEquals(typeof updates[0].payload.last_synced_at, "string");
+});
