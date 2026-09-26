@@ -73,14 +73,16 @@ def test_processo_do_edital_zip():
         {"titulo": "185062_editais.zip", "tipoDocumentoNome": "Edital", "url": "u1"},
     ]
     pncp.baixar.return_value = (buf.getvalue(), "application/zip")
-    proc, fonte, arq = P.processo_do_edital(pncp, {"title": "Edital nº 4/2026"}, "4", Counter())
-    assert proc == "0137/2026" and fonte == "edital" and arq == "185062_editais.zip"
+    ach = P.processo_do_edital(pncp, {"title": "Edital nº 4/2026"}, "4", Counter(), edital="Edital nº 4/2026")
+    assert ach.status == "encontrado"
+    assert (ach.processo, ach.fonte, ach.arquivo, ach.peso) == ("0137/2026", "edital", "185062_editais.zip", 5)
+    assert "PROCESSO ADMINISTRATIVO" in ach.trecho
     pncp.baixar.assert_called_once_with("u1", P.MAX_BYTES)   # Edital primeiro
 
 
 def test_processo_nos_metadados_nao_baixa():
     pncp = MagicMock()
     pncp.compra.return_value = {"objetoCompra": "Aquisição de grama sintética"}
-    proc, fonte, _ = P.processo_do_edital(pncp, {"title": "Pregão - Eletrônico nº 65 | Processo 137/2026"}, "65", Counter())
-    assert (proc, fonte) == ("137/2026", "metadados")
+    ach = P.processo_do_edital(pncp, {"title": "Pregão - Eletrônico nº 65 | Processo 137/2026"}, "65", Counter())
+    assert (ach.status, ach.processo, ach.fonte) == ("encontrado", "137/2026", "metadados")
     pncp.arquivos.assert_not_called()

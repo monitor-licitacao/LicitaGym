@@ -1,2 +1,4 @@
 # Development dependencies for Python collectors & tests
+-r requirements.txt
 pytest>=7.0.0
+reportlab>=4
