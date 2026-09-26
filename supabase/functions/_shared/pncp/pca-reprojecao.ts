@@ -410,7 +410,7 @@ export async function readPcaItensSnapshotFile(path: string): Promise<SnapshotFi
     throw new Error(`Snapshot inválido: ${path}`);
   }
   const recomputed = await sha256Hex(JSON.stringify(parsed.rows));
-  if (parsed.content_sha256 && parsed.content_sha256 !== recomputed) {
+if (parsed.content_sha256 !== recomputed) {
     throw new Error(
       `Snapshot SHA-256 diverge: file=${parsed.content_sha256} recomputed=${recomputed}`,
     );
