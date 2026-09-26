@@ -166,8 +166,12 @@ Deno.serve(async (req) => {
   if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
     return jsonResponse({ error: "Corpo JSON inválido" }, 400);
   }
-  const body = parsedBody as LinkBody;
-  const targets = linkTargetClasses(body);
+const rawClasse = (parsedBody as Record<string, unknown>).classe_catmat;
+if (rawClasse !== undefined && rawClasse !== null && typeof rawClasse !== "string") {
+  return jsonResponse({ error: "classe_catmat deve ser texto" }, 400);
+}
+const body = parsedBody as LinkBody;
+const targets = linkTargetClasses(body);
   if (!targets.ok) {
     return jsonResponse({ status: "blocked", reason: targets.reason }, 423);
   }
