@@ -50,13 +50,18 @@ Deno.test("C3 Retry-After seconds and HTTP-date become a wait, then clamp", () =
 
 Deno.test("C3 RetryableHttpError waits retryAfterMs instead of linear backoff", async () => {
   let n = 0;
-  const started = Date.now();
+  const sleeps: number[] = [];
   const value = await withRetry(async () => {
     n++;
     if (n < 3) throw new RetryableHttpError("PNCP consulta HTTP 429", 30);
     return "ok";
-  }, 3, 1000);
+  }, {
+    maxAttempts: 3,
+    baseDelayMs: 1000,
+    sleep: async (ms) => {
+      sleeps.push(ms);
+    },
+  });
   assertEquals(value, "ok");
-  const elapsed = Date.now() - started;
-  assert(elapsed >= 50 && elapsed < 500, `elapsed ${elapsed}`);
+  assertEquals(sleeps, [30, 30]);
 });
