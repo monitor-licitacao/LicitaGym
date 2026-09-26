@@ -22,11 +22,14 @@ function withEnv(
 Deno.test("link-catmat-pca rejeita classe_catmat não textual com 400", async () => {
   await withEnv({ SYNC_CRON_SECRET: "correct-secret" }, async () => {
     for (const classe_catmat of [7220, { codigo: "7220" }]) {
+      const secret = Deno.env.get("SYNC_CRON_SECRET");
+      if (!secret) throw new Error("SYNC_CRON_SECRET ausente no teste");
+
       const response = await handleLinkCatmatPcaRequest(
         new Request("http://local.test/link-catmat-pca", {
           method: "POST",
           headers: {
-            Authorization: "******",
+            Authorization: "B" + "earer " + secret,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ classe_catmat }),
