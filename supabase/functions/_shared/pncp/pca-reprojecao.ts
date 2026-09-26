@@ -398,7 +398,8 @@ export async function writePcaItensSnapshotFile(
     content_sha256: contentSha,
     rows: bodyRows,
   };
-  await Deno.mkdir(path.replace(/[/\\][^/\\]+$/, ""), { recursive: true });
+const dir = path.includes("/") || path.includes("\\") ? path.replace(/[/\\][^/\\]+$/, "") || "." : ".";
+  await Deno.mkdir(dir, { recursive: true });
   await Deno.writeTextFile(path, JSON.stringify(file, null, 2));
   return file;
 }
