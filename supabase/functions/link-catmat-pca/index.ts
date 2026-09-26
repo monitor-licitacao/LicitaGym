@@ -168,6 +168,32 @@ async function linkOneClass(
   };
 }
 
+export function parseLinkCatmatPcaBody(
+  parsedBody: unknown,
+): { ok: true; body: LinkBody } | { ok: false; response: Response } {
+  if (
+    !parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)
+  ) {
+    return {
+      ok: false,
+      response: jsonResponse({ error: "Corpo JSON inválido" }, 400),
+    };
+  }
+
+  const rawClasse = (parsedBody as Record<string, unknown>).classe_catmat;
+  if (
+    rawClasse !== undefined && rawClasse !== null &&
+    typeof rawClasse !== "string"
+  ) {
+    return {
+      ok: false,
+      response: jsonResponse({ error: "classe_catmat deve ser texto" }, 400),
+    };
+  }
+
+  return { ok: true, body: parsedBody as LinkBody };
+}
+
 export async function handleLinkCatmatPcaRequest(
   req: Request,
 ): Promise<Response> {
@@ -179,20 +205,11 @@ export async function handleLinkCatmatPcaRequest(
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
-  const parsedBody: unknown = await req.json().catch(() => null);
-  if (
-    !parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)
-  ) {
-    return jsonResponse({ error: "Corpo JSON inválido" }, 400);
+  const parsed = parseLinkCatmatPcaBody(await req.json().catch(() => null));
+  if (!parsed.ok) {
+    return parsed.response;
   }
-  const rawClasse = (parsedBody as Record<string, unknown>).classe_catmat;
-  if (
-    rawClasse !== undefined && rawClasse !== null &&
-    typeof rawClasse !== "string"
-  ) {
-    return jsonResponse({ error: "classe_catmat deve ser texto" }, 400);
-  }
-  const body = parsedBody as LinkBody;
+  const body = parsed.body;
   const targets = linkTargetClasses(body);
   if (!targets.ok) {
     return jsonResponse({ status: "blocked", reason: targets.reason }, 423);

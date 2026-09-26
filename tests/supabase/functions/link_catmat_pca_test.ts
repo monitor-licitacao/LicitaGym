@@ -1,5 +1,8 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { handleLinkCatmatPcaRequest } from "../../../supabase/functions/link-catmat-pca/index.ts";
+import {
+  handleLinkCatmatPcaRequest,
+  parseLinkCatmatPcaBody,
+} from "../../../supabase/functions/link-catmat-pca/index.ts";
 
 function withEnv(
   vars: Record<string, string | undefined>,
@@ -42,4 +45,12 @@ Deno.test("link-catmat-pca rejeita classe_catmat não textual com 400", async ()
       });
     }
   });
+});
+
+Deno.test("link-catmat-pca aceita classe_catmat ausente ou nula na validação inicial", async () => {
+  const withoutClass = parseLinkCatmatPcaBody({});
+  assertEquals(withoutClass.ok, true);
+
+  const nullClass = parseLinkCatmatPcaBody({ classe_catmat: null });
+  assertEquals(nullClass.ok, true);
 });
