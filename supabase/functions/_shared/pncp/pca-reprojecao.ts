@@ -692,7 +692,7 @@ export async function runPcaReprojecaoClassificacao(
   const lockKey = options.lockKey ?? DEFAULT_PCA_REPROJECTION_LOCK_KEY;
   const nowIso = options.nowIso?.() ?? new Date().toISOString();
   const snapshotPath = options.snapshotPath ?? defaultSnapshotPath(nowIso);
-  const abortOnDiffOutros = options.abortOnDiffOutros !== false;
+  const abortOnDiffOutros = options.abortOnDiffOutros === true; // P0: permitir diff_outros
 
   const { runId, alreadyRunning } = await acquireSyncLock(
     client,
