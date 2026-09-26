@@ -260,6 +260,14 @@ function parseCodigoClasseCatmat(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseClassificacaoCatalogoId(value: unknown): string | null {
+  // Official PCA Material/Serviço axis (Manual §8.3–§8.4): 1=Material, 2=Serviço.
+  // Wire name is classificacaoCatalogoId — do not invent from categoriaItemPcaNome.
+  if (value == null || value === "") return null;
+  const s = String(value).trim();
+  return s.length > 0 ? s : null;
+}
+
 export function normalizePcaItem(
   item: Record<string, unknown>,
   _plan: Record<string, unknown>,
@@ -274,6 +282,7 @@ export function normalizePcaItem(
     categoria: item.categoriaItemPcaNome ? String(item.categoriaItemPcaNome) : null,
     classe_material_servico: classeRaw,
     codigo_classe_catmat: parseCodigoClasseCatmat(classeRaw),
+    classificacao_catalogo_id: parseClassificacaoCatalogoId(item.classificacaoCatalogoId),
     quantidade: item.quantidadeEstimada != null ? Number(item.quantidadeEstimada) : null,
     unidade_medida: item.unidadeFornecimento ? String(item.unidadeFornecimento) : null,
     valor_unitario_estimado: item.valorUnitario != null ? Number(item.valorUnitario) : null,
