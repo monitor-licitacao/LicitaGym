@@ -9,6 +9,14 @@ export type HistoryFieldsOption =
   | Record<string, unknown>
   | ((ctx: HistoryFieldsContext) => Record<string, unknown>);
 
+const TABLES_WITH_ATIVO = new Set([
+  "contratacoes_atas",
+  "contratacoes_contratos",
+  "contratacoes_editais",
+  "pca_itens",
+  "pca_planos",
+]);
+
 function resolveHistoryFields(
   historyFields: HistoryFieldsOption | undefined,
   rowId: string,
@@ -118,13 +126,15 @@ async function upsertExistingRow<T extends Record<string, unknown>>(
 
   const existingId = String(existing.id);
   const existingPayloadHash = String(existing.payload_hash);
+  const shouldReactivate = options?.reactivateOnUnchanged === true &&
+    TABLES_WITH_ATIVO.has(table);
 
   if (existingPayloadHash === payloadHash) {
     const touchPayload: Record<string, unknown> = {
       last_synced_at: now,
       ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
     };
-    if (options?.reactivateOnUnchanged) {
+    if (shouldReactivate) {
       touchPayload.ativo = true;
     }
     const { error: touchError } = await client.from(table).update(touchPayload).eq("id", existingId);

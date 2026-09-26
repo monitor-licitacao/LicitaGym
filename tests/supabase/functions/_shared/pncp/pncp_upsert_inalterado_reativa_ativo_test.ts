@@ -96,7 +96,7 @@ Deno.test("inalterado: update com erro → 'erro' (não finge sucesso)", async (
   assertEquals(updates[0].payload.ativo, true);
 });
 
-Deno.test("inalterado: tabela sem coluna ativo não envia campo ativo no touch", async () => {
+Deno.test("inalterado: tabela sem coluna ativo ignora reativação e não envia campo ativo no touch", async () => {
   const row = { codigo: "n-1", descricao: "natureza" };
   const payloadHash = await hashPayload(row);
   const { client, updates } = fakeClient({
@@ -105,7 +105,7 @@ Deno.test("inalterado: tabela sem coluna ativo não envia campo ativo no touch",
 
   const result = await upsertByHash(client, "catmat_pdm_naturezas_despesa", {
     codigo: row.codigo,
-  }, row, { lastSeenSyncId: "sync-123" });
+  }, row, { lastSeenSyncId: "sync-123", reactivateOnUnchanged: true });
 
   assertEquals(result, "inalterado");
   assertEquals(updates.length, 1);
