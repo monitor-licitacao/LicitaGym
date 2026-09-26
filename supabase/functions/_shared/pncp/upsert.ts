@@ -118,10 +118,14 @@ async function upsertExistingRow<T extends Record<string, unknown>>(
   const existingPayloadHash = String(existing.payload_hash);
 
   if (existingPayloadHash === payloadHash) {
-    await client.from(table).update({
+    // Reativar linhas inativadas por sync anterior: hash igual ≠ "deixar como está"
+    // se ativo=false (bug pós-inactivateNotSeen em continuation chains).
+    const { error: touchError } = await client.from(table).update({
+      ativo: true,
       last_synced_at: now,
       ...(options?.lastSeenSyncId ? { last_seen_sync_id: options.lastSeenSyncId } : {}),
     }).eq("id", existingId);
+    if (touchError) return "erro";
     return "inalterado";
   }
 
