@@ -70,7 +70,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dev deps
-        run: pip install -r requirements-dev.txt
+          pip install -r services/coletor-externo/requirements-dev.txt -r requirements-dev.txt
 
       # Exit 5 (nenhum teste coletado) também falha.
       - name: Run pytest
